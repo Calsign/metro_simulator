@@ -1,0 +1,12 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@pip_pkgs//:requirements.bzl", "requirement")
+
+py_binary(
+    name = "debug",
+    srcs = ["main.py"],
+    main = "main.py",
+    deps = [
+        requirement("pygame"),
+        "//ffi/python",
+    ],
+)

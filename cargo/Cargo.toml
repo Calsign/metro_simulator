@@ -1,0 +1,21 @@
+[package]
+name = "compile_with_bazel"
+version = "0.0.0"
+
+[lib]
+path = "fake_lib.rs"
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+lazy_static = "1.4"
+petgraph = "0.6"
+splines = "4.0"
+pyo3 = {version = "0.15", features = ["extension-module"]}
+
+# support for cargo-raze bazel integration
+[package.metadata.raze]
+workspace_path = "//cargo/pkgs"
+package_aliases_dir = "pkgs"
+targets = ["x86_64-unknown-linux-gnu"]
+genmode = "Remote"

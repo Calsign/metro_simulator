@@ -1,0 +1,22 @@
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "quadtree",
+    srcs = [
+        "address.rs",
+        "lib.rs",
+        "quadrant.rs",
+        "rect.rs",
+    ],
+    visibility = ["//engine:__subpackages__"],
+    deps = [
+        "//cargo/pkgs:anyhow",
+        "//cargo/pkgs:thiserror",
+    ],
+)
+
+rust_test(
+    name = "quadtree_tests",
+    crate = ":quadtree",
+    deps = [":quadtree"],
+)

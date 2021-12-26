@@ -1,0 +1,32 @@
+load("@rules_rust//rust:defs.bzl", "rust_shared_library")
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+rust_shared_library(
+    name = "bindings",
+    srcs = ["bindings.rs"],
+    deps = [
+        "//cargo/pkgs:pyo3",
+        "//engine",
+    ],
+)
+
+# for some reason this indirection is necessary for the shared library to appear in the runfiles
+genrule(
+    name = "engine.so",
+    srcs = [":bindings"],
+    outs = ["engine.so"],
+    cmd = "cp $< $@",
+)
+
+py_library(
+    name = "python",
+    data = [":engine.so"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "importable_test",
+    srcs = ["importable_test.py"],
+    deps = [":python"],
+)
