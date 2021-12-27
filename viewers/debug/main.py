@@ -3,11 +3,13 @@ import time
 import os
 import math
 
+import argh
+
 import engine
 
 # suppress banner
 if True:
-    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
     import pygame
 
 
@@ -15,10 +17,14 @@ WINDOW_SIZE = (1920, 1080)
 FRAMERATE = 60
 DEFAULT_SCALE = 4
 
+DEFAULT_CONFIG = 'config/debug.toml'
 
-def main():
-    config = engine.Config("config/debug.toml")
-    state = engine.State(config)
+
+def main(config=DEFAULT_CONFIG, load_file=None):
+    if load_file is None:
+        state = engine.State(engine.Config(config))
+    else:
+        state = engine.State.load(load_file)
 
     min_scale = min(WINDOW_SIZE) / state.width / 2
     max_scale = 100
@@ -30,7 +36,6 @@ def main():
     ty = WINDOW_SIZE[1] / 2 - state.width * scale / 2
 
     pygame.init()
-
     display = pygame.display.set_mode(WINDOW_SIZE)
 
     def screen_coords(m):
@@ -93,6 +98,11 @@ def main():
                       new_scale + ty * new_scale) / scale
 
                 scale = new_scale
+            elif event.type == pygame.KEYDOWN:
+                # detect ctrl+s
+                if event.key == ord('s') and event.mod in [pygame.KMOD_LCTRL, pygame.KMOD_RCTRL]:
+                    state.save(
+                        "/tmp/metro_simulator_{}.json".format(math.floor(time.time())))
 
     while True:
         handle_input()
@@ -115,6 +125,6 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        argh.dispatch_command(main)
     except KeyboardInterrupt:
         pass

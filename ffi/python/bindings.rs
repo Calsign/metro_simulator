@@ -107,6 +107,17 @@ impl State {
         }
     }
 
+    #[staticmethod]
+    fn load(path: std::path::PathBuf) -> PyResult<Self> {
+        Ok(State {
+            state: wrap_err(engine::state::State::load_file(&path))?,
+        })
+    }
+
+    fn save(&self, path: std::path::PathBuf) -> PyResult<()> {
+        wrap_err(self.state.dump_file(&path))
+    }
+
     #[getter]
     fn width(&self) -> u64 {
         self.state.qtree.width()
