@@ -384,7 +384,10 @@ impl<'a, 'b, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, B, L, E> {
     }
 
     fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), E> {
-        self.inner.visit_leaf(leaf, data)
+        if data.in_bounds(self.bounds) {
+            self.inner.visit_leaf(leaf, data)?
+        }
+        Ok(())
     }
 }
 
@@ -399,7 +402,10 @@ impl<'a, 'b, B, L, E> MutVisitor<B, L, E> for MutRectVisitor<'a, 'b, B, L, E> {
     }
 
     fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData) -> Result<(), E> {
-        self.inner.visit_leaf(leaf, data)
+        if data.in_bounds(self.bounds) {
+            self.inner.visit_leaf(leaf, data)?
+        }
+        Ok(())
     }
 }
 

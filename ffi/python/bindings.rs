@@ -130,6 +130,35 @@ impl State {
         self.state.qtree.visit(&mut visitor)
     }
 
+    fn visit_rect(
+        &self,
+        branch_visitor: &PyAny,
+        leaf_visitor: &PyAny,
+        min_x: u64,
+        max_x: u64,
+        min_y: u64,
+        max_y: u64,
+    ) -> PyResult<()> {
+        if !branch_visitor.is_callable() || !leaf_visitor.is_callable() {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "visitors must be callable",
+            ));
+        }
+        let mut visitor = PyQtreeVisitor {
+            branch_visitor: branch_visitor.into(),
+            leaf_visitor: leaf_visitor.into(),
+        };
+        self.state.qtree.visit_rect(
+            &mut visitor,
+            &quadtree::Rect {
+                min_x,
+                max_x,
+                min_y,
+                max_y,
+            },
+        )
+    }
+
     fn get_address(&self, x: u64, y: u64) -> PyResult<Address> {
         Ok(wrap_err(self.state.qtree.get_address(x, y))?.into())
     }

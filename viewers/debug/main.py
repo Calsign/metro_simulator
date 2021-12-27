@@ -20,8 +20,11 @@ def main():
     config = engine.Config("config/debug.toml")
     state = engine.State(config)
 
+    min_scale = min(WINDOW_SIZE) / state.width / 2
+    max_scale = 100
+
     # current scale; pixels per tile
-    scale = min(WINDOW_SIZE) / state.width
+    scale = min_scale
     # current translation; pixels
     tx = WINDOW_SIZE[0] / 2 - state.width * scale / 2
     ty = WINDOW_SIZE[1] / 2 - state.width * scale / 2
@@ -38,6 +41,9 @@ def main():
         sx, sy = s
         return (round((sx - tx) / scale), round((sy - ty) / scale))
 
+    def in_bounds(x, y, w):
+        return x + w > 0 and x < WINDOW_SIZE[0] and y + w > 0 and y < WINDOW_SIZE[1]
+
     def visit_branch(branch, data):
         if data.width * scale >= 10:
             return True
@@ -45,13 +51,17 @@ def main():
             # don't draw things that are too small to see
             x, y = screen_coords((data.x, data.y))
             w = data.width * scale
-            pygame.draw.rect(display, (150, 150, 150), pygame.Rect(x, y, w, w))
+            pygame.draw.rect(display, (150, 150, 150),
+                             pygame.Rect(x, y, w, w))
 
     def visit_leaf(branch, data):
         x, y = screen_coords((data.x, data.y))
         w = data.width * scale
         pygame.draw.lines(display, (255, 255, 255), True,
                           ((x, y), (x+w, y), (x+w, y+w), (x, y+w)))
+
+        nonlocal visited
+        visited += 1
 
     def handle_input():
         for event in pygame.event.get():
@@ -71,7 +81,8 @@ def main():
             elif event.type == pygame.MOUSEWHEEL:
                 nonlocal scale
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                new_scale = scale * 1.2**event.y
+                new_scale = max(
+                    min(scale * 1.2**event.y, max_scale), min_scale)
 
                 # Zoom centered on the mouse
                 # Invariant: (mouse_x - tx) / scale = (mouse_x - tx') / scale'
@@ -86,8 +97,17 @@ def main():
     while True:
         handle_input()
 
+        x1, y1 = model_coords((0, 0))
+        x2, y2 = model_coords(WINDOW_SIZE)
+
+        visited = 0
+
         display.fill((100, 100, 100))
-        state.visit(visit_branch, visit_leaf)
+        state.visit_rect(visit_branch, visit_leaf,
+                         max(x1, 0), max(x2, 0), max(y1, 0), max(y2, 0))
+
+        if False:
+            print(f'visited: {visited}')
 
         pygame.display.update()
         time.sleep(1 / FRAMERATE)
