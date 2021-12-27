@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, serde_derive::Serialize, serde_derive::Deserialize)]
 pub enum Quadrant {
     NW = 0,
     NE = 1,
@@ -8,10 +8,10 @@ pub enum Quadrant {
 
 impl Quadrant {
     fn index(self) -> u8 {
-        return self as u8;
+        self as u8
     }
 
-    fn try_from(index: u8) -> Option<Self> {
+    pub fn try_from(index: u8) -> Option<Self> {
         use Quadrant::*;
         return match index {
             0 => Some(NW),
@@ -27,15 +27,21 @@ impl Quadrant {
         return match (right, bottom) {
             (false, false) => NW,
             (true, false) => NE,
-            (true, true) => SE,
             (false, true) => SW,
+            (true, true) => SE,
         };
+    }
+}
+
+impl From<&Quadrant> for u8 {
+    fn from(quadrant: &Quadrant) -> Self {
+        quadrant.index()
     }
 }
 
 pub static QUADRANTS: [Quadrant; 4] = [Quadrant::NW, Quadrant::NE, Quadrant::SW, Quadrant::SE];
 
-#[derive(Debug)]
+#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 pub struct QuadMap<T> {
     data: [T; 4],
 }

@@ -2,10 +2,21 @@ load("@rules_rust//rust:defs.bzl", "rust_library")
 
 rust_library(
     name = "engine",
-    srcs = ["lib.rs"],
+    srcs = [
+        "config.rs",
+        "lib.rs",
+        "state.rs",
+    ],
+    proc_macro_deps = [
+        "//cargo/pkgs:serde_derive",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//cargo/pkgs:petgraph",
+        "//cargo/pkgs:serde",
+        "//cargo/pkgs:serde_json",
+        "//cargo/pkgs:thiserror",
+        "//cargo/pkgs:toml",
         "//engine/quadtree",
     ],
 )

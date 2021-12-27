@@ -2,9 +2,9 @@ mod address;
 mod quadrant;
 mod rect;
 
-pub use address::Address;
-pub use quadrant::{QuadMap, Quadrant, QUADRANTS};
-pub use rect::Rect;
+pub use crate::address::Address;
+pub use crate::quadrant::{QuadMap, Quadrant, QUADRANTS};
+pub use crate::rect::Rect;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum Error {
@@ -35,14 +35,14 @@ impl VisitData {
     }
 }
 
-pub trait Visitor<B, L> {
-    fn visit_branch(&mut self, branch: &B, data: &VisitData) -> bool;
-    fn visit_leaf(&mut self, leaf: &L, data: &VisitData);
+pub trait Visitor<B, L, E> {
+    fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, E>;
+    fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), E>;
 }
 
-pub trait MutVisitor<B, L> {
-    fn visit_branch(&mut self, branch: &mut B, data: &VisitData) -> bool;
-    fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData);
+pub trait MutVisitor<B, L, E> {
+    fn visit_branch(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E>;
+    fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData) -> Result<(), E>;
 }
 
 impl VisitData {
@@ -65,6 +65,7 @@ impl VisitData {
     }
 }
 
+#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 enum Node<B, L> {
     Branch {
         data: B,
@@ -105,33 +106,40 @@ impl<B, L> Node<B, L> {
         };
     }
 
-    fn visit(&self, visitor: &mut dyn Visitor<B, L>, visit_data: VisitData) {
+    fn visit<E>(&self, visitor: &mut dyn Visitor<B, L, E>, visit_data: VisitData) -> Result<(), E> {
         match self {
             Node::Branch { data, children, .. } => {
-                if visitor.visit_branch(data, &visit_data) {
+                if visitor.visit_branch(data, &visit_data)? {
                     for quadrant in QUADRANTS {
-                        children[quadrant].visit(visitor, visit_data.child(quadrant));
+                        children[quadrant].visit(visitor, visit_data.child(quadrant))?;
                     }
                 }
             }
-            Node::Leaf { data, .. } => visitor.visit_leaf(data, &visit_data),
+            Node::Leaf { data, .. } => visitor.visit_leaf(data, &visit_data)?,
         }
+        Ok(())
     }
 
-    fn visit_mut(&mut self, visitor: &mut dyn MutVisitor<B, L>, visit_data: VisitData) {
+    fn visit_mut<E>(
+        &mut self,
+        visitor: &mut dyn MutVisitor<B, L, E>,
+        visit_data: VisitData,
+    ) -> Result<(), E> {
         match self {
             Node::Branch { data, children, .. } => {
-                if visitor.visit_branch(data, &visit_data) {
+                if visitor.visit_branch(data, &visit_data)? {
                     for quadrant in QUADRANTS {
-                        children[quadrant].visit_mut(visitor, visit_data.child(quadrant));
+                        children[quadrant].visit_mut(visitor, visit_data.child(quadrant))?;
                     }
                 }
             }
-            Node::Leaf { data, .. } => visitor.visit_leaf(data, &visit_data),
+            Node::Leaf { data, .. } => visitor.visit_leaf(data, &visit_data)?,
         }
+        Ok(())
     }
 }
 
+#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 pub struct Quadtree<B, L> {
     /** The root node */
     root: Box<Node<B, L>>,
@@ -159,6 +167,14 @@ impl<B, L> Quadtree<B, L> {
             max_depth: max_depth.try_into().unwrap(),
             width,
         };
+    }
+
+    pub fn width(&self) -> u64 {
+        self.width
+    }
+
+    pub fn max_depth(&self) -> usize {
+        self.max_depth
     }
 
     fn get(&self, address: &Address) -> Result<&Node<B, L>, Error> {
@@ -269,10 +285,11 @@ impl<B, L> Quadtree<B, L> {
         }
     }
 
-    pub fn get_coords(&self, x: u64, y: u64) -> Result<&L, Error> {
+    pub fn get_address(&self, x: u64, y: u64) -> Result<Address, Error> {
         if x >= self.width || y >= self.width {
             return Err(Error::CoordsOutOfBounds(x, y));
         }
+        let mut address = Vec::new();
         // perform binary search in two dimensions
         let mut node = &self.root;
         let mut min_x = 0;
@@ -281,30 +298,35 @@ impl<B, L> Quadtree<B, L> {
         let mut max_y = self.width;
         for _depth in 0..=self.max_depth {
             match &**node {
-                Node::Leaf { data, .. } => return Ok(data),
+                Node::Leaf { .. } => return Ok(address.into()),
                 Node::Branch { children, .. } => {
-                    let right = x >= (max_x - min_x) / 2;
-                    let bottom = y >= (max_y - min_y) / 2;
+                    let center_x = (max_x + min_x) / 2;
+                    let center_y = (max_y + min_y) / 2;
+
+                    let right = x >= center_x;
+                    let bottom = y >= center_y;
 
                     if right {
-                        min_x = (max_x - min_x) / 2;
+                        min_x = center_x;
                     } else {
-                        max_x = (max_x - min_x) / 2;
+                        max_x = center_x;
                     }
                     if bottom {
-                        min_y = (max_y - min_y) / 2;
+                        min_y = center_y;
                     } else {
-                        max_y = (max_y - min_y) / 2;
+                        max_y = center_y;
                     }
 
-                    node = &children[Quadrant::from_sides(right, bottom)]
+                    let quadrant = Quadrant::from_sides(right, bottom);
+                    address.push(quadrant);
+                    node = &children[quadrant];
                 }
             }
         }
         panic!("invariant violated; nodes nested deeper than max_depth");
     }
 
-    pub fn visit(&self, visitor: &mut dyn Visitor<B, L>) {
+    pub fn visit<E>(&self, visitor: &mut dyn Visitor<B, L, E>) -> Result<(), E> {
         self.root.visit(
             visitor,
             VisitData {
@@ -313,10 +335,10 @@ impl<B, L> Quadtree<B, L> {
                 y: 0,
                 width: self.width,
             },
-        );
+        )
     }
 
-    pub fn visit_mut(&mut self, visitor: &mut dyn MutVisitor<B, L>) {
+    pub fn visit_mut<E>(&mut self, visitor: &mut dyn MutVisitor<B, L, E>) -> Result<(), E> {
         self.root.visit_mut(
             visitor,
             VisitData {
@@ -325,51 +347,59 @@ impl<B, L> Quadtree<B, L> {
                 y: 0,
                 width: self.width,
             },
-        );
+        )
     }
 
-    pub fn visit_rect(&self, visitor: &mut dyn Visitor<B, L>, bounds: &Rect) {
+    pub fn visit_rect<E>(
+        &self,
+        visitor: &mut dyn Visitor<B, L, E>,
+        bounds: &Rect,
+    ) -> Result<(), E> {
         self.visit(&mut RectVisitor {
             bounds,
             inner: visitor,
-        });
+        })
     }
 
-    pub fn visit_rect_mut(&mut self, visitor: &mut dyn MutVisitor<B, L>, bounds: &Rect) {
+    pub fn visit_rect_mut<E>(
+        &mut self,
+        visitor: &mut dyn MutVisitor<B, L, E>,
+        bounds: &Rect,
+    ) -> Result<(), E> {
         self.visit_mut(&mut MutRectVisitor {
             bounds,
             inner: visitor,
-        });
+        })
     }
 }
 
-struct RectVisitor<'a, 'b, B, L> {
+struct RectVisitor<'a, 'b, B, L, E> {
     bounds: &'a Rect,
-    inner: &'b mut dyn Visitor<B, L>,
+    inner: &'b mut dyn Visitor<B, L, E>,
 }
 
-impl<'a, 'b, B, L> Visitor<B, L> for RectVisitor<'a, 'b, B, L> {
-    fn visit_branch(&mut self, branch: &B, data: &VisitData) -> bool {
-        return self.inner.visit_branch(branch, data) && data.in_bounds(self.bounds);
+impl<'a, 'b, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, B, L, E> {
+    fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, E> {
+        Ok(self.inner.visit_branch(branch, data)? && data.in_bounds(self.bounds))
     }
 
-    fn visit_leaf(&mut self, leaf: &L, data: &VisitData) {
-        self.inner.visit_leaf(leaf, data);
+    fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), E> {
+        self.inner.visit_leaf(leaf, data)
     }
 }
 
-struct MutRectVisitor<'a, 'b, B, L> {
+struct MutRectVisitor<'a, 'b, B, L, E> {
     bounds: &'a Rect,
-    inner: &'b mut dyn MutVisitor<B, L>,
+    inner: &'b mut dyn MutVisitor<B, L, E>,
 }
 
-impl<'a, 'b, B, L> MutVisitor<B, L> for MutRectVisitor<'a, 'b, B, L> {
-    fn visit_branch(&mut self, branch: &mut B, data: &VisitData) -> bool {
-        return self.inner.visit_branch(branch, data) && data.in_bounds(self.bounds);
+impl<'a, 'b, B, L, E> MutVisitor<B, L, E> for MutRectVisitor<'a, 'b, B, L, E> {
+    fn visit_branch(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E> {
+        Ok(self.inner.visit_branch(branch, data)? && data.in_bounds(self.bounds))
     }
 
-    fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData) {
-        self.inner.visit_leaf(leaf, data);
+    fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData) -> Result<(), E> {
+        self.inner.visit_leaf(leaf, data)
     }
 }
 
@@ -451,18 +481,26 @@ mod tests {
     }
 
     #[test]
-    fn get_coords() {
-        let mut qtree = Quadtree::new(0, 1);
-        assert_eq!(qtree.get_coords(0, 0), Ok(&0));
-        assert_eq!(qtree.get_coords(1, 1), Ok(&0));
+    fn get_address() {
+        let mut qtree = Quadtree::new(0, 2);
+        assert_eq!(qtree.get_address(0, 0), Ok(vec!().into()));
+        assert_eq!(qtree.get_address(2, 2), Ok(vec!().into()));
 
         qtree.split(vec![], 0, QuadMap::new(1, 2, 3, 4)).unwrap();
-        assert_eq!(qtree.get_coords(0, 0), Ok(&1));
-        assert_eq!(qtree.get_coords(1, 0), Ok(&2));
-        assert_eq!(qtree.get_coords(0, 1), Ok(&3));
-        assert_eq!(qtree.get_coords(1, 1), Ok(&4));
+        assert_eq!(qtree.get_address(0, 0), Ok(vec!(Quadrant::NW).into()));
+        assert_eq!(qtree.get_address(2, 0), Ok(vec!(Quadrant::NE).into()));
+        assert_eq!(qtree.get_address(0, 2), Ok(vec!(Quadrant::SW).into()));
+        assert_eq!(qtree.get_address(2, 2), Ok(vec!(Quadrant::SE).into()));
 
-        assert_eq!(qtree.get_coords(2, 2), Err(Error::CoordsOutOfBounds(2, 2)));
+        assert_eq!(qtree.get_address(4, 4), Err(Error::CoordsOutOfBounds(4, 4)));
+
+        qtree
+            .split(vec![Quadrant::SE], 5, QuadMap::new(6, 7, 8, 9))
+            .unwrap();
+        assert_eq!(
+            qtree.get_address(3, 2),
+            Ok(vec!(Quadrant::SE, Quadrant::NE).into())
+        );
     }
 
     struct SeenVisitor<B: Copy, L: Copy> {
@@ -479,14 +517,15 @@ mod tests {
         }
     }
 
-    impl<B: Copy, L: Copy> quadtree::Visitor<B, L> for SeenVisitor<B, L> {
-        fn visit_branch(&mut self, branch: &B, data: &VisitData) -> bool {
+    impl<B: Copy, L: Copy> quadtree::Visitor<B, L, ()> for SeenVisitor<B, L> {
+        fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, ()> {
             self.branches.push((*branch, *data));
-            return true;
+            Ok(true)
         }
 
-        fn visit_leaf(&mut self, leaf: &L, data: &VisitData) {
+        fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), ()> {
             self.leaves.push((*leaf, *data));
+            Ok(())
         }
     }
 
@@ -496,9 +535,9 @@ mod tests {
 
     #[test]
     fn visit1() {
-        let mut qtree: Quadtree<i32, i32> = Quadtree::new(0, 0);
+        let qtree: Quadtree<i32, i32> = Quadtree::new(0, 0);
         let mut visitor = SeenVisitor::new();
-        qtree.visit(&mut visitor);
+        qtree.visit(&mut visitor).unwrap();
 
         assert_equal_vec_unordered(visitor.branches, vec![]);
         assert_equal_vec_unordered(visitor.leaves, vec![(0, make_visit_data(0, 0, 0, 1))]);
@@ -509,7 +548,7 @@ mod tests {
         let mut qtree = Quadtree::new(0, 1);
         qtree.split(vec![], 0, QuadMap::new(1, 2, 3, 4)).unwrap();
         let mut visitor = SeenVisitor::new();
-        qtree.visit(&mut visitor);
+        qtree.visit(&mut visitor).unwrap();
 
         assert_equal_vec_unordered(visitor.branches, vec![(0, make_visit_data(0, 0, 0, 2))]);
         assert_equal_vec_unordered(
@@ -531,7 +570,7 @@ mod tests {
             .split(vec![Quadrant::NE], 5, QuadMap::new(6, 7, 8, 9))
             .unwrap();
         let mut visitor = SeenVisitor::new();
-        qtree.visit(&mut visitor);
+        qtree.visit(&mut visitor).unwrap();
 
         assert_equal_vec_unordered(
             visitor.branches,
