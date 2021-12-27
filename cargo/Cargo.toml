@@ -11,10 +11,13 @@ thiserror = "1.0"
 lazy_static = "1.4"
 derive_more = "0.99"
 serde = "1.0"
+typetag = "0.1"
+dyn-clonable = "0.9"
 serde_derive = "1.0"
 serde_json = "1.0"
 toml = "0.5"
 petgraph = "0.6"
+cgmath = "0.18"
 splines = "4.0"
 pyo3 = {version = "0.15", features = ["extension-module"]}
 

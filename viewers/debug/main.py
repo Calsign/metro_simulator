@@ -2,6 +2,7 @@
 import time
 import os
 import math
+import functools
 
 import argh
 
@@ -18,6 +19,13 @@ FRAMERATE = 60
 DEFAULT_SCALE = 4
 
 DEFAULT_CONFIG = 'config/debug.toml'
+
+
+class Colors:
+    BACKGROUND = (0, 0, 0)
+    TILE_SIDES = (200, 200, 200)
+    TILE_HIDDEN = (100, 100, 100)
+    TEXT = (255, 255, 255)
 
 
 def main(config=DEFAULT_CONFIG, load_file=None):
@@ -38,6 +46,12 @@ def main(config=DEFAULT_CONFIG, load_file=None):
     pygame.init()
     display = pygame.display.set_mode(WINDOW_SIZE)
 
+    font = pygame.freetype.SysFont(pygame.freetype.get_default_font(), 20)
+
+    @functools.cache
+    def text_map(text):
+        return font.render(text, Colors.TEXT)
+
     def screen_coords(m):
         mx, my = m
         return (mx * scale + tx, my * scale + ty)
@@ -46,9 +60,6 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         sx, sy = s
         return (round((sx - tx) / scale), round((sy - ty) / scale))
 
-    def in_bounds(x, y, w):
-        return x + w > 0 and x < WINDOW_SIZE[0] and y + w > 0 and y < WINDOW_SIZE[1]
-
     def visit_branch(branch, data):
         if data.width * scale >= 10:
             return True
@@ -56,14 +67,18 @@ def main(config=DEFAULT_CONFIG, load_file=None):
             # don't draw things that are too small to see
             x, y = screen_coords((data.x, data.y))
             w = data.width * scale
-            pygame.draw.rect(display, (150, 150, 150),
+            pygame.draw.rect(display, Colors.TILE_HIDDEN,
                              pygame.Rect(x, y, w, w))
 
-    def visit_leaf(branch, data):
+    def visit_leaf(leaf, data):
         x, y = screen_coords((data.x, data.y))
         w = data.width * scale
-        pygame.draw.lines(display, (255, 255, 255), True,
+        pygame.draw.lines(display, Colors.TILE_SIDES, True,
                           ((x, y), (x+w, y), (x+w, y+w), (x, y+w)))
+
+        text, rect = text_map(leaf.name)
+        if w > rect.width * 1.5:
+            display.blit(text, (x+w/2-rect.width/2, y+w/2-rect.height/2))
 
         nonlocal visited
         visited += 1
@@ -112,7 +127,7 @@ def main(config=DEFAULT_CONFIG, load_file=None):
 
         visited = 0
 
-        display.fill((100, 100, 100))
+        display.fill(Colors.BACKGROUND)
         state.visit_rect(visit_branch, visit_leaf,
                          max(x1, 0), max(x2, 0), max(y1, 0), max(y2, 0))
 

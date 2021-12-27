@@ -13,7 +13,17 @@ pub enum Error {
 pub struct BranchState {}
 
 #[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
-pub struct LeafState {}
+pub struct LeafState {
+    pub tile: Box<dyn tiles::Tile>,
+}
+
+impl LeafState {
+    pub fn default() -> Self {
+        Self {
+            tile: Box::new(tiles::EmptyTile {}),
+        }
+    }
+}
 
 #[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 pub struct State {
@@ -24,7 +34,7 @@ pub struct State {
 impl State {
     pub fn new(config: Config) -> Self {
         return Self {
-            qtree: Quadtree::new(LeafState {}, config.max_depth),
+            qtree: Quadtree::new(LeafState::default(), config.max_depth),
             config,
         };
     }

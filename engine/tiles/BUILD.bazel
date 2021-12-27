@@ -1,0 +1,20 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "tiles",
+    srcs = [
+        "housing.rs",
+        "lib.rs",
+        "tile.rs",
+        "workplace.rs",
+    ],
+    proc_macro_deps = [
+        "//cargo/pkgs:serde_derive",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cargo/pkgs:dyn_clonable",
+        "//cargo/pkgs:serde",
+        "//cargo/pkgs:typetag",
+    ],
+)

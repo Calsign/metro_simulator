@@ -88,7 +88,12 @@ struct LeafState {
 impl LeafState {
     #[new]
     fn new() -> Self {
-        engine::state::LeafState {}.into()
+        engine::state::LeafState::default().into()
+    }
+
+    #[getter]
+    fn name(&self) -> &'static str {
+        self.leaf.tile.name()
     }
 }
 
