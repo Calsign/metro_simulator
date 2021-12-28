@@ -57,7 +57,7 @@ def main(config=DEFAULT_CONFIG, load_file=None):
     gui = pygame_gui.UIManager(WINDOW_SIZE)
 
     detail_panel = pygame_gui.elements.UIPanel(
-        relative_rect=pygame.Rect((50, 50), (400, 400)),
+        relative_rect=pygame.Rect((50, 50), (400, 200)),
         manager=gui,
         starting_layer_height=1,
     )
@@ -86,6 +86,26 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         container=detail_panel,
         text="Split",
     )
+
+    diagnostics_panel = pygame_gui.elements.UIPanel(
+        relative_rect=pygame.Rect((50, 270), (400, 200)),
+        manager=gui,
+        starting_layer_height=1,
+    )
+
+    diagnostics_panel_rendered = pygame_gui.elements.UITextEntryLine(
+        relative_rect=pygame.Rect((10, 10), (370, 0)),
+        manager=gui,
+        container=diagnostics_panel,
+    )
+    diagnostics_panel_rendered.disable()
+
+    diagnostics_panel_framerate = pygame_gui.elements.UITextEntryLine(
+        relative_rect=pygame.Rect((10, 50), (370, 0)),
+        manager=gui,
+        container=diagnostics_panel,
+    )
+    diagnostics_panel_framerate.disable()
 
     selected_tile = None
     detail_panel.disable()
@@ -164,8 +184,8 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         if w > rect.width * 1.5:
             display.blit(text, (x+w/2-rect.width/2, y+w/2-rect.height/2))
 
-        nonlocal visited
-        visited += 1
+        nonlocal rendered
+        rendered += 1
 
     def handle_event(event):
         nonlocal tx, ty
@@ -236,16 +256,17 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         x1, y1 = model_coords((0, 0))
         x2, y2 = model_coords(display.get_size())
 
-        visited = 0
+        rendered = 0
 
         display.fill(Colors.BACKGROUND)
         state.visit_rect(visit_branch, visit_leaf,
                          max(x1, 0), max(x2, 0), max(y1, 0), max(y2, 0))
 
-        gui.draw_ui(display)
+        diagnostics_panel_rendered.set_text('Rendered: {}'.format(rendered))
+        diagnostics_panel_framerate.set_text(
+            'Frame rate: {}'.format(round(clock.get_fps(), 1)))
 
-        if False:
-            print(f'visited: {visited}')
+        gui.draw_ui(display)
 
         pygame.display.update()
 
