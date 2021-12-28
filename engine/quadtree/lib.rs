@@ -18,8 +18,9 @@ pub enum Error {
     CoordsOutOfBounds(u64, u64),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VisitData {
+    pub address: Address,
     pub depth: usize,
     pub x: u64,
     pub y: u64,
@@ -57,6 +58,7 @@ impl VisitData {
             SW | SE => self.y + self.width / 2,
         };
         return Self {
+            address: self.address.child(quadrant),
             depth: self.depth + 1,
             x,
             y,
@@ -154,8 +156,6 @@ pub struct Quadtree<B, L> {
 
 impl<B, L> Quadtree<B, L> {
     pub fn new(data: L, max_depth: u32) -> Quadtree<B, L> {
-        use std::convert::TryInto;
-
         let base: u64 = 2;
         // NOTE: if the exponent is too big, we panic.
         let width = base.checked_pow(max_depth).unwrap();
@@ -334,6 +334,7 @@ impl<B, L> Quadtree<B, L> {
                 x: 0,
                 y: 0,
                 width: self.width,
+                address: vec![].into(),
             },
         )
     }
@@ -346,6 +347,7 @@ impl<B, L> Quadtree<B, L> {
                 x: 0,
                 y: 0,
                 width: self.width,
+                address: vec![].into(),
             },
         )
     }
@@ -525,18 +527,30 @@ mod tests {
 
     impl<B: Copy, L: Copy> quadtree::Visitor<B, L, ()> for SeenVisitor<B, L> {
         fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, ()> {
-            self.branches.push((*branch, *data));
+            self.branches.push((*branch, data.clone()));
             Ok(true)
         }
 
         fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), ()> {
-            self.leaves.push((*leaf, *data));
+            self.leaves.push((*leaf, data.clone()));
             Ok(())
         }
     }
 
-    fn make_visit_data(depth: usize, x: u64, y: u64, width: u64) -> VisitData {
-        return VisitData { depth, x, y, width };
+    fn make_visit_data(
+        address: Vec<Quadrant>,
+        depth: usize,
+        x: u64,
+        y: u64,
+        width: u64,
+    ) -> VisitData {
+        return VisitData {
+            address: address.into(),
+            depth,
+            x,
+            y,
+            width,
+        };
     }
 
     #[test]
@@ -546,7 +560,10 @@ mod tests {
         qtree.visit(&mut visitor).unwrap();
 
         assert_equal_vec_unordered(visitor.branches, vec![]);
-        assert_equal_vec_unordered(visitor.leaves, vec![(0, make_visit_data(0, 0, 0, 1))]);
+        assert_equal_vec_unordered(
+            visitor.leaves,
+            vec![(0, make_visit_data(vec![], 0, 0, 0, 1))],
+        );
     }
 
     #[test]
@@ -556,14 +573,17 @@ mod tests {
         let mut visitor = SeenVisitor::new();
         qtree.visit(&mut visitor).unwrap();
 
-        assert_equal_vec_unordered(visitor.branches, vec![(0, make_visit_data(0, 0, 0, 2))]);
+        assert_equal_vec_unordered(
+            visitor.branches,
+            vec![(0, make_visit_data(vec![], 0, 0, 0, 2))],
+        );
         assert_equal_vec_unordered(
             visitor.leaves,
             vec![
-                (1, make_visit_data(1, 0, 0, 1)),
-                (2, make_visit_data(1, 1, 0, 1)),
-                (3, make_visit_data(1, 0, 1, 1)),
-                (4, make_visit_data(1, 1, 1, 1)),
+                (1, make_visit_data(vec![Quadrant::NW], 1, 0, 0, 1)),
+                (2, make_visit_data(vec![Quadrant::NE], 1, 1, 0, 1)),
+                (3, make_visit_data(vec![Quadrant::SW], 1, 0, 1, 1)),
+                (4, make_visit_data(vec![Quadrant::SE], 1, 1, 1, 1)),
             ],
         );
     }
@@ -578,23 +598,24 @@ mod tests {
         let mut visitor = SeenVisitor::new();
         qtree.visit(&mut visitor).unwrap();
 
+        use Quadrant::*;
         assert_equal_vec_unordered(
             visitor.branches,
             vec![
-                (0, make_visit_data(0, 0, 0, 4)),
-                (5, make_visit_data(1, 2, 0, 2)),
+                (0, make_visit_data(vec![], 0, 0, 0, 4)),
+                (5, make_visit_data(vec![NE], 1, 2, 0, 2)),
             ],
         );
         assert_equal_vec_unordered(
             visitor.leaves,
             vec![
-                (1, make_visit_data(1, 0, 0, 2)),
-                (6, make_visit_data(2, 2, 0, 1)),
-                (7, make_visit_data(2, 3, 0, 1)),
-                (8, make_visit_data(2, 2, 1, 1)),
-                (9, make_visit_data(2, 3, 1, 1)),
-                (3, make_visit_data(1, 0, 2, 2)),
-                (4, make_visit_data(1, 2, 2, 2)),
+                (1, make_visit_data(vec![NW], 1, 0, 0, 2)),
+                (6, make_visit_data(vec![NE, NW], 2, 2, 0, 1)),
+                (7, make_visit_data(vec![NE, NE], 2, 3, 0, 1)),
+                (8, make_visit_data(vec![NE, SW], 2, 2, 1, 1)),
+                (9, make_visit_data(vec![NE, SE], 2, 3, 1, 1)),
+                (3, make_visit_data(vec![SW], 1, 0, 2, 2)),
+                (4, make_visit_data(vec![SE], 1, 2, 2, 2)),
             ],
         );
     }

@@ -8,6 +8,7 @@ py_binary(
     main = "main.py",
     deps = [
         requirement("pygame"),
+        requirement("pygame_gui"),
         requirement("argh"),
         "//ffi/python",
     ],

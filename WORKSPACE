@@ -17,7 +17,7 @@ http_archive(
 load("@rules_rust//rust:repositories.bzl", "rust_repositories")
 
 rust_repositories(
-    edition = "2018",
+    edition = "2021",
     include_rustc_srcs = True,
     version = RUST_VERSION,
 )

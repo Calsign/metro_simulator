@@ -33,6 +33,12 @@ impl Address {
         }
         vec
     }
+
+    pub fn child(&self, quadrant: Quadrant) -> Self {
+        let mut address = self.data.clone();
+        address.push(quadrant);
+        return address.into();
+    }
 }
 
 impl From<Vec<Quadrant>> for Address {

@@ -12,6 +12,7 @@ rust_shared_library(
         "//cargo/pkgs:thiserror",
         "//engine",
         "//engine/quadtree",
+        "//engine/tiles",
     ],
 )
 

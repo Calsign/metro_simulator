@@ -93,6 +93,7 @@ impl LeafState {
 
     #[getter]
     fn name(&self) -> &'static str {
+        use tiles::TileType;
         self.leaf.tile.name()
     }
 }
@@ -199,6 +200,14 @@ impl State {
             ),
         ))
     }
+
+    fn get_leaf_json(&self, address: &Address) -> PyResult<String> {
+        wrap_err(self.state.get_leaf_json(address.address.clone()))
+    }
+
+    fn set_leaf_json(&mut self, address: &Address, json: &str) -> PyResult<()> {
+        wrap_err(self.state.set_leaf_json(address.address.clone(), json))
+    }
 }
 
 #[pyclass]
@@ -209,6 +218,11 @@ struct VisitData {
 
 #[pymethods]
 impl VisitData {
+    #[getter]
+    fn address(&self) -> Address {
+        self.data.address.clone().into()
+    }
+
     #[getter]
     fn depth(&self) -> usize {
         self.data.depth
