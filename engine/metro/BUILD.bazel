@@ -1,11 +1,9 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 rust_library(
-    name = "engine",
+    name = "metro",
     srcs = [
-        "config.rs",
         "lib.rs",
-        "state.rs",
     ],
     proc_macro_deps = [
         "//cargo/pkgs:serde_derive",
@@ -13,14 +11,8 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//cargo/pkgs:cgmath",
-        "//cargo/pkgs:petgraph",
         "//cargo/pkgs:serde",
-        "//cargo/pkgs:serde_json",
         "//cargo/pkgs:splines",
-        "//cargo/pkgs:thiserror",
-        "//cargo/pkgs:toml",
-        "//engine/metro",
         "//engine/quadtree",
-        "//engine/tiles",
     ],
 )

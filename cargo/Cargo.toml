@@ -16,8 +16,8 @@ serde_json = "1.0"
 toml = "0.5"
 enum_dispatch = "0.3"
 petgraph = "0.6"
-cgmath = "0.18"
-splines = "4.0"
+cgmath = {version = "0.18", features = ["serde"]}
+splines = {version = "4.0", features = ["cgmath", "serde"]}
 pyo3 = {version = "0.15", features = ["extension-module"]}
 
 # support for cargo-raze bazel integration

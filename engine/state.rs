@@ -1,5 +1,6 @@
 use crate::config::Config;
 use quadtree::Quadtree;
+use std::collections::HashMap;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -33,15 +34,18 @@ impl LeafState {
 
 #[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
 pub struct State {
-    pub qtree: Quadtree<BranchState, LeafState>,
     pub config: Config,
+    pub qtree: Quadtree<BranchState, LeafState>,
+    pub metro_lines: HashMap<u64, metro::MetroLine>,
 }
 
 impl State {
     pub fn new(config: Config) -> Self {
+        let qtree = Quadtree::new(LeafState::default(), config.max_depth);
         Self {
-            qtree: Quadtree::new(LeafState::default(), config.max_depth),
             config,
+            qtree,
+            metro_lines: HashMap::new(),
         }
     }
 
