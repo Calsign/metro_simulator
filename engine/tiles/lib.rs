@@ -1,4 +1,4 @@
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[enum_dispatch::enum_dispatch]
 pub trait TileType {

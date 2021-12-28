@@ -8,9 +8,6 @@ rust_library(
         "quadrant.rs",
         "rect.rs",
     ],
-    proc_macro_deps = [
-        "//cargo/pkgs:serde_derive",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//cargo/pkgs:anyhow",

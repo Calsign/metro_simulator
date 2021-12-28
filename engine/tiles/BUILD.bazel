@@ -6,7 +6,6 @@ rust_library(
         "lib.rs",
     ],
     proc_macro_deps = [
-        "//cargo/pkgs:serde_derive",
         "//cargo/pkgs:enum_dispatch",
     ],
     visibility = ["//visibility:public"],

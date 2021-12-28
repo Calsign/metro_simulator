@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Clone, Copy, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum Quadrant {
     NW = 0,
     NE = 1,
@@ -41,7 +41,7 @@ impl From<&Quadrant> for u8 {
 
 pub static QUADRANTS: [Quadrant; 4] = [Quadrant::NW, Quadrant::NE, Quadrant::SW, Quadrant::SE];
 
-#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct QuadMap<T> {
     data: [T; 4],
 }

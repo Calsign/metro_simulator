@@ -8,7 +8,7 @@ pub enum Error {
     IoError(#[from] std::io::Error),
 }
 
-#[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub max_depth: u32,
 }

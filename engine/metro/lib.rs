@@ -1,5 +1,5 @@
 use cgmath as cg;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Color {

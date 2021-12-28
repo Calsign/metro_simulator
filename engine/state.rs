@@ -1,5 +1,6 @@
 use crate::config::Config;
 use quadtree::Quadtree;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(thiserror::Error, Debug)]
@@ -16,10 +17,10 @@ pub enum Error {
     QuadtreeError(#[from] quadtree::Error),
 }
 
-#[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchState {}
 
-#[derive(Debug, Clone, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeafState {
     pub tile: tiles::Tile,
 }
@@ -32,7 +33,7 @@ impl LeafState {
     }
 }
 
-#[derive(Debug, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct State {
     pub config: Config,
     pub qtree: Quadtree<BranchState, LeafState>,

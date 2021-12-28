@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq, Clone, Copy, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Rect {
     pub min_x: u64,
     pub max_x: u64,
