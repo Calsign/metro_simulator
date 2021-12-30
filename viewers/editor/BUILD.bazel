@@ -1,0 +1,16 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "editor",
+    srcs = ["main.rs"],
+    data = ["//config:debug.toml"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cargo/pkgs:anyhow",
+        "//cargo/pkgs:druid",
+        "//engine",
+        "//engine/metro",
+        "//engine/quadtree",
+        "//engine/tiles",
+    ],
+)

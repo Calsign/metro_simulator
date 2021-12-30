@@ -176,6 +176,25 @@ impl State {
         )
     }
 
+    fn get_metro_line(&self, id: u64) -> Option<MetroLine> {
+        self.state
+            .metro_lines
+            .get(&id)
+            .map(|line| line.clone().into())
+    }
+
+    fn visit_metro_line(&self, metro_line: &MetroLine, visitor: &PyAny, step: f64) -> PyResult<()> {
+        if !visitor.is_callable() {
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "visitor must be callable",
+            ));
+        }
+        let mut visitor = PySplineVisitor {
+            visitor: visitor.into(),
+        };
+        metro_line.metro_line.visit_spline(&mut visitor, step)
+    }
+
     fn get_address(&self, x: u64, y: u64) -> PyResult<Address> {
         Ok(wrap_err(self.state.qtree.get_address(x, y))?.into())
     }
@@ -273,6 +292,73 @@ impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyE
             let leaf = LeafState::from(leaf.clone());
             let data = VisitData::from(data.clone());
             self.leaf_visitor.call1(py, (leaf, data))?;
+            Ok(())
+        })
+    }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct Station {
+    station: metro::Station,
+}
+
+#[pymethods]
+impl Station {
+    #[getter]
+    fn address(&self) -> Address {
+        self.station.address.clone().into()
+    }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct MetroLine {
+    metro_line: metro::MetroLine,
+}
+
+#[pymethods]
+impl MetroLine {
+    #[getter]
+    fn id(&self) -> u64 {
+        self.metro_line.id
+    }
+
+    #[getter]
+    fn color(&self) -> (u8, u8, u8) {
+        self.metro_line.color.into()
+    }
+
+    #[getter]
+    fn length(&self) -> f64 {
+        self.metro_line.length
+    }
+
+    #[getter]
+    fn stations(&self) -> Vec<Station> {
+        self.metro_line
+            .stations
+            .iter()
+            .map(|station| station.clone().into())
+            .collect()
+    }
+}
+
+struct PySplineVisitor {
+    visitor: PyObject,
+}
+
+impl metro::SplineVisitor<PyErr> for PySplineVisitor {
+    fn visit(
+        &mut self,
+        line: &metro::MetroLine,
+        vertex: cgmath::Vector2<f64>,
+        t: f64,
+    ) -> PyResult<()> {
+        Python::with_gil(|py| {
+            let line = MetroLine::from(line.clone());
+            let vertex: (f64, f64) = vertex.into();
+            self.visitor.call1(py, (line, vertex, t))?;
             Ok(())
         })
     }

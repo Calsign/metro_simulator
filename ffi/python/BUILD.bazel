@@ -8,9 +8,11 @@ rust_shared_library(
         "//cargo/pkgs:derive_more",
     ],
     deps = [
+        "//cargo/pkgs:cgmath",
         "//cargo/pkgs:pyo3",
         "//cargo/pkgs:thiserror",
         "//engine",
+        "//engine/metro",
         "//engine/quadtree",
         "//engine/tiles",
     ],

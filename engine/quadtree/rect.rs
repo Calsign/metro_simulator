@@ -8,11 +8,20 @@ pub struct Rect {
 
 impl Rect {
     pub fn xywh(x: u64, y: u64, w: u64, h: u64) -> Self {
-        return Self {
+        Self {
             min_x: x,
             max_x: x + w,
             min_y: y,
             max_y: y + h,
-        };
+        }
+    }
+
+    pub fn corners(ulx: u64, uly: u64, brx: u64, bry: u64) -> Self {
+        Self {
+            min_x: ulx,
+            max_x: brx,
+            min_y: uly,
+            max_y: bry,
+        }
     }
 }

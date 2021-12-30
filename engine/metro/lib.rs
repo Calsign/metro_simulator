@@ -8,6 +8,19 @@ pub struct Color {
     pub blue: u8,
 }
 
+impl From<Color> for (u8, u8, u8) {
+    fn from(color: Color) -> (u8, u8, u8) {
+        (color.red, color.green, color.blue)
+    }
+}
+
+impl From<(u8, u8, u8)> for Color {
+    fn from(color: (u8, u8, u8)) -> Self {
+        let (red, green, blue) = color;
+        Color { red, green, blue }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Station {
     pub address: quadtree::Address,
@@ -25,6 +38,7 @@ pub struct MetroLine {
     pub id: u64,
     pub color: Color,
     pub spline: splines::Spline<f64, cg::Vector2<f64>>,
+    pub length: f64,
     pub stations: Vec<Station>,
 }
 
@@ -53,7 +67,24 @@ impl MetroLine {
             id,
             color,
             spline: splines::Spline::from_vec(spline_keys),
+            length: t,
             stations,
         }
     }
+
+    pub fn visit_spline<E>(&self, visitor: &mut dyn SplineVisitor<E>, step: f64) -> Result<(), E> {
+        if self.spline.len() == 0 {
+            return Ok(());
+        }
+        let total = (self.length / step).ceil() as u64;
+        for i in 0..=total {
+            let t = (i as f64) * step;
+            visitor.visit(self, self.spline.clamped_sample(t).unwrap(), t)?;
+        }
+        Ok(())
+    }
+}
+
+pub trait SplineVisitor<E> {
+    fn visit(&mut self, line: &MetroLine, vertex: cg::Vector2<f64>, t: f64) -> Result<(), E>;
 }

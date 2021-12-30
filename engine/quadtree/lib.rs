@@ -67,7 +67,7 @@ impl VisitData {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 enum Node<B, L> {
     Branch {
         data: B,
@@ -141,7 +141,7 @@ impl<B, L> Node<B, L> {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Quadtree<B, L> {
     /** The root node */
     root: Box<Node<B, L>>,

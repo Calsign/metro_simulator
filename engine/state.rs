@@ -33,7 +33,7 @@ impl LeafState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
     pub config: Config,
     pub qtree: Quadtree<BranchState, LeafState>,

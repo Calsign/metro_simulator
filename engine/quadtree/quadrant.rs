@@ -41,7 +41,7 @@ impl From<&Quadrant> for u8 {
 
 pub static QUADRANTS: [Quadrant; 4] = [Quadrant::NW, Quadrant::NE, Quadrant::SW, Quadrant::SE];
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuadMap<T> {
     data: [T; 4],
 }

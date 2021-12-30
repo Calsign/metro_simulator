@@ -10,6 +10,7 @@ rust_library(
         "//cargo/pkgs:cgmath",
         "//cargo/pkgs:serde",
         "//cargo/pkgs:splines",
+        "//cargo/pkgs:thiserror",
         "//engine/quadtree",
     ],
 )
