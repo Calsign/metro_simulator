@@ -6,7 +6,7 @@ static WINDOW_TITLE: &str = "Metro Simulator";
 static DEFAULT_CONFIG: &str = "config/debug.toml";
 
 fn main() {
-    let window = druid::WindowDesc::new(build_root_widget)
+    let window = druid::WindowDesc::new(build_root_widget())
         .title(WINDOW_TITLE)
         .window_size(DEFAULT_WINDOW_SIZE);
 
@@ -35,17 +35,9 @@ fn build_root_widget() -> impl druid::Widget<State> {
         .with_child(
             druid::widget::Flex::column()
                 .with_child(
-                    druid::widget::ViewSwitcher::new(
-                        |state: &Option<CurrentLeafState>, env: &druid::Env| state.clone(),
-                        |selector: &Option<CurrentLeafState>, _state, _env| {
-                            Box::new(match selector {
-                                Some(state) => build_detail_panel(),
-                                None => druid::widget::Flex::row().into(),
-                            })
-                        },
-                    )
-                    .lens(ContentState::current_leaf)
-                    .lens(State::content),
+                    druid::widget::Maybe::new(build_detail_panel, build_empty_panel)
+                        .lens(ContentState::current_leaf)
+                        .lens(State::content),
                 )
                 .padding((20.0, 20.0)),
         )
@@ -69,7 +61,15 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
             },
         ))
         .with_default_spacer()
-        .with_child(druid::widget::TextBox::multiline().lens(CurrentLeafState::json))
+        .with_child(
+            druid::widget::TextBox::multiline()
+                .fix_width(200.0)
+                .lens(CurrentLeafState::json),
+        )
+}
+
+fn build_empty_panel() -> impl druid::Widget<()> {
+    druid::widget::Flex::row()
 }
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
@@ -204,7 +204,7 @@ impl druid::Widget<ContentState> for Content {
                         engine
                             .qtree
                             .split(
-                                address,
+                                address.clone(),
                                 BranchState {},
                                 quadtree::QuadMap::new(
                                     LeafState::default(),
@@ -214,7 +214,11 @@ impl druid::Widget<ContentState> for Content {
                                 ),
                             )
                             .unwrap();
-                        state.current_leaf = None;
+                        if let Some(current_leaf) = &state.current_leaf {
+                            if *current_leaf.address == address {
+                                state.current_leaf = None;
+                            }
+                        }
                         ctx.request_paint();
                     }
                 }

@@ -27,7 +27,8 @@ splines = {version = "4.0", features = ["cgmath", "serde"]}
 pyo3 = {version = "0.15", features = ["extension-module"]}
 
 # graphics
-druid = "0.7.0"
+# master as of 2022-01-03
+druid = { git = "https://github.com/linebender/druid", rev = "3790463cf4e724719dc0c1867afe59c3f2d22b3b" }
 
 # support for cargo-raze bazel integration
 [package.metadata.raze]
