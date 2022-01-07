@@ -7,7 +7,7 @@ pub trait TileType {
 
 #[enum_dispatch::enum_dispatch(TileType)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type")]
 pub enum Tile {
     EmptyTile,
     HousingTile,

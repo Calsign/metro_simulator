@@ -221,11 +221,18 @@ impl State {
     }
 
     fn get_leaf_json(&self, address: &Address) -> PyResult<String> {
-        wrap_err(self.state.get_leaf_json(address.address.clone()))
+        wrap_err(
+            self.state
+                .get_leaf_data(address.address.clone(), engine::state::SerdeFormat::Json),
+        )
     }
 
     fn set_leaf_json(&mut self, address: &Address, json: &str) -> PyResult<()> {
-        wrap_err(self.state.set_leaf_json(address.address.clone(), json))
+        wrap_err(self.state.set_leaf_data(
+            address.address.clone(),
+            json,
+            engine::state::SerdeFormat::Json,
+        ))
     }
 }
 

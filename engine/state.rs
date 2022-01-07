@@ -33,6 +33,12 @@ impl LeafState {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum SerdeFormat {
+    Json,
+    Toml,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct State {
     pub config: Config,
@@ -66,17 +72,30 @@ impl State {
         Ok(std::fs::write(path, self.dump()?)?)
     }
 
-    pub fn get_leaf_json<A: Into<quadtree::Address>>(&self, address: A) -> Result<String, Error> {
-        Ok(serde_json::to_string(self.qtree.get_leaf(address)?)?)
+    pub fn get_leaf_data<A: Into<quadtree::Address>>(
+        &self,
+        address: A,
+        format: SerdeFormat,
+    ) -> Result<String, Error> {
+        let leaf = self.qtree.get_leaf(address)?;
+        Ok(match format {
+            SerdeFormat::Json => serde_json::to_string(leaf)?,
+            SerdeFormat::Toml => toml::to_string(leaf)?,
+        })
     }
 
-    pub fn set_leaf_json<A: Into<quadtree::Address>>(
+    pub fn set_leaf_data<A: Into<quadtree::Address>>(
         &mut self,
         address: A,
-        json: &str,
+        data: &str,
+        format: SerdeFormat,
     ) -> Result<(), Error> {
         let leaf = self.qtree.get_leaf_mut(address)?;
-        *leaf = serde_json::from_str(json)?;
+        let decoded = match format {
+            SerdeFormat::Json => serde_json::from_str(data)?,
+            SerdeFormat::Toml => toml::from_str(data)?,
+        };
+        *leaf = decoded;
         Ok(())
     }
 }

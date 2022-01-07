@@ -7,6 +7,8 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//cargo/pkgs:anyhow",
+        "//cargo/pkgs:chrono",
+        "//cargo/pkgs:clap",
         "//cargo/pkgs:druid",
         "//engine",
         "//engine/metro",

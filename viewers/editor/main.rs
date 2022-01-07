@@ -5,16 +5,29 @@ static DEFAULT_WINDOW_SIZE: (f64, f64) = (1920.0, 1080.0);
 static WINDOW_TITLE: &str = "Metro Simulator";
 static DEFAULT_CONFIG: &str = "config/debug.toml";
 
+#[derive(clap::Parser, Debug)]
+struct Args {
+    #[clap(short, long)]
+    load: Option<std::path::PathBuf>,
+}
+
 fn main() {
+    use clap::Parser;
+    let args = Args::parse();
+
     let window = druid::WindowDesc::new(build_root_widget())
         .title(WINDOW_TITLE)
         .window_size(DEFAULT_WINDOW_SIZE);
 
-    let state = State {
-        content: ContentState::new(engine::state::State::new(
+    let engine = match args.load {
+        Some(path) => engine::state::State::load_file(&path).unwrap(),
+        None => engine::state::State::new(
             engine::config::Config::load_file(&std::path::PathBuf::from(DEFAULT_CONFIG)).unwrap(),
-        )),
-        label: "foobar".into(),
+        ),
+    };
+
+    let state = State {
+        content: ContentState::new(engine),
     };
 
     druid::AppLauncher::with_window(window)
@@ -25,7 +38,6 @@ fn main() {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct State {
     content: ContentState,
-    label: String,
 }
 
 fn build_root_widget() -> impl druid::Widget<State> {
@@ -39,9 +51,19 @@ fn build_root_widget() -> impl druid::Widget<State> {
                         .lens(ContentState::current_leaf)
                         .lens(State::content),
                 )
-                .padding((20.0, 20.0)),
+                .expand()
+                .padding((20.0, 20.0))
+                .fix_width(300.0),
         )
-        .with_child(Content {}.lens(State::content))
+        .with_flex_child(Content {}.lens(State::content), 1.0)
+        .with_child(
+            druid::widget::Flex::column().with_child(
+                build_menu_panel()
+                    .expand()
+                    .padding((20.0, 20.0))
+                    .fix_width(300.0),
+            ),
+        )
 }
 
 fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
@@ -64,31 +86,84 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
         .with_child(
             druid::widget::TextBox::multiline()
                 .fix_width(200.0)
-                .lens(CurrentLeafState::json),
+                .lens(CurrentLeafState::edited_data),
         )
+        .with_default_spacer()
+        .with_child(druid::widget::Button::new("Update").on_click(
+            |ctx: &mut druid::EventCtx, state: &mut CurrentLeafState, env: &druid::Env| {
+                // NOTE: we need to do some juggling to adhere to borrowing rules
+                let mut update = false;
+                {
+                    let mut engine = state.engine.lock().unwrap();
+                    match engine.set_leaf_data(
+                        (*state.address).clone(),
+                        &state.edited_data,
+                        engine::state::SerdeFormat::Toml,
+                    ) {
+                        Ok(()) => {
+                            // update with new state
+                            update = true;
+                        }
+                        Err(err) => println!("Error updating leaf: {:?}", err),
+                    }
+                }
+                if update {
+                    let engine1 = state.engine.clone();
+                    let engine2 = state.engine.clone();
+                    let engine = engine1.lock().unwrap();
+                    *state = CurrentLeafState::new((*state.address).clone(), &engine, engine2);
+                }
+            },
+        ))
+}
+
+fn build_menu_panel() -> impl druid::Widget<State> {
+    druid::widget::Flex::column()
+        .cross_axis_alignment(druid::widget::CrossAxisAlignment::Start)
+        .with_child(druid::widget::Button::new("Save").on_click(
+            |ctx: &mut druid::EventCtx, state: &mut State, env: &druid::Env| {
+                let engine = state.content.engine.lock().unwrap();
+                let timestamp = chrono::offset::Local::now();
+                let path = format!(
+                    "/tmp/metro_simulator_{}",
+                    timestamp.format("%Y-%m-%d_%H-%M-%S"),
+                );
+                engine.dump_file(&std::path::PathBuf::from(&path)).unwrap();
+                println!("Saved to {}", path);
+            },
+        ))
 }
 
 fn build_empty_panel() -> impl druid::Widget<()> {
-    druid::widget::Flex::row()
+    druid::widget::Flex::column()
 }
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct CurrentLeafState {
     address: Rc<quadtree::Address>,
     leaf: Rc<engine::state::LeafState>,
-    json: String,
-    edited_json: String,
+    data: String,
+    edited_data: String,
+
+    engine: Arc<Mutex<engine::state::State>>,
 }
 
 impl CurrentLeafState {
-    fn new(address: quadtree::Address, engine: &engine::state::State) -> Self {
+    fn new(
+        address: quadtree::Address,
+        engine: &engine::state::State,
+        engine_clone: Arc<Mutex<engine::state::State>>,
+    ) -> Self {
         let leaf = engine.qtree.get_leaf(address.clone()).unwrap();
-        let json = engine.get_leaf_json(address.clone()).unwrap();
+        let data = engine
+            .get_leaf_data(address.clone(), engine::state::SerdeFormat::Toml)
+            .unwrap();
         Self {
             address: Rc::new(address),
             leaf: Rc::new(leaf.clone()),
-            json: json.clone(),
-            edited_json: json.clone(),
+            data: data.clone(),
+            edited_data: data.clone(),
+            engine: engine_clone,
         }
     }
 }
@@ -111,7 +186,10 @@ struct ContentState {
 
 impl ContentState {
     pub fn new(engine: engine::state::State) -> Self {
-        let (width, height) = DEFAULT_WINDOW_SIZE as (f64, f64);
+        let (mut width, height) = DEFAULT_WINDOW_SIZE as (f64, f64);
+        // account for the two side panels
+        // TODO: make this less gross
+        width -= 600.0;
 
         let min_dim = f64::min(width, height);
         let model_width = engine.qtree.width() as f64;
@@ -229,7 +307,11 @@ impl druid::Widget<ContentState> for Content {
                 let w = engine.qtree.width();
                 if mx > 0 && mx < w && my > 0 && my < w {
                     let address = engine.qtree.get_address(mx, my).unwrap();
-                    state.current_leaf = Some(CurrentLeafState::new(address, &engine));
+                    state.current_leaf = Some(CurrentLeafState::new(
+                        address,
+                        &engine,
+                        state.engine.clone(),
+                    ));
                 } else {
                     state.current_leaf = None;
                 }

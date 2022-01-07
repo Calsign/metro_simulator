@@ -12,6 +12,7 @@ thiserror = "1.0"
 lazy_static = "1.4"
 derive_more = "0.99"
 enum_dispatch = "0.3"
+chrono = "0.4"
 
 # serde
 serde = {version = "1.0", features = ["derive"]}
@@ -25,6 +26,9 @@ splines = {version = "4.0", features = ["cgmath", "serde"]}
 
 # python FFI
 pyo3 = {version = "0.15", features = ["extension-module"]}
+
+# cli
+clap = {version = "3", features = ["derive"]}
 
 # graphics
 # master as of 2022-01-03
@@ -47,3 +51,11 @@ compile_data_attr = "glob([\"**/*.rsv\"])"
 
 [package.metadata.raze.crates.druid.'*']
 compile_data_attr = "glob([\"**/*.ftl\"])"
+
+# needed for clap
+
+[package.metadata.raze.crates.clap.'*']
+compile_data_attr = "[\"README.md\"]"
+
+[package.metadata.raze.crates.clap_derive.'*']
+compile_data_attr = "[\"README.md\"]"
