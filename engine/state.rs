@@ -44,6 +44,7 @@ pub struct State {
     pub config: Config,
     pub qtree: Quadtree<BranchState, LeafState>,
     pub metro_lines: HashMap<u64, metro::MetroLine>,
+    metro_line_counter: u64,
 }
 
 impl State {
@@ -53,6 +54,7 @@ impl State {
             config,
             qtree,
             metro_lines: HashMap::new(),
+            metro_line_counter: 0,
         }
     }
 
@@ -97,5 +99,15 @@ impl State {
         };
         *leaf = decoded;
         Ok(())
+    }
+
+    pub fn add_metro_line(&mut self, name: String) {
+        let id = self.metro_line_counter;
+        self.metro_line_counter += 1;
+
+        let color = metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into();
+
+        let metro_line = metro::MetroLine::new(id, color, name);
+        self.metro_lines.insert(id, metro_line);
     }
 }

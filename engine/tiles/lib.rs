@@ -6,8 +6,9 @@ pub trait TileType {
 }
 
 #[enum_dispatch::enum_dispatch(TileType)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[non_exhaustive]
 pub enum Tile {
     EmptyTile,
     HousingTile,
@@ -15,7 +16,7 @@ pub enum Tile {
     MetroStationTile,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EmptyTile {}
 
 impl TileType for EmptyTile {
@@ -24,7 +25,7 @@ impl TileType for EmptyTile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HousingTile {
     pub density: usize,
 }
@@ -35,7 +36,7 @@ impl TileType for HousingTile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkplaceTile {
     pub density: usize,
 }
@@ -46,14 +47,14 @@ impl TileType for WorkplaceTile {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MetroStationTile {
     // Exact location of station within tile, relative to tile.
     pub x: u64,
     pub y: u64,
     // IDs to lookup metro lines. If there is more than one, then this is a transfer station.
     // May be empty because orphan stations are allowed, especially when constructing new lines.
-    pub id: Vec<u64>,
+    pub ids: Vec<u64>,
 }
 
 impl TileType for MetroStationTile {

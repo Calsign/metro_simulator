@@ -21,12 +21,22 @@ impl From<(u8, u8, u8)> for Color {
     }
 }
 
+pub static DEFAULT_COLORS: [(u8, u8, u8); 6] = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (0, 255, 255),
+    (255, 0, 255),
+];
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Station {
     pub address: quadtree::Address,
 }
 
 /** Used only in constructing a MetroLine. */
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MetroKey {
     Key(cg::Vector2<f64>),
     // NOTE: u64 because stations have to be on discrete unit tiles
@@ -37,13 +47,31 @@ pub enum MetroKey {
 pub struct MetroLine {
     pub id: u64,
     pub color: Color,
-    pub spline: splines::Spline<f64, cg::Vector2<f64>>,
-    pub length: f64,
-    pub stations: Vec<Station>,
+    pub name: String,
+    keys: Vec<MetroKey>,
+    spline: splines::Spline<f64, cg::Vector2<f64>>,
+    length: f64,
+    stations: Vec<Station>,
 }
 
 impl MetroLine {
-    pub fn new(id: u64, color: Color, keys: Vec<MetroKey>) -> Self {
+    pub fn new(id: u64, color: Color, name: String) -> Self {
+        Self {
+            id,
+            color,
+            name,
+            keys: vec![],
+            spline: splines::Spline::from_vec(vec![]),
+            length: 0.0,
+            stations: vec![],
+        }
+    }
+
+    pub fn get_keys(&self) -> &Vec<MetroKey> {
+        &self.keys
+    }
+
+    pub fn set_keys(&mut self, keys: Vec<MetroKey>) {
         use cg::MetricSpace;
 
         let mut spline_keys: Vec<splines::Key<f64, cg::Vector2<f64>>> = Vec::new();
@@ -63,13 +91,17 @@ impl MetroLine {
             spline_keys.push(splines::Key::new(t, vec, splines::Interpolation::Linear));
         }
 
-        MetroLine {
-            id,
-            color,
-            spline: splines::Spline::from_vec(spline_keys),
-            length: t,
-            stations,
-        }
+        self.spline = splines::Spline::from_vec(spline_keys);
+        self.length = t;
+        self.stations = stations;
+    }
+
+    pub fn length(&self) -> f64 {
+        self.length
+    }
+
+    pub fn stations(&self) -> &Vec<Station> {
+        &self.stations
     }
 
     pub fn visit_spline<E>(&self, visitor: &mut dyn SplineVisitor<E>, step: f64) -> Result<(), E> {
