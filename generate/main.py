@@ -25,11 +25,11 @@ def runfiles():
 
 @dataclass
 class MapConfig:
-    engine_config: str
     latitude: str
     longitude: str
     radius: str
 
+    engine_config: dict
     datasets: dict
 
 
@@ -145,7 +145,8 @@ def write_qtree(state, qtree):
 def main(map_path, plot=False, save=None):
     map_config = MapConfig(**toml.load(map_path))
 
-    state = engine.State(engine.Config(map_config.engine_config))
+    state = engine.State(engine.Config.from_json(
+        json.dumps(map_config.engine_config)))
 
     gdal.UseExceptions()
     data = gdal.Open(map_config.datasets["population"], gdal.GA_ReadOnly)

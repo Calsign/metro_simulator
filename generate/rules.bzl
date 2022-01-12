@@ -10,7 +10,7 @@ def _generate_map_impl(ctx):
 
     ctx.actions.run(
         outputs = [output_file],
-        inputs = [map_file] + ctx.files._configs + ctx.files._datasets,
+        inputs = [map_file] + ctx.files._datasets,
         executable = ctx.executable._generate,
         arguments = [args],
         progress_message = "Generating map '{}'".format(ctx.label.name),
@@ -29,9 +29,6 @@ generate_map = rule(
         "_datasets": attr.label(
             default = "//generate/datasets",
             allow_single_file = True,
-        ),
-        "_configs": attr.label(
-            default = "//configs",
         ),
         "map_file": attr.label(
             mandatory = True,

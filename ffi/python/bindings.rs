@@ -64,6 +64,12 @@ impl Config {
             config: wrap_err(engine::config::Config::load_file(&path))?,
         })
     }
+
+    #[staticmethod]
+    fn from_json(json: String) -> PyResult<Self> {
+        let config: engine::config::Config = wrap_err(serde_json::from_str(&json))?;
+        Ok(config.into())
+    }
 }
 
 #[pyclass]

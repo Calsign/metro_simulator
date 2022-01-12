@@ -1,7 +1,9 @@
-engine_config = "configs/debug.toml"
 latitude = "38.9072N"
 longitude = "77.0369W"
 radius = 1
+
+[engine_config]
+max_depth = 12
 
 [datasets]
 population = "generate/datasets/sedac_population.tif"
