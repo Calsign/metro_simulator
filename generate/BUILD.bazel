@@ -9,7 +9,7 @@ py_binary(
     ],
     data = [
         "//configs",
-        "//generate/datasets:population.tif",
+        "//generate/datasets",
     ],
     main = "main.py",
     visibility = ["//visibility:public"],

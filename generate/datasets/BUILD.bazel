@@ -1,6 +1,7 @@
-exports_files(
-    [
-        "population.tif",
+filegroup(
+    name = "datasets",
+    srcs = [
+        "sedac_population.tif",
     ],
     visibility = ["//visibility:public"],
 )

@@ -30,22 +30,38 @@ class MapConfig:
     longitude: str
     radius: str
 
-
-def deg_to_sec(deg):
-    return math.floor(deg * 120)
+    datasets: dict
 
 
-def lon_lat_to_secs(lon, lat):
-    assert 0 <= lon < 360
-    assert 0 <= lat <= 180
+@dataclass
+class GeoTransform:
+    lon_min: float
+    lon_res: float
+    lat_min: float
+    lat_res: float
 
-    return deg_to_sec(lon), deg_to_sec(lat)
+    @staticmethod
+    def from_gdal(dataset):
+        (lon_min, lon_res, _, lat_min, _, lat_res) = dataset.GetGeoTransform()
+        return GeoTransform(lon_min, lon_res, lat_min, lat_res)
 
 
-def centered_box(lon, lat, radius):
-    (lon, lat) = lon_lat_to_secs(lon, lat)
-    radius = deg_to_sec(radius)
-    return ((lon - radius, lat - radius), (lon + radius, lat + radius))
+def round_to_sq(x):
+    """
+    Round up to the nearest perfect square integer.
+    """
+    return int(2 ** math.ceil(math.log(x, 2)))
+
+
+def centered_box(lon, lat, radius, transform):
+    assert -180 <= lon < 180, lon
+    assert -90 <= lat <= 90, lat
+
+    lon_px = math.floor((lon - transform.lon_min) / transform.lon_res)
+    lat_px = math.floor((lat - transform.lat_min) / transform.lat_res)
+    lon_rad = round_to_sq(radius / abs(transform.lon_res))
+    lat_rad = round_to_sq(radius / abs(transform.lat_res))
+    return ((lon_px - lon_rad, lat_px - lat_rad), (lon_px + lon_rad, lat_px + lat_rad))
 
 
 def parse_lat_lon(lat, lon):
@@ -55,15 +71,10 @@ def parse_lat_lon(lat, lon):
     latf = float(lat[:-1])
     lonf = float(lon[:-1])
 
-    if lat[-1] == "N":
-        latf = 90 - latf
-    elif lat[-1] == "S":
-        latf = 90 + latf
-
+    if lat[-1] == "S":
+        latf *= -1
     if lon[-1] == "W":
-        lonf = -lonf
-    elif lon[-1] == "E":
-        lonf = lonf
+        lonf *= -1
 
     return (latf, lonf)
 
@@ -131,48 +142,26 @@ def write_qtree(state, qtree):
     qtree.convolve(write)
 
 
-def main(map_path, population_path=None, plot=False, save=None):
-    if plot:
-        import matplotlib
-        import matplotlib.pyplot as plt
-
-    if population_path is None:
-        population_path = runfiles().Rlocation(
-            "metro_simulator/generate/datasets/population.tif")
-
+def main(map_path, plot=False, save=None):
     map_config = MapConfig(**toml.load(map_path))
 
     state = engine.State(engine.Config(map_config.engine_config))
 
     gdal.UseExceptions()
-    data = gdal.Open(population_path, gdal.GA_ReadOnly)
+    data = gdal.Open(map_config.datasets["population"], gdal.GA_ReadOnly)
     band = data.GetRasterBand(1)
 
-    (min_lon, min_lat, _, _, _, _) = data.GetGeoTransform()
+    transform = GeoTransform.from_gdal(data)
 
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)
-    radius = float(map_config.radius)
 
-    # round radius up to make it square-tileable
-    radius = 2 ** math.ceil(math.log(radius * 120, 2)) / 120
-
-    ((x1, y1), (x2, y2)) = centered_box(
-        lon - min_lon, lat - min_lat, radius)
+    ((x1, y1), (x2, y2)) = centered_box(lon, lat, map_config.radius, transform)
     (w, h) = (x2 - x1, y2 - y1)
 
     arr = band.ReadAsArray(xoff=x1, yoff=y1, win_xsize=w, win_ysize=h)
 
     population = np.maximum(arr, 0)
-
-    if plot:
-        plt.imshow(population)
-        plt.show()
-
     water = -np.minimum(arr, 0)
-
-    if plot:
-        plt.imshow(water)
-        plt.show()
 
     water_qtree = tile_water(water)
 
@@ -180,6 +169,16 @@ def main(map_path, population_path=None, plot=False, save=None):
 
     if save is not None:
         state.save(save)
+
+    if plot:
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        plt.imshow(population)
+        plt.show()
+
+        plt.imshow(water)
+        plt.show()
 
 
 if __name__ == "__main__":

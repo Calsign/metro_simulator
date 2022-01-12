@@ -4,7 +4,7 @@
 This directory contains datasets used for generating maps.
 For brevity they are not currently checked into the repo.
 
-### `population.tif`
+### `sedac_population.tif`
 
 Population density data from SEDAC. Options:
 

@@ -1,6 +1,6 @@
 engine_config = "configs/debug.toml"
-latitude = "38.9072N"
-longitude = "77.0369W"
+latitude = "37.7749N"
+longitude = "122.4194W"
 radius = 1
 
 [datasets]

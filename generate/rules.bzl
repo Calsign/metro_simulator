@@ -2,17 +2,15 @@ def _generate_map_impl(ctx):
     output_name = "{}.json".format(ctx.label.name)
     output_file = ctx.actions.declare_file(output_name)
 
-    population = ctx.file._population
     map_file = ctx.file.map_file
 
     args = ctx.actions.args()
     args.add(map_file)
-    args.add("--population-path", population)
     args.add("--save", output_file)
 
     ctx.actions.run(
         outputs = [output_file],
-        inputs = [population, map_file] + ctx.files._configs,
+        inputs = [map_file] + ctx.files._configs + ctx.files._datasets,
         executable = ctx.executable._generate,
         arguments = [args],
         progress_message = "Generating map '{}'".format(ctx.label.name),
@@ -28,8 +26,8 @@ generate_map = rule(
             executable = True,
             cfg = "exec",
         ),
-        "_population": attr.label(
-            default = "//generate/datasets:population.tif",
+        "_datasets": attr.label(
+            default = "//generate/datasets",
             allow_single_file = True,
         ),
         "_configs": attr.label(
