@@ -1,3 +1,4 @@
 /bazel-*
 /build
 /rust-project.json
+__pycache__

@@ -3,7 +3,10 @@ load("@rules_rust//rust:defs.bzl", "rust_binary")
 rust_binary(
     name = "editor",
     srcs = ["main.rs"],
-    data = ["//config:debug.toml"],
+    data = [
+        "//configs",
+        "//maps",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//cargo/pkgs:anyhow",

@@ -1,0 +1,6 @@
+load("//generate:rules.bzl", "generate_all_maps")
+
+generate_all_maps(
+    name = "maps",
+    visibility = ["//visibility:public"],
+)

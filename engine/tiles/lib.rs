@@ -11,6 +11,7 @@ pub trait TileType {
 #[non_exhaustive]
 pub enum Tile {
     EmptyTile,
+    WaterTile,
     HousingTile,
     WorkplaceTile,
     MetroStationTile,
@@ -22,6 +23,15 @@ pub struct EmptyTile {}
 impl TileType for EmptyTile {
     fn name(&self) -> &'static str {
         "empty"
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaterTile {}
+
+impl TileType for WaterTile {
+    fn name(&self) -> &'static str {
+        "water"
     }
 }
 

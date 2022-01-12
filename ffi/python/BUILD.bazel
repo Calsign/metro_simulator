@@ -10,6 +10,7 @@ rust_shared_library(
     deps = [
         "//cargo/pkgs:cgmath",
         "//cargo/pkgs:pyo3",
+        "//cargo/pkgs:serde_json",
         "//cargo/pkgs:thiserror",
         "//engine",
         "//engine/metro",

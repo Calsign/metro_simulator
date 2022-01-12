@@ -10,6 +10,8 @@ pub enum EngineError {
     StateError(#[from] engine::state::Error),
     #[error("Quadtree error: {0}")]
     QuadtreeError(#[from] quadtree::Error),
+    #[error("JSON error: {0}")]
+    JsonError(#[from] serde_json::Error),
 }
 
 impl std::convert::From<EngineError> for PyErr {
@@ -89,6 +91,12 @@ impl LeafState {
     #[new]
     fn new() -> Self {
         engine::state::LeafState::default().into()
+    }
+
+    #[staticmethod]
+    fn from_json(json: String) -> PyResult<Self> {
+        let leaf: engine::state::LeafState = wrap_err(serde_json::from_str(&json))?;
+        Ok(leaf.into())
     }
 
     #[getter]
@@ -338,13 +346,13 @@ impl MetroLine {
 
     #[getter]
     fn length(&self) -> f64 {
-        self.metro_line.length
+        self.metro_line.length()
     }
 
     #[getter]
     fn stations(&self) -> Vec<Station> {
         self.metro_line
-            .stations
+            .stations()
             .iter()
             .map(|station| station.clone().into())
             .collect()
@@ -374,6 +382,7 @@ impl metro::SplineVisitor<PyErr> for PySplineVisitor {
 #[pymodule]
 fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Config>()?;
+    m.add_class::<Address>()?;
     m.add_class::<BranchState>()?;
     m.add_class::<LeafState>()?;
     m.add_class::<VisitData>()?;

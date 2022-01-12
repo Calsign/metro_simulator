@@ -1,0 +1,4 @@
+engine_config = "configs/debug.toml"
+latitude = "38.9072N"
+longitude = "77.0369W"
+radius = 1

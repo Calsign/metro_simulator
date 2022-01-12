@@ -4,7 +4,7 @@ load("@pip_pkgs//:requirements.bzl", "requirement")
 py_binary(
     name = "debug",
     srcs = ["main.py"],
-    data = ["//config:debug.toml"],
+    data = ["//configs"],
     main = "main.py",
     deps = [
         requirement("pygame"),

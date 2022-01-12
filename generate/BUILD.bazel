@@ -1,0 +1,25 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@pip_pkgs//:requirements.bzl", "requirement")
+
+py_binary(
+    name = "generate",
+    srcs = [
+        "main.py",
+        "quadtree.py",
+    ],
+    data = [
+        "//configs",
+        "//generate/datasets:population.tif",
+    ],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("gdal"),
+        requirement("numpy"),
+        requirement("matplotlib"),
+        requirement("argh"),
+        requirement("toml"),
+        "//ffi/python",
+        "@rules_python//python/runfiles",
+    ],
+)

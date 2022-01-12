@@ -199,7 +199,7 @@ fn build_menu_panel() -> impl druid::Widget<State> {
                 let engine = state.content.engine.lock().unwrap();
                 let timestamp = chrono::offset::Local::now();
                 let path = format!(
-                    "/tmp/metro_simulator_{}",
+                    "/tmp/metro_simulator_{}.json",
                     timestamp.format("%Y-%m-%d_%H-%M-%S"),
                 );
                 engine.dump_file(&std::path::PathBuf::from(&path)).unwrap();
@@ -523,7 +523,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
-        Ok(true)
+        Ok(data.width as f64 * self.state.scale >= 2.0)
     }
 
     fn visit_leaf(
@@ -547,6 +547,9 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
         use tiles::Tile::*;
         match &leaf.tile {
+            WaterTile(tiles::WaterTile {}) => {
+                self.ctx.fill(rect, &druid::Color::rgb8(0, 0, 150));
+            }
             HousingTile(tiles::HousingTile { density }) => {
                 let circle = druid::kurbo::Circle::new(rect.center(), width / 8.0);
                 self.ctx.fill(circle, &druid::Color::grey8(255));
