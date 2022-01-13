@@ -17,6 +17,10 @@ import engine
 from quadtree import Quadtree
 
 
+# Kilometers per degree at the equator
+EQ_KM_PER_DEG = 111
+
+
 @functools.lru_cache
 def runfiles():
     from rules_python.python.runfiles import runfiles
@@ -34,7 +38,6 @@ def plt():
 class MapConfig:
     latitude: str
     longitude: str
-    radius: str
 
     engine_config: dict
     datasets: dict
@@ -57,24 +60,35 @@ class GeoTransform:
 class Coords:
     lat: float
     lon: float
-    radius: float
+    radius: float  # meters
+
+    @property
+    def lon_radius(self):
+        # account for curvature of the earth
+        return self.radius / 1000 / EQ_KM_PER_DEG / \
+            math.cos(math.radians(self.lat))
+
+    @property
+    def lat_radius(self):
+        return self.radius / 1000 / EQ_KM_PER_DEG
 
 
-def round_to_sq(x):
+def round_to_pow2(x, up=True):
     """
-    Round up to the nearest perfect square integer.
+    Round up or down to the nearest power of two.
     """
-    return int(2 ** math.ceil(math.log(x, 2)))
+    f = (math.floor, math.ceil)[up]
+    return int(2 ** f(math.log(x, 2)))
 
 
-def centered_box(lon, lat, radius, transform):
+def centered_box(lon, lat, lon_radius, lat_radius, transform):
     assert -180 <= lon < 180, lon
     assert -90 <= lat <= 90, lat
 
     lon_px = math.floor((lon - transform.lon_min) / transform.lon_res)
     lat_px = math.floor((lat - transform.lat_min) / transform.lat_res)
-    lon_rad = round_to_sq(radius / abs(transform.lon_res))
-    lat_rad = round_to_sq(radius / abs(transform.lat_res))
+    lon_rad = int(lon_radius / abs(transform.lon_res))
+    lat_rad = int(lat_radius / abs(transform.lat_res))
     return ((lon_px - lon_rad, lat_px - lat_rad), (lon_px + lon_rad, lat_px + lat_rad))
 
 
@@ -105,7 +119,7 @@ def make_tile(type_, **fields):
 def check_input_grid(grid):
     assert grid.shape[0] == grid.shape[1]
     dim = grid.shape[0]
-    assert math.log(dim, 2) % 1 == 0
+    assert math.log(dim, 2) % 1 == 0, dim
 
     return (dim, int(math.log(dim, 2)))
 
@@ -212,10 +226,13 @@ def read_gdal(dataset_path, coords, band=1):
     transform = GeoTransform.from_gdal(data)
 
     ((x1, y1), (x2, y2)) = centered_box(
-        coords.lon, coords.lat, coords.radius, transform)
+        coords.lon, coords.lat, coords.lon_radius, coords.lat_radius, transform)
     (w, h) = (x2 - x1, y2 - y1)
 
-    return band.ReadAsArray(xoff=x1, yoff=y1, win_xsize=w, win_ysize=h)
+    # let gdal take care of resampling for us
+    downsampled_dim = round_to_pow2(h)
+    return band.ReadAsArray(xoff=x1, yoff=y1, win_xsize=w, win_ysize=h,
+                            buf_xsize=downsampled_dim, buf_ysize=downsampled_dim)
 
 
 def handle_terrain(map_config, coords, plot):
@@ -248,14 +265,16 @@ def main(map_path, plot=[], save=None):
         json.dumps(map_config.engine_config)))
 
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)
-    coords = Coords(lat=lat, lon=lon, radius=map_config.radius)
+    radius = map_config.engine_config["min_tile_size"] * \
+        2**map_config.engine_config["max_depth"] / 2
+    coords = Coords(lat=lat, lon=lon, radius=radius)
 
     gdal.UseExceptions()
 
     terrain_qtree = handle_terrain(map_config, coords, "terrain" in plot)
     housing_qtree = handle_housing(map_config, coords, "housing" in plot)
 
-    write_qtree(state, housing_qtree)
+    write_qtree(state, terrain_qtree)
 
     if save is not None:
         state.save(save)

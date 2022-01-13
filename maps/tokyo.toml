@@ -1,10 +1,10 @@
 latitude = "35.6762N"
 longitude = "139.6503E"
-radius = 1
 
 [engine_config]
 max_depth = 12
 people_per_sim = 100
+min_tile_size = 40
 
 [datasets]
 population = "generate/datasets/sedac_population.tif"

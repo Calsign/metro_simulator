@@ -10,8 +10,12 @@ pub enum Error {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
+    /** Maximum number of times a tile can be split. */
     pub max_depth: u32,
+    /** The number of real people represented by a single simulated person. */
     pub people_per_sim: u32,
+    /** The size (in meters) of the smallest possible tile. */
+    pub min_tile_size: u32,
 }
 
 impl Config {
