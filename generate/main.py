@@ -23,6 +23,13 @@ def runfiles():
     return runfiles.Create()
 
 
+@functools.lru_cache
+def plt():
+    import matplotlib
+    import matplotlib.pyplot as plt
+    return plt
+
+
 @dataclass
 class MapConfig:
     latitude: str
@@ -44,6 +51,13 @@ class GeoTransform:
     def from_gdal(dataset):
         (lon_min, lon_res, _, lat_min, _, lat_res) = dataset.GetGeoTransform()
         return GeoTransform(lon_min, lon_res, lat_min, lat_res)
+
+
+@dataclass
+class Coords:
+    lat: float
+    lon: float
+    radius: float
 
 
 def round_to_sq(x):
@@ -88,11 +102,18 @@ def make_tile(type_, **fields):
     }
 
 
-def tile_water(water_grid):
-    assert water_grid.shape[0] == water_grid.shape[1]
-    dim = water_grid.shape[0]
+def check_input_grid(grid):
+    assert grid.shape[0] == grid.shape[1]
+    dim = grid.shape[0]
     assert math.log(dim, 2) % 1 == 0
-    depth = int(math.log(dim, 2))
+
+    return (dim, int(math.log(dim, 2)))
+
+
+def tile_terrain(terrain_grid):
+    (dim, depth) = check_input_grid(terrain_grid)
+
+    # NOTE: only handles water so far
 
     qtree = Quadtree(max_depth=depth)
     qtree.fill(None)
@@ -100,7 +121,8 @@ def tile_water(water_grid):
     # populate with water data from the input array
     def initial(node, data):
         if data.depth == depth:
-            node.data = water_grid[data.x][data.y] != 0
+            # GlobCover represents water as 210
+            node.data = terrain_grid[data.x][data.y] == 210
     qtree.convolve(initial)
 
     # collapse groups of water and non-water nodes
@@ -124,6 +146,48 @@ def tile_water(water_grid):
     return qtree
 
 
+def tile_housing(population_grid, people_per_sim):
+    (dim, depth) = check_input_grid(population_grid)
+
+    qtree = Quadtree(max_depth=depth)
+    qtree.fill(None)
+
+    # population with population data from the input array
+    def initial(node, data):
+        if data.depth == depth:
+            node.data = population_grid[data.x][data.y] / people_per_sim
+            assert node.data >= 0
+    qtree.convolve(initial)
+
+    def divide(node, data):
+        if node.data is not None and node.data >= 4:
+            for _ in range(4):
+                node.add_child(node.data / 4)
+    qtree.convolve(divide, post=False)
+
+    def combine(node, data):
+        if node.data is None:
+            node.data = sum([child.data for child in node.children])
+            if node.data < 4:
+                # collapse small-population tiles together
+                node.children = []
+            else:
+                # TODO: smart re-allocation of population
+                pass
+    qtree.convolve(combine, post=True)
+
+    def convert(node, data):
+        if len(node.children) == 0:
+            density = round(node.data)
+            if density == 0:
+                node.data = make_tile("EmptyTile")
+            else:
+                node.data = make_tile("HousingTile", density=density)
+    qtree.convolve(convert)
+
+    return qtree
+
+
 def write_qtree(state, qtree):
     def write(node, data):
         address = engine.Address(data.address)
@@ -142,44 +206,59 @@ def write_qtree(state, qtree):
     qtree.convolve(write)
 
 
-def main(map_path, plot=False, save=None):
+def read_gdal(dataset_path, coords, band=1):
+    data = gdal.Open(dataset_path, gdal.GA_ReadOnly)
+    band = data.GetRasterBand(1)
+    transform = GeoTransform.from_gdal(data)
+
+    ((x1, y1), (x2, y2)) = centered_box(
+        coords.lon, coords.lat, coords.radius, transform)
+    (w, h) = (x2 - x1, y2 - y1)
+
+    return band.ReadAsArray(xoff=x1, yoff=y1, win_xsize=w, win_ysize=h)
+
+
+def handle_terrain(map_config, coords, plot):
+    data = read_gdal(map_config.datasets["terrain"], coords)
+
+    if plot:
+        plt().imshow(data)
+        plt().show()
+
+    return tile_terrain(data)
+
+
+def handle_housing(map_config, coords, plot):
+    data = read_gdal(map_config.datasets["population"], coords)
+    population = np.maximum(data, 0)
+
+    if plot:
+        plt().imshow(population)
+        plt().show()
+
+    return tile_housing(
+        population, map_config.engine_config["people_per_sim"])
+
+
+@argh.arg("--plot", action="append", type=str)
+def main(map_path, plot=[], save=None):
     map_config = MapConfig(**toml.load(map_path))
 
     state = engine.State(engine.Config.from_json(
         json.dumps(map_config.engine_config)))
 
-    gdal.UseExceptions()
-    data = gdal.Open(map_config.datasets["population"], gdal.GA_ReadOnly)
-    band = data.GetRasterBand(1)
-
-    transform = GeoTransform.from_gdal(data)
-
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)
+    coords = Coords(lat=lat, lon=lon, radius=map_config.radius)
 
-    ((x1, y1), (x2, y2)) = centered_box(lon, lat, map_config.radius, transform)
-    (w, h) = (x2 - x1, y2 - y1)
+    gdal.UseExceptions()
 
-    arr = band.ReadAsArray(xoff=x1, yoff=y1, win_xsize=w, win_ysize=h)
+    terrain_qtree = handle_terrain(map_config, coords, "terrain" in plot)
+    housing_qtree = handle_housing(map_config, coords, "housing" in plot)
 
-    population = np.maximum(arr, 0)
-    water = -np.minimum(arr, 0)
-
-    water_qtree = tile_water(water)
-
-    write_qtree(state, water_qtree)
+    write_qtree(state, housing_qtree)
 
     if save is not None:
         state.save(save)
-
-    if plot:
-        import matplotlib
-        import matplotlib.pyplot as plt
-
-        plt.imshow(population)
-        plt.show()
-
-        plt.imshow(water)
-        plt.show()
 
 
 if __name__ == "__main__":

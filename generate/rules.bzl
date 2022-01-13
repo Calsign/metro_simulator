@@ -28,7 +28,6 @@ generate_map = rule(
         ),
         "_datasets": attr.label(
             default = "//generate/datasets",
-            allow_single_file = True,
         ),
         "map_file": attr.label(
             mandatory = True,

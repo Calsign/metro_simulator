@@ -11,6 +11,7 @@ pub enum Error {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub max_depth: u32,
+    pub people_per_sim: u32,
 }
 
 impl Config {

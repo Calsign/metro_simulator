@@ -18,6 +18,9 @@ class Quadtree:
         self.data = data
         self.children = []
 
+    def add_child(self, data=None):
+        self.children.append(Quadtree(max_depth=self.max_depth - 1, data=data))
+
     def fill(self,  data):
         if self.max_depth > 0:
             self.children = []

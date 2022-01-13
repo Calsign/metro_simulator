@@ -15,3 +15,9 @@ Population density data from SEDAC. Options:
 [Download](https://sedac.ciesin.columbia.edu/data/set/gpw-v4-population-density-rev11/data-download)
 
 Requires free account.
+
+### `esa_globcover.tif`
+
+Land cover data from the ESA.
+
+[Download](http://due.esrin.esa.int/page_globcover.php)

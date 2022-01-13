@@ -488,11 +488,18 @@ impl druid::Widget<ContentState> for Content {
         let (x1, y1) = state.to_model((0.0, 0.0));
         let (x2, y2) = state.to_model(ctx.size().into());
 
-        let mut qtree_visitor = PaintQtreeVisitor { ctx, env, state };
+        let mut qtree_visitor = PaintQtreeVisitor {
+            ctx,
+            env,
+            state,
+            visited: 0,
+        };
         engine
             .qtree
             .visit_rect(&mut qtree_visitor, &quadtree::Rect::corners(x1, y1, x2, y2))
             .unwrap();
+
+        println!("{}", qtree_visitor.visited);
 
         for (id, metro_line) in engine.metro_lines.iter() {
             let mut spline_visitor = PaintSplineVisitor {
@@ -512,6 +519,8 @@ struct PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
     env: &'b druid::Env,
     state: &'f ContentState,
+
+    visited: u64,
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f>
@@ -523,7 +532,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
-        Ok(data.width as f64 * self.state.scale >= 2.0)
+        Ok(data.width as f64 * self.state.scale >= 1.0)
     }
 
     fn visit_leaf(
@@ -569,6 +578,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
             }
             _ => (),
         }
+
+        self.visited += 1;
 
         Ok(())
     }
