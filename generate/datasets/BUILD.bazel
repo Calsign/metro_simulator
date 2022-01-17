@@ -1,8 +1,0 @@
-filegroup(
-    name = "datasets",
-    srcs = [
-        "esa_globcover.tif",
-        "sedac_population.tif",
-    ],
-    visibility = ["//visibility:public"],
-)

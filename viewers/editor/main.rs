@@ -532,7 +532,21 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
-        Ok(data.width as f64 * self.state.scale >= 1.0)
+        if data.width as f64 * self.state.scale >= 5.0 {
+            return Ok(true);
+        } else {
+            // draw a rectangle to indicate that there's stuff here
+            use druid::RenderContext;
+
+            let width = data.width as f64 * self.state.scale;
+            let rect = druid::Rect::from_origin_size(
+                self.state.to_screen((data.x, data.y)),
+                (width, width),
+            );
+            self.ctx.fill(rect, &druid::Color::grey8(100));
+
+            return Ok(false);
+        }
     }
 
     fn visit_leaf(

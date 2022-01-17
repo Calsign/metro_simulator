@@ -73,3 +73,9 @@ pip_install(
     name = "pip_pkgs",
     requirements = "//pip:requirements.txt",
 )
+
+# DATASETS
+
+load("//generate/datasets:datasets.bzl", "datasets")
+
+datasets.workspace_deps()

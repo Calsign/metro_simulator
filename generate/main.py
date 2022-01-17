@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import json
 import functools
 
+import typing as T
+
 import numpy as np
 from osgeo import gdal
 import toml
@@ -71,6 +73,20 @@ class Coords:
     @property
     def lat_radius(self):
         return self.radius / 1000 / EQ_KM_PER_DEG
+
+
+class Plotter:
+    def __init__(self, names_to_plot, plot_dir=None):
+        self.names_to_plot = names_to_plot
+        self.plot_dir = plot_dir
+        self.plot_all = names_to_plot == ["all"]
+
+    def plot(self, name, img):
+        if self.plot_all or name in self.names_to_plot:
+            plt().imshow(img)
+            if self.plot_dir is not None:
+                plt().savefig(os.path.join(self.plot_dir, "{}.png".format(name)))
+            plt().show()
 
 
 def round_to_pow2(x, up=True):
@@ -163,6 +179,7 @@ def tile_terrain(terrain_grid):
 def tile_housing(population_grid, people_per_sim):
     (dim, depth) = check_input_grid(population_grid)
 
+    # TODO: fix max depth to allow splitting
     qtree = Quadtree(max_depth=depth)
     qtree.fill(None)
 
@@ -170,11 +187,13 @@ def tile_housing(population_grid, people_per_sim):
     def initial(node, data):
         if data.depth == depth:
             node.data = population_grid[data.x][data.y] / people_per_sim
-            assert node.data >= 0
+            if math.isnan(node.data):
+                node.data = 0
+            assert node.data >= 0, node.data
     qtree.convolve(initial)
 
     def divide(node, data):
-        if node.data is not None and node.data >= 4:
+        if node.data is not None and node.data >= 4 and data.depth < qtree.max_depth:
             for _ in range(4):
                 node.add_child(node.data / 4)
     qtree.convolve(divide, post=False)
@@ -220,46 +239,107 @@ def write_qtree(state, qtree):
     qtree.convolve(write)
 
 
-def read_gdal(dataset_path, coords, band=1):
-    data = gdal.Open(dataset_path, gdal.GA_ReadOnly)
-    band = data.GetRasterBand(1)
-    transform = GeoTransform.from_gdal(data)
+def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_num: int = 1):
+    """
+    Read data from a region of a (potentially tiled) dataset into a numpy array.
 
-    ((x1, y1), (x2, y2)) = centered_box(
-        coords.lon, coords.lat, coords.lon_radius, coords.lat_radius, transform)
-    (w, h) = (x2 - x1, y2 - y1)
+    Tiles must have the same resolution and cover the entire requested region.
+    If tiles overlap, this function will not fail but the behavior is unspecified.
 
-    # let gdal take care of resampling for us
-    downsampled_dim = round_to_pow2(h)
-    return band.ReadAsArray(xoff=x1, yoff=y1, win_xsize=w, win_ysize=h,
-                            buf_xsize=downsampled_dim, buf_ysize=downsampled_dim)
+    :param dataset: a dataset; a dict with keys "tiles" (a list of paths to geotiff files)
+                    and "data" (a dict with extra dataset metadata).
+    :param coords: the coordinates of the region to load
+    :param max_dim: the maximum width/height of the output array
+    :param band_num: the GDAL band number to select
+    """
+
+    output = None
+    lat_lon_res = None
+    downsampled_dim = None
+
+    total_area = 0
+
+    # NOTE: sorted shouldn't be necessary, but for debugging it can be
+    # useful for the results to be deterministic
+    for data_file in sorted(dataset["tiles"]):
+        data = gdal.Open(data_file, gdal.GA_ReadOnly)
+        band = data.GetRasterBand(band_num)
+        transform = GeoTransform.from_gdal(data)
+
+        ((x1, y1), (x2, y2)) = centered_box(
+            coords.lon, coords.lat, coords.lon_radius, coords.lat_radius, transform)
+
+        current_lat_lon_res = (transform.lat_res, transform.lon_res)
+        if output is None:
+            # instantiate these values on the first pass because we need the resolution
+            # this lets us load each file only once
+
+            lat_lon_res = current_lat_lon_res
+
+            downsample = dataset["data"]["downsample"]
+            assert downsample >= 0
+            downsampled_dim = min(round_to_pow2(y2 - y1), max_dim) \
+                // (2 ** downsample)
+
+            output = np.zeros([downsampled_dim, downsampled_dim])
+        else:
+            assert lat_lon_res == current_lat_lon_res, \
+                "Got tiles with incompatible resolutions: {} != {}".format(
+                    lat_lon_res, current_lat_lon_res)
+
+        # crop to portion in this tile
+        (x1c, y1c) = (min(max(x1, 0), band.XSize), min(max(y1, 0), band.YSize))
+        (x2c, y2c) = (min(max(x2, 0), band.XSize), min(max(y2, 0), band.YSize))
+
+        if x2c - x1c == 0 or y2c - y1c == 0:
+            print("Unused dataset tile: {}".format(data_file))
+        else:
+            print("Using dataset tile: {}".format(data_file))
+
+            # project portion of output covered by this tile into the output space
+            (dx1, dy1) = (round((x1c - x1) / (x2 - x1) * downsampled_dim),
+                          round((y1c - y1) / (y2 - y1) * downsampled_dim))
+            (dx2, dy2) = (round((x2c - x1) / (x2 - x1) * downsampled_dim),
+                          round((y2c - y1) / (y2 - y1) * downsampled_dim))
+
+            # let gdal take care of resampling for us
+            arr = band.ReadAsArray(xoff=x1c, yoff=y1c, win_xsize=x2c - x1c, win_ysize=y2c - y1c,
+                                   buf_xsize=dx2 - dx1, buf_ysize=dy2 - dy1)
+            output[dy1:dy2, dx1:dx2] = arr
+
+            total_area += (dx2 - dx1) * (dy2 - dy1)
+
+        # not necessary, but make clear that we no longer need this tile and it should be closed
+        del data
+
+    assert total_area >= downsampled_dim ** 2, \
+        "Missing tiles, areas unequal: {} < {}".format(
+            total_area, downsampled_dim ** 2)
+
+    return output
 
 
-def handle_terrain(map_config, coords, plot):
-    data = read_gdal(map_config.datasets["terrain"], coords)
-
-    if plot:
-        plt().imshow(data)
-        plt().show()
-
+def handle_terrain(map_config, coords, max_dim, plotter):
+    data = read_gdal(map_config.datasets["terrain"], coords, max_dim)
+    plotter.plot("terrain", data)
     return tile_terrain(data)
 
 
-def handle_housing(map_config, coords, plot):
-    data = read_gdal(map_config.datasets["population"], coords)
-    population = np.maximum(data, 0)
-
-    if plot:
-        plt().imshow(population)
-        plt().show()
-
-    return tile_housing(
-        population, map_config.engine_config["people_per_sim"])
+def handle_housing(map_config, coords, max_dim, plotter):
+    data = read_gdal(map_config.datasets["population"], coords, max_dim)
+    plotter.plot("housing", data)
+    return tile_housing(data, map_config.engine_config["people_per_sim"])
 
 
 @argh.arg("--plot", action="append", type=str)
-def main(map_path, plot=[], save=None):
-    map_config = MapConfig(**toml.load(map_path))
+def main(map_path, save=None, plot=[], plot_dir=None):
+    if map_path.endswith(".toml"):
+        map_config = MapConfig(**toml.load(map_path))
+    elif map_path.endswith(".json"):
+        with open(map_path) as f:
+            map_config = MapConfig(**json.load(f))
+    else:
+        print("Unrecognized map file extension: {}".format(map_path))
 
     state = engine.State(engine.Config.from_json(
         json.dumps(map_config.engine_config)))
@@ -268,15 +348,18 @@ def main(map_path, plot=[], save=None):
     radius = map_config.engine_config["min_tile_size"] * \
         2**map_config.engine_config["max_depth"] / 2
     coords = Coords(lat=lat, lon=lon, radius=radius)
+    max_dim = 2 ** map_config.engine_config["max_depth"]
 
     gdal.UseExceptions()
 
-    terrain_qtree = handle_terrain(map_config, coords, "terrain" in plot)
-    housing_qtree = handle_housing(map_config, coords, "housing" in plot)
+    plotter = Plotter(plot, plot_dir)
 
-    write_qtree(state, terrain_qtree)
+    terrain_qtree = handle_terrain(map_config, coords, max_dim, plotter)
+    housing_qtree = handle_housing(map_config, coords, max_dim, plotter)
 
     if save is not None:
+        # TODO: merge qtrees
+        write_qtree(state, housing_qtree)
         state.save(save)
 
 

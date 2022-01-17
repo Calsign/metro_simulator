@@ -7,9 +7,6 @@ py_binary(
         "main.py",
         "quadtree.py",
     ],
-    data = [
-        "//generate/datasets",
-    ],
     main = "main.py",
     visibility = ["//visibility:public"],
     deps = [

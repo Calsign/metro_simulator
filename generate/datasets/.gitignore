@@ -1,5 +1,0 @@
-# don't check in the datasets because they're really big
-*
-!.gitignore
-!BUILD.bazel
-!README.md
