@@ -4,6 +4,8 @@ load("@pip_pkgs//:requirements.bzl", "requirement")
 py_binary(
     name = "generate",
     srcs = [
+        "data.py",
+        "gdal.py",
         "housing.py",
         "layer.py",
         "main.py",
