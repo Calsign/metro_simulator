@@ -18,18 +18,25 @@ class Quadtree:
         self.data = data
         self.children = []
 
-    def add_child(self, data=None):
-        self.children.append(Quadtree(max_depth=self.max_depth - 1, data=data))
+    def add_children(self, data_f):
+        for _ in range(len(Quadtree.CHILD_QUADRANTS)):
+            self.children.append(
+                Quadtree(max_depth=self.max_depth - 1, data=data_f()))
 
-    def fill(self,  data):
-        if self.max_depth > 0:
-            self.children = []
-            for _ in range(len(Quadtree.CHILD_QUADRANTS)):
-                child = Quadtree(max_depth=self.max_depth-1)
-                child.fill(data)
-                self.children.append(child)
-        else:
-            self.data = data
+    def fill(self, data_f, depth=None):
+        if depth is None:
+            depth = self.max_depth
+
+        if self.data is None:
+            self.data = data_f()
+
+        if depth > 0:
+            if len(self.children) == 0:
+                for _ in range(len(Quadtree.CHILD_QUADRANTS)):
+                    self.children.append(
+                        Quadtree(max_depth=self.max_depth - 1))
+            for child in self.children:
+                child.fill(data_f, depth=depth - 1)
 
     def _convolve_internal(self, f, post, x, y, depth, address):
         assert len(self.children) in [0, 4]

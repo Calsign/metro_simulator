@@ -40,6 +40,7 @@ def _generate_map_impl(ctx):
     map_file = ctx.actions.declare_file("{}.in.json".format(ctx.label.name))
     ctx.actions.write(map_file, json.encode(
         struct(
+            name = ctx.label.name,
             latitude = ctx.attr.latitude,
             longitude = ctx.attr.longitude,
             engine_config = engine_config,
@@ -48,6 +49,7 @@ def _generate_map_impl(ctx):
     ))
 
     plot_dir = ctx.actions.declare_directory("{}/plots".format(ctx.label.name))
+    profile_file = ctx.actions.declare_file("{}/profile".format(ctx.label.name))
 
     save_args = ctx.actions.args()
     save_args.add(map_file)
@@ -74,10 +76,23 @@ def _generate_map_impl(ctx):
         progress_message = "Generating plots for map '{}'".format(ctx.label.name),
     )
 
+    profile_args = ctx.actions.args()
+    profile_args.add(map_file)
+    profile_args.add("--profile-file", profile_file)
+
+    ctx.actions.run(
+        outputs = [profile_file],
+        inputs = [map_file] + dataset_deps,
+        executable = ctx.executable._generate,
+        arguments = [profile_args],
+        progress_message = "Profiling generation of map '{}'".format(ctx.label.name),
+    )
+
     return [
         DefaultInfo(files = depset([output_file])),
         OutputGroupInfo(
             plots = depset([plot_dir]),
+            profile = depset([profile_file]),
         ),
     ]
 

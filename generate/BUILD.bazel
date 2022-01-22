@@ -4,8 +4,11 @@ load("@pip_pkgs//:requirements.bzl", "requirement")
 py_binary(
     name = "generate",
     srcs = [
+        "housing.py",
+        "layer.py",
         "main.py",
         "quadtree.py",
+        "terrain.py",
     ],
     main = "main.py",
     visibility = ["//visibility:public"],
