@@ -523,6 +523,18 @@ struct PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     visited: u64,
 }
 
+impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
+    fn get_rect(&self, data: &quadtree::VisitData) -> druid::Rect {
+        let width = data.width as f64 * self.state.scale;
+        druid::Rect::from_origin_size(self.state.to_screen((data.x, data.y)), (width, width))
+    }
+
+    fn get_full_rect(&self, data: &quadtree::VisitData) -> druid::Rect {
+        let width = data.width as f64 * self.state.scale + 1.0;
+        druid::Rect::from_origin_size(self.state.to_screen((data.x, data.y)), (width, width))
+    }
+}
+
 impl<'a, 'b, 'c, 'd, 'e, 'f>
     quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, anyhow::Error>
     for PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f>
@@ -538,12 +550,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
             // draw a rectangle to indicate that there's stuff here
             use druid::RenderContext;
 
-            let width = data.width as f64 * self.state.scale;
-            let rect = druid::Rect::from_origin_size(
-                self.state.to_screen((data.x, data.y)),
-                (width, width),
-            );
-            self.ctx.fill(rect, &druid::Color::grey8(100));
+            let full_rect = self.get_full_rect(data);
+            self.ctx.fill(full_rect, &druid::Color::grey8(100));
 
             return Ok(false);
         }
@@ -557,21 +565,19 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         use druid::RenderContext;
 
         let width = data.width as f64 * self.state.scale;
-        let rect =
-            druid::Rect::from_origin_size(self.state.to_screen((data.x, data.y)), (width, width));
-        let mut stroke_weight = 1.0;
+        let rect = self.get_rect(data);
+        let full_rect = self.get_full_rect(data);
+
         if let Some(current_leaf) = &self.state.current_leaf {
             if *current_leaf.address == data.address {
-                stroke_weight = 5.0;
+                self.ctx.stroke(rect, &druid::Color::grey8(200), 5.0);
             }
         }
-        self.ctx
-            .stroke(rect, &druid::Color::grey8(200), stroke_weight);
 
         use tiles::Tile::*;
         match &leaf.tile {
             WaterTile(tiles::WaterTile {}) => {
-                self.ctx.fill(rect, &druid::Color::rgb8(0, 0, 150));
+                self.ctx.fill(full_rect, &druid::Color::rgb8(0, 0, 150));
             }
             HousingTile(tiles::HousingTile { density }) => {
                 let circle = druid::kurbo::Circle::new(rect.center(), width / 8.0);
