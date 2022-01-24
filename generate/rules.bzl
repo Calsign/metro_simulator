@@ -139,7 +139,7 @@ def _parse_lat_lon(lat, lon):
 
     return (latf, lonf)
 
-def map(name, latitude, longitude, engine_config, datasets):
+def map(name, latitude, longitude, engine_config, datasets, visibility = ["//visibility:private"]):
     (lat, lon) = _parse_lat_lon(latitude, longitude)
 
     dataset_map = {}
@@ -156,4 +156,5 @@ def map(name, latitude, longitude, engine_config, datasets):
         datasets = dataset_map,
         dataset_data = dataset_data_map,
         engine_config = engine_config,
+        visibility = visibility,
     )

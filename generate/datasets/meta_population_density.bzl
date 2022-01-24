@@ -1,5 +1,8 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+# Meta/Facebook population density dataset.
+# Download: https://data.humdata.org/organization/facebook?q=high%20resolution%20population%20density
+
 MIN_LAT = 38
 MIN_LON = -170
 TILE_SIZE = 10
@@ -120,6 +123,7 @@ meta_population_density = struct(
     workspace_deps = _workspace_deps,
     get_deps = _get_deps,
     data = {
+        "type": "geotiff",
         "downsample": 2,
     },
 )

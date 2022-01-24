@@ -1,6 +1,7 @@
 load("//generate:rules.bzl", "engine_config", "map")
 load("//generate/datasets:esa_globcover.bzl", "esa_globcover")
 load("//generate/datasets:meta_population_density.bzl", "meta_population_density")
+load("//generate/datasets:census_lodes.bzl", "census_lodes")
 
 filegroup(
     name = "maps",
@@ -24,6 +25,12 @@ map(
     datasets = {
         "terrain": esa_globcover,
         "population": meta_population_density,
+        "employment": census_lodes.states([
+            "ny",
+            "nj",
+            "ct",
+            "pa",
+        ]),
     },
     engine_config = ":config",
     latitude = "40.7128N",
@@ -35,6 +42,12 @@ map(
     datasets = {
         "terrain": esa_globcover,
         "population": meta_population_density,
+        "employment": census_lodes.states([
+            "dc",
+            "va",
+            "md",
+            "wv",
+        ]),
     },
     engine_config = ":config",
     latitude = "38.9072N",
@@ -46,6 +59,7 @@ map(
     datasets = {
         "terrain": esa_globcover,
         "population": meta_population_density,
+        "employment": census_lodes.states(["ca"]),
     },
     engine_config = ":config",
     latitude = "37.7749N",

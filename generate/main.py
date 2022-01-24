@@ -21,12 +21,14 @@ from layer import Layer, Tile
 
 from data import Coords, round_to_pow2, centered_box
 from gdal import read_gdal
+from lodes import read_lodes
 
 import terrain
 import housing
+import workplaces
 
 
-LAYERS = [terrain.Terrain, housing.Housing]
+LAYERS = [terrain.Terrain, housing.Housing, workplaces.Workplaces]
 
 
 @functools.lru_cache
@@ -194,8 +196,18 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
     qtree = Quadtree(max_depth=max_depth)
 
     for layer in layers:
-        report_timestamp("read gdal - {}".format(layer.get_name()))
-        dataset = read_gdal(layer.get_dataset(), coords, max_dim)
+        report_timestamp("read dataset - {}".format(layer.get_name()))
+
+        dataset_info = layer.get_dataset()
+        dataset_type = dataset_info["data"]["type"]
+        if dataset_type == "geotiff":
+            dataset = read_gdal(dataset_info, coords, max_dim)
+        elif dataset_type == "lodes":
+            dataset = read_lodes(dataset_info, coords, max_dim)
+        else:
+            raise Exception(
+                "Unrecognized dataset type: {}".format(dataset_type))
+
         (dim, depth) = check_input_grid(dataset)
         tile_width = max_dim // dim
 

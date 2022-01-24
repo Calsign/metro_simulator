@@ -4,7 +4,10 @@ load("@pip_pkgs//:requirements.bzl", "requirement")
 py_binary(
     name = "debug",
     srcs = ["main.py"],
-    data = ["//configs"],
+    data = [
+        "//configs",
+        "//maps",
+    ],
     main = "main.py",
     deps = [
         requirement("pygame"),

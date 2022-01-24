@@ -24,6 +24,7 @@ esa_globcover = struct(
     workspace_deps = _workspace_deps,
     get_deps = _get_deps,
     data = {
+        "type": "geotiff",
         "downsample": 0,
     },
 )
