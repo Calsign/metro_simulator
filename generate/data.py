@@ -25,6 +25,17 @@ class Coords:
         return self.radius / 1000 / EQ_KM_PER_DEG
 
 
+@dataclass
+class MapConfig:
+    name: str
+
+    latitude: str
+    longitude: str
+
+    engine_config: dict
+    datasets: T.Dict[str, T.Any]
+
+
 def round_to_pow2(x, up=True):
     """
     Round up or down to the nearest power of two.

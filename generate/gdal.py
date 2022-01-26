@@ -6,7 +6,7 @@ import typing as T
 
 import numpy as np
 
-from data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
+from generate.data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
 
 
 @dataclass
@@ -29,7 +29,7 @@ def osgeo_gdal():
     return osgeo.gdal
 
 
-def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_num: int = 1):
+def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_num: int = 1) -> np.ndarray:
     """
     Read data from a region of a (potentially tiled) dataset into a numpy array.
 
@@ -102,6 +102,8 @@ def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_nu
         # not necessary, but make clear that we no longer need this tile and it should be closed
         del data
 
+    assert downsampled_dim is not None
+    assert output is not None
     assert total_area >= downsampled_dim ** 2, \
         "Missing tiles, areas unequal: {} < {}".format(
             total_area, downsampled_dim ** 2)

@@ -16,16 +16,14 @@ import argh
 
 import engine
 
-from quadtree import Quadtree, ConvolveData
-from layer import Layer, Tile
+from generate.quadtree import Quadtree, ConvolveData
+from generate.layer import Layer, Tile
 
-from data import Coords, round_to_pow2, centered_box
-from gdal import read_gdal
-from lodes import read_lodes
+from generate.data import Coords, MapConfig, round_to_pow2, centered_box
+from generate.gdal import read_gdal
+from generate.lodes import read_lodes
 
-import terrain
-import housing
-import workplaces
+from generate import terrain, housing, workplaces
 
 
 LAYERS = [terrain.Terrain, housing.Housing, workplaces.Workplaces]
@@ -59,17 +57,6 @@ def random(seed):
     # to consider how the random number sequence is affected.
     import random
     return random.Random(seed)
-
-
-@dataclass
-class MapConfig:
-    name: str
-
-    latitude: str
-    longitude: str
-
-    engine_config: dict
-    datasets: dict
 
 
 @dataclass

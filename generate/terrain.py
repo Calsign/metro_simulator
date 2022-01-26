@@ -1,7 +1,7 @@
 import typing as T
 
-from layer import Layer, Tile
-from quadtree import Quadtree, ConvolveData
+from generate.layer import Layer, Tile
+from generate.quadtree import Quadtree, ConvolveData
 
 
 class Terrain(Layer):

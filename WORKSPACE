@@ -71,7 +71,32 @@ load("@rules_python//python:pip.bzl", "pip_install")
 
 pip_install(
     name = "pip_pkgs",
-    requirements = "//pip:requirements.txt",
+    requirements = "//python/pip:requirements.txt",
+)
+
+# MYPY
+
+http_archive(
+    name = "mypy_integration",
+    sha256 = "9ba22e69e3e8eebb35eb971082cb980becfb2c657d273a26860192d4a7347324",
+    strip_prefix = "bazel-mypy-integration-c1193a230e3151b89d2e9ed05b986da34075c280",
+    url = "https://github.com/thundergolfer/bazel-mypy-integration/archive/c1193a230e3151b89d2e9ed05b986da34075c280.zip",
+)
+
+load(
+    "@mypy_integration//repositories:repositories.bzl",
+    mypy_repositories = "repositories",
+)
+load("@mypy_integration//:config.bzl", "mypy_configuration")
+load("@mypy_integration//repositories:deps.bzl", mypy_deps = "deps")
+
+mypy_repositories()
+
+mypy_configuration("//python/mypy:mypy_config.ini")
+
+mypy_deps(
+    mypy_requirements_file = "//python/mypy:mypy_version.txt",
+    python_interpreter = "python3.10",
 )
 
 # DATASETS

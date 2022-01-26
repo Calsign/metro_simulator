@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import typing as T
 
-from quadtree import Quadtree, ConvolveData
+from generate.data import MapConfig
+from generate.quadtree import Quadtree, ConvolveData
 
 
 @dataclass
@@ -20,7 +21,7 @@ class Tile:
 
 
 class Layer(ABC):
-    def __init__(self, map_config: T.Dict[str, T.Any]):
+    def __init__(self, map_config: MapConfig):
         self.map_config = map_config
 
     def get_node_data(self, node: Quadtree) -> T.List[T.Any]:

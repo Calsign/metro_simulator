@@ -1,12 +1,13 @@
 import math
 import typing as T
 
-from layer import Layer, Tile
-from quadtree import Quadtree, ConvolveData
+from generate.data import MapConfig
+from generate.layer import Layer, Tile
+from generate.quadtree import Quadtree, ConvolveData
 
 
 class SimpleDensity(Layer):
-    def __init__(self, map_config: T.Dict[str, T.Any], tile_name: str):
+    def __init__(self, map_config: MapConfig, tile_name: str):
         super().__init__(map_config)
         self.tile_name = tile_name
 

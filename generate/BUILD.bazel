@@ -27,5 +27,9 @@ py_binary(
         requirement("shapely"),
         "//ffi/python",
         "@rules_python//python/runfiles",
+
+        # type stubs
+        requirement("types-toml"),
+        requirement("data-science-types"),
     ],
 )

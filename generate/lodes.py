@@ -8,10 +8,11 @@ import shapefile
 from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform
 
-from data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
+from generate.data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
 
 
-def bbox_contains(outer: T.Tuple[float], inner: T.Tuple[float]):
+def bbox_contains(outer: T.Tuple[float, float, float, float],
+                  inner: T.Tuple[float, float, float, float]) -> bool:
     (ox1, oy1, ox2, oy2) = outer
     (ix1, iy1, ix2, iy2) = inner
 
@@ -37,7 +38,7 @@ def read_lodes(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int):
     (min_lat, max_lat) = (coords.lat -
                           coords.lat_radius, coords.lat + coords.lat_radius)
 
-    bbox = [min_lon, min_lat, max_lon, max_lat]
+    bbox = (min_lon, min_lat, max_lon, max_lat)
 
     # keep track of all census blocks in the desired area
     census_blocks = {}
