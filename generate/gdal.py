@@ -25,11 +25,14 @@ class GeoTransform:
 @functools.lru_cache
 def osgeo_gdal():
     import osgeo.gdal
+
     osgeo.gdal.UseExceptions()
     return osgeo.gdal
 
 
-def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_num: int = 1) -> np.ndarray:
+def read_gdal(
+    dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_num: int = 1
+) -> np.ndarray:
     """
     Read data from a region of a (potentially tiled) dataset into a numpy array.
 
@@ -57,7 +60,8 @@ def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_nu
         transform = GeoTransform.from_gdal(data)
 
         ((x1, y1), (x2, y2)) = centered_box(
-            coords.lon, coords.lat, coords.lon_radius, coords.lat_radius, transform)
+            coords.lon, coords.lat, coords.lon_radius, coords.lat_radius, transform
+        )
 
         current_lat_lon_res = (transform.lat_res, transform.lon_res)
         if output is None:
@@ -68,14 +72,15 @@ def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_nu
 
             downsample = dataset["data"]["downsample"]
             assert downsample >= 0
-            downsampled_dim = min(round_to_pow2(y2 - y1), max_dim) \
-                // (2 ** downsample)
+            downsampled_dim = min(round_to_pow2(y2 - y1), max_dim) // (2 ** downsample)
 
             output = np.zeros([downsampled_dim, downsampled_dim])
         else:
-            assert lat_lon_res == current_lat_lon_res, \
-                "Got tiles with incompatible resolutions: {} != {}".format(
-                    lat_lon_res, current_lat_lon_res)
+            assert (
+                lat_lon_res == current_lat_lon_res
+            ), "Got tiles with incompatible resolutions: {} != {}".format(
+                lat_lon_res, current_lat_lon_res
+            )
 
         # crop to portion in this tile
         (x1c, y1c) = (min(max(x1, 0), band.XSize), min(max(y1, 0), band.YSize))
@@ -87,14 +92,24 @@ def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_nu
             print("Using dataset tile: {}".format(data_file))
 
             # project portion of output covered by this tile into the output space
-            (dx1, dy1) = (round((x1c - x1) / (x2 - x1) * downsampled_dim),
-                          round((y1c - y1) / (y2 - y1) * downsampled_dim))
-            (dx2, dy2) = (round((x2c - x1) / (x2 - x1) * downsampled_dim),
-                          round((y2c - y1) / (y2 - y1) * downsampled_dim))
+            (dx1, dy1) = (
+                round((x1c - x1) / (x2 - x1) * downsampled_dim),
+                round((y1c - y1) / (y2 - y1) * downsampled_dim),
+            )
+            (dx2, dy2) = (
+                round((x2c - x1) / (x2 - x1) * downsampled_dim),
+                round((y2c - y1) / (y2 - y1) * downsampled_dim),
+            )
 
             # let gdal take care of resampling for us
-            arr = band.ReadAsArray(xoff=x1c, yoff=y1c, win_xsize=x2c - x1c, win_ysize=y2c - y1c,
-                                   buf_xsize=dx2 - dx1, buf_ysize=dy2 - dy1)
+            arr = band.ReadAsArray(
+                xoff=x1c,
+                yoff=y1c,
+                win_xsize=x2c - x1c,
+                win_ysize=y2c - y1c,
+                buf_xsize=dx2 - dx1,
+                buf_ysize=dy2 - dy1,
+            )
             output[dy1:dy2, dx1:dx2] = arr
 
             total_area += (dx2 - dx1) * (dy2 - dy1)
@@ -104,8 +119,8 @@ def read_gdal(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int, band_nu
 
     assert downsampled_dim is not None
     assert output is not None
-    assert total_area >= downsampled_dim ** 2, \
-        "Missing tiles, areas unequal: {} < {}".format(
-            total_area, downsampled_dim ** 2)
+    assert (
+        total_area >= downsampled_dim ** 2
+    ), "Missing tiles, areas unequal: {} < {}".format(total_area, downsampled_dim ** 2)
 
     return output

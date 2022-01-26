@@ -1,4 +1,3 @@
-
 import time
 import os
 import math
@@ -10,7 +9,7 @@ import engine
 
 # suppress banner
 if True:
-    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
+    os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
     import pygame
     import pygame_gui
 
@@ -19,7 +18,7 @@ WINDOW_SIZE = (1920, 1080)
 FRAMERATE = 60
 DEFAULT_SCALE = 4
 
-DEFAULT_CONFIG = 'config/debug.toml'
+DEFAULT_CONFIG = "config/debug.toml"
 
 
 class Colors:
@@ -65,7 +64,7 @@ def main(config=DEFAULT_CONFIG, load_file=None):
     detail_panel_address = pygame_gui.elements.UITextEntryLine(
         relative_rect=pygame.Rect((10, 10), (370, 0)),
         manager=gui,
-        container=detail_panel
+        container=detail_panel,
     )
 
     detail_panel_json = pygame_gui.elements.UITextEntryLine(
@@ -116,9 +115,9 @@ def main(config=DEFAULT_CONFIG, load_file=None):
 
         if selected_tile is None:
             detail_panel.disable()
-            detail_panel_address.set_text('')
-            detail_panel_json.set_text('')
-            detail_panel_json_edit.set_text('')
+            detail_panel_address.set_text("")
+            detail_panel_json.set_text("")
+            detail_panel_json_edit.set_text("")
         else:
             detail_panel.enable()
             detail_panel_address.set_text(str(address.get()))
@@ -134,8 +133,14 @@ def main(config=DEFAULT_CONFIG, load_file=None):
 
     def split_tile(address):
         if len(address.get()) < state.max_depth:
-            state.split(address, engine.BranchState(), engine.LeafState(),
-                        engine.LeafState(), engine.LeafState(), engine.LeafState())
+            state.split(
+                address,
+                engine.BranchState(),
+                engine.LeafState(),
+                engine.LeafState(),
+                engine.LeafState(),
+                engine.LeafState(),
+            )
             if selected_tile is not None and selected_tile.get() == address.get():
                 select_tile(None)
 
@@ -165,8 +170,7 @@ def main(config=DEFAULT_CONFIG, load_file=None):
             # don't draw things that are too small to see
             x, y = screen_coords((data.x, data.y))
             w = data.width * scale
-            pygame.draw.rect(display, Colors.TILE_HIDDEN,
-                             pygame.Rect(x, y, w, w))
+            pygame.draw.rect(display, Colors.TILE_HIDDEN, pygame.Rect(x, y, w, w))
 
     def visit_leaf(leaf, data):
         x, y = screen_coords((data.x, data.y))
@@ -177,12 +181,19 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         else:
             width = 1
 
-        pygame.draw.lines(display, Colors.TILE_SIDES, True,
-                          ((x, y), (x+w, y), (x+w, y+w), (x, y+w)), width)
+        pygame.draw.lines(
+            display,
+            Colors.TILE_SIDES,
+            True,
+            ((x, y), (x + w, y), (x + w, y + w), (x, y + w)),
+            width,
+        )
 
         text, rect = text_map(leaf.name)
         if w > rect.width * 1.5:
-            display.blit(text, (x+w/2-rect.width/2, y+w/2-rect.height/2))
+            display.blit(
+                text, (x + w / 2 - rect.width / 2, y + w / 2 - rect.height / 2)
+            )
 
         nonlocal rendered
         rendered += 1
@@ -196,30 +207,34 @@ def main(config=DEFAULT_CONFIG, load_file=None):
                 address = get_address_under_cursor()
                 select_tile(address)
         elif event.type == pygame.MOUSEMOTION:
-            if event.buttons[Controls.PAN_MOUSE_BUTTON-1]:
+            if event.buttons[Controls.PAN_MOUSE_BUTTON - 1]:
                 tx += event.rel[0]
                 ty += event.rel[1]
         elif event.type == pygame.MOUSEWHEEL:
             nonlocal scale
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            new_scale = max(
-                min(scale * 1.2**event.y, max_scale), min_scale)
+            new_scale = max(min(scale * 1.2 ** event.y, max_scale), min_scale)
 
             # Zoom centered on the mouse
             # Invariant: (mouse_x - tx) / scale = (mouse_x - tx') / scale'
             # Solved: tx' = (mouse_x * scale - mouse_x * scale' + tx * scale') / scale
-            tx = (mouse_x * scale - mouse_x *
-                  new_scale + tx * new_scale) / scale
-            ty = (mouse_y * scale - mouse_y *
-                  new_scale + ty * new_scale) / scale
+            tx = (mouse_x * scale - mouse_x * new_scale + tx * new_scale) / scale
+            ty = (mouse_y * scale - mouse_y * new_scale + ty * new_scale) / scale
 
             scale = new_scale
         elif event.type == pygame.KEYDOWN:
             # detect ctrl+s
-            if event.key == ord('s') and event.mod in [pygame.KMOD_LCTRL, pygame.KMOD_RCTRL]:
+            if event.key == ord("s") and event.mod in [
+                pygame.KMOD_LCTRL,
+                pygame.KMOD_RCTRL,
+            ]:
                 state.save(
-                    "/tmp/metro_simulator_{}.json".format(math.floor(time.time())))
-            elif event.key == ord('t') and event.mod in [pygame.KMOD_LCTRL, pygame.KMOD_RCTRL]:
+                    "/tmp/metro_simulator_{}.json".format(math.floor(time.time()))
+                )
+            elif event.key == ord("t") and event.mod in [
+                pygame.KMOD_LCTRL,
+                pygame.KMOD_RCTRL,
+            ]:
                 if selected_tile is not None:
                     split_tile(selected_tile)
                 else:
@@ -233,7 +248,8 @@ def main(config=DEFAULT_CONFIG, load_file=None):
                 if event.ui_element == detail_panel_json_edit:
                     try:
                         state.set_leaf_json(
-                            selected_tile, detail_panel_json_edit.get_text())
+                            selected_tile, detail_panel_json_edit.get_text()
+                        )
                         # update with changed value
                         select_tile(selected_tile)
                     except Exception as e:
@@ -259,12 +275,14 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         rendered = 0
 
         display.fill(Colors.BACKGROUND)
-        state.visit_rect(visit_branch, visit_leaf,
-                         max(x1, 0), max(x2, 0), max(y1, 0), max(y2, 0))
+        state.visit_rect(
+            visit_branch, visit_leaf, max(x1, 0), max(x2, 0), max(y1, 0), max(y2, 0)
+        )
 
-        diagnostics_panel_rendered.set_text('Rendered: {}'.format(rendered))
+        diagnostics_panel_rendered.set_text("Rendered: {}".format(rendered))
         diagnostics_panel_framerate.set_text(
-            'Frame rate: {}'.format(round(clock.get_fps(), 1)))
+            "Frame rate: {}".format(round(clock.get_fps(), 1))
+        )
 
         gui.draw_ui(display)
 

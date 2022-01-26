@@ -32,6 +32,7 @@ LAYERS = [terrain.Terrain, housing.Housing, workplaces.Workplaces]
 @functools.lru_cache
 def runfiles():
     from rules_python.python.runfiles import runfiles
+
     return runfiles.Create()
 
 
@@ -39,12 +40,14 @@ def runfiles():
 def plt():
     import matplotlib
     import matplotlib.pyplot as plt
+
     return plt
 
 
 @functools.lru_cache
 def profile():
     import cProfile
+
     return cProfile.Profile()
 
 
@@ -56,6 +59,7 @@ def random(seed):
     # NOTE: if we ever want to parallelize the generation, it will be important
     # to consider how the random number sequence is affected.
     import random
+
     return random.Random(seed)
 
 
@@ -108,9 +112,14 @@ def write_qtree(state, qtree):
         address = engine.Address(data.address)
         if len(node.children) > 0:
             assert len(node.children) == 4
-            state.split(address, engine.BranchState(),
-                        engine.LeafState(), engine.LeafState(),
-                        engine.LeafState(), engine.LeafState())
+            state.split(
+                address,
+                engine.BranchState(),
+                engine.LeafState(),
+                engine.LeafState(),
+                engine.LeafState(),
+                engine.LeafState(),
+            )
         else:
             dumped = json.dumps(node.data)
             try:
@@ -118,6 +127,7 @@ def write_qtree(state, qtree):
             except Exception as e:
                 print("Dumped json: {}".format(dumped))
                 raise e
+
     qtree.convolve(write)
 
 
@@ -166,8 +176,7 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
     report_timestamp("start")
 
-    state = engine.State(engine.Config.from_json(
-        json.dumps(map_config.engine_config)))
+    state = engine.State(engine.Config.from_json(json.dumps(map_config.engine_config)))
 
     max_depth = map_config.engine_config["max_depth"]
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)
@@ -192,8 +201,7 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         elif dataset_type == "lodes":
             dataset = read_lodes(dataset_info, coords, max_dim)
         else:
-            raise Exception(
-                "Unrecognized dataset type: {}".format(dataset_type))
+            raise Exception("Unrecognized dataset type: {}".format(dataset_type))
 
         (dim, depth) = check_input_grid(dataset)
         tile_width = max_dim // dim
@@ -221,15 +229,15 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         def bubble_priority_down(node, convolve):
             nonlocal priority_stack
 
-            max_priority = max_or_none(priority
-                                       for (_, priority) in node.data[0].values())
+            max_priority = max_or_none(
+                priority for (_, priority) in node.data[0].values()
+            )
 
             for _ in range(len(priority_stack) - convolve.depth):
                 priority_stack.pop()
 
             if len(priority_stack) > 0:
-                current_priority = max_or_none(
-                    (max_priority, priority_stack[-1]))
+                current_priority = max_or_none((max_priority, priority_stack[-1]))
             else:
                 current_priority = max_priority
             priority_stack.append(current_priority)
@@ -248,43 +256,54 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         def merge(node, convolve):
             if len(node.children) > 0:
                 for layer in layers:
-                    if all(layer.get_name() in child.data[0] for child in node.children):
+                    if all(
+                        layer.get_name() in child.data[0] for child in node.children
+                    ):
                         layer.merge(node, convolve)
 
             # mark nodes with minimum/maximum priorities of all entities that they contain
             # and remove child nodes with no entities
 
-            min_child_priority = min_or_none(child.data[1].min_priority
-                                             for child in node.children)
-            max_child_priority = max_or_none(child.data[1].min_priority
-                                             for child in node.children)
-            child_entities = sum(child.data[1].total_entities
-                                 for child in node.children)
+            min_child_priority = min_or_none(
+                child.data[1].min_priority for child in node.children
+            )
+            max_child_priority = max_or_none(
+                child.data[1].min_priority for child in node.children
+            )
+            child_entities = sum(
+                child.data[1].total_entities for child in node.children
+            )
             assert (min_child_priority is None) == (max_child_priority is None)
 
             if child_entities == 0:
                 # if children have no entities, then get rid of the children
                 node.children.clear()
 
-            min_priority = min_or_none((
-                min_or_none(priority
-                            for (_, priority) in node.data[0].values()),
-                min_child_priority,
-            ))
-            max_priority = max_or_none((
-                max_or_none(priority
-                            for (_, priority) in node.data[0].values()),
-                max_child_priority,
-            ))
-            total_entities = child_entities + \
-                sum(len(entities) for (entities, _) in node.data[0].values())
+            min_priority = min_or_none(
+                (
+                    min_or_none(priority for (_, priority) in node.data[0].values()),
+                    min_child_priority,
+                )
+            )
+            max_priority = max_or_none(
+                (
+                    max_or_none(priority for (_, priority) in node.data[0].values()),
+                    max_child_priority,
+                )
+            )
+            total_entities = child_entities + sum(
+                len(entities) for (entities, _) in node.data[0].values()
+            )
             assert (min_priority is None) == (max_priority is None)
 
-            node.data = (node.data[0], NodeExtra(
-                min_priority=min_priority,
-                max_priority=max_priority,
-                total_entities=total_entities
-            ))
+            node.data = (
+                node.data[0],
+                NodeExtra(
+                    min_priority=min_priority,
+                    max_priority=max_priority,
+                    total_entities=total_entities,
+                ),
+            )
 
         report_timestamp("merge")
         qtree.convolve(merge, post=True)
@@ -314,8 +333,14 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
                 # create children if needed
                 if len(node.children) == 0:
-                    node.add_children(lambda: ({}, NodeExtra(
-                        min_priority=None, max_priority=None, total_entities=0)))
+                    node.add_children(
+                        lambda: (
+                            {},
+                            NodeExtra(
+                                min_priority=None, max_priority=None, total_entities=0
+                            ),
+                        )
+                    )
 
                 # sort in increasing priority
                 all_entities.sort(key=lambda triple: triple[2])
@@ -326,10 +351,13 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
                         assert False, all_entities
 
                     # only place in a child with low enough minimum priority
-                    possible_children = list(filter(
-                        lambda child: (
-                            child.data[1].min_priority or -math.inf) <= priority,
-                        node.children))
+                    possible_children = list(
+                        filter(
+                            lambda child: (child.data[1].min_priority or -math.inf)
+                            <= priority,
+                            node.children,
+                        )
+                    )
 
                     if len(possible_children) == 0:
                         # can't propagate this entitity down so it's gone
@@ -337,19 +365,27 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
                     # prioritize putting in children with fewer total entities first
                     min_total_entities = min(
-                        child.data[1].total_entities for child in possible_children)
-                    minimal_children = list(filter(
-                        lambda child: child.data[1].total_entities == min_total_entities,
-                        possible_children))
+                        child.data[1].total_entities for child in possible_children
+                    )
+                    minimal_children = list(
+                        filter(
+                            lambda child: child.data[1].total_entities
+                            == min_total_entities,
+                            possible_children,
+                        )
+                    )
 
-                    assert len(
-                        minimal_children) > 0, (possible_children, minimal_children)
+                    assert len(minimal_children) > 0, (
+                        possible_children,
+                        minimal_children,
+                    )
 
                     # select random child from the possible children
                     # NOTE: this random selection is deterministic because it
                     # uses a deterministic seed
-                    child = minimal_children[random(
-                        map_config.name).randrange(0, len(minimal_children))]
+                    child = minimal_children[
+                        random(map_config.name).randrange(0, len(minimal_children))
+                    ]
 
                     if layer not in child.data[0] or child.data[0][layer][1] is None:
                         # need to assign a priority
@@ -360,8 +396,9 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
                     # maintain extra data in child
                     child.data[1].total_entities += 1
-                    child.data[1].max_priority = max_or_none((
-                        child.data[1].max_priority, priority))
+                    child.data[1].max_priority = max_or_none(
+                        (child.data[1].max_priority, priority)
+                    )
             else:
                 # splitting would exceed maximum depth; need to pick an entity
 

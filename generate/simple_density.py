@@ -31,8 +31,7 @@ class SimpleDensity(Layer):
             self.set_node_data(node, [data], 0)
 
     def merge(self, node: Quadtree, convolve: ConvolveData):
-        total = sum(sum(self.get_node_data(child))
-                    for child in node.children)
+        total = sum(sum(self.get_node_data(child)) for child in node.children)
         if total == 0:
             # no people here. carry on.
             self.clear_node_data(node)

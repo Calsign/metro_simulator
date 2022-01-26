@@ -11,8 +11,10 @@ from shapely.affinity import affine_transform
 from generate.data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
 
 
-def bbox_contains(outer: T.Tuple[float, float, float, float],
-                  inner: T.Tuple[float, float, float, float]) -> bool:
+def bbox_contains(
+    outer: T.Tuple[float, float, float, float],
+    inner: T.Tuple[float, float, float, float],
+) -> bool:
     (ox1, oy1, ox2, oy2) = outer
     (ix1, iy1, ix2, iy2) = inner
 
@@ -33,10 +35,14 @@ def read_lodes(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int):
 
     assert len(shps) == len(csvs)
 
-    (min_lon, max_lon) = (coords.lon -
-                          coords.lon_radius, coords.lon + coords.lon_radius)
-    (min_lat, max_lat) = (coords.lat -
-                          coords.lat_radius, coords.lat + coords.lat_radius)
+    (min_lon, max_lon) = (
+        coords.lon - coords.lon_radius,
+        coords.lon + coords.lon_radius,
+    )
+    (min_lat, max_lat) = (
+        coords.lat - coords.lat_radius,
+        coords.lat + coords.lat_radius,
+    )
 
     bbox = (min_lon, min_lat, max_lon, max_lat)
 
@@ -60,14 +66,12 @@ def read_lodes(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int):
     # translate from longitude/latitude to x/y coordinates
     xscale = dim / (max_lon - min_lon)
     yscale = dim / (max_lat - min_lat)
-    transform = [xscale, 0,
-                 0, yscale,
-                 -min_lon * xscale, -min_lat * yscale]
+    transform = [xscale, 0, 0, yscale, -min_lon * xscale, -min_lat * yscale]
 
     # look at all the LODES data and pull out entries for census blocks
     # we identified earlier
     for csv_file in csvs:
-        with gzip.open(csv_file, 'rt', newline='') as f:
+        with gzip.open(csv_file, "rt", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 geoid = row["w_geocode"]

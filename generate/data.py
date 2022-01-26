@@ -17,8 +17,7 @@ class Coords:
     @property
     def lon_radius(self):
         # account for curvature of the earth
-        return self.radius / 1000 / EQ_KM_PER_DEG / \
-            math.cos(math.radians(self.lat))
+        return self.radius / 1000 / EQ_KM_PER_DEG / math.cos(math.radians(self.lat))
 
     @property
     def lat_radius(self):

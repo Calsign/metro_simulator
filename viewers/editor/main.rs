@@ -412,7 +412,7 @@ impl druid::Widget<ContentState> for Content {
                             .qtree
                             .split(
                                 address.clone(),
-                                BranchState {},
+                                BranchState::default(),
                                 quadtree::QuadMap::new(
                                     LeafState::default(),
                                     LeafState::default(),
@@ -539,7 +539,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
     quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, anyhow::Error>
     for PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
-    fn visit_branch(
+    fn visit_branch_pre(
         &mut self,
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
@@ -601,6 +601,14 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
         self.visited += 1;
 
+        Ok(())
+    }
+
+    fn visit_branch_post(
+        &mut self,
+        branch: &engine::state::BranchState,
+        data: &quadtree::VisitData,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 }
