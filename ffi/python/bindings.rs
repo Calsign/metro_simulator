@@ -82,7 +82,7 @@ struct BranchState {
 impl BranchState {
     #[new]
     fn new() -> Self {
-        engine::state::BranchState {}.into()
+        engine::state::BranchState::default().into()
     }
 }
 
@@ -292,7 +292,7 @@ struct PyQtreeVisitor {
 impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyErr>
     for PyQtreeVisitor
 {
-    fn visit_branch(
+    fn visit_branch_pre(
         &mut self,
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
@@ -315,6 +315,14 @@ impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyE
             self.leaf_visitor.call1(py, (leaf, data))?;
             Ok(())
         })
+    }
+
+    fn visit_branch_post(
+        &mut self,
+        branch: &engine::state::BranchState,
+        data: &quadtree::VisitData,
+    ) -> PyResult<()> {
+        Ok(())
     }
 }
 

@@ -16,6 +16,7 @@ rust_library(
         "//cargo/pkgs:splines",
         "//cargo/pkgs:thiserror",
         "//cargo/pkgs:toml",
+        "//engine/fields",
         "//engine/metro",
         "//engine/quadtree",
         "//engine/tiles",

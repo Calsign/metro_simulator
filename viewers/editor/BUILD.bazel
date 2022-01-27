@@ -15,6 +15,7 @@ rust_binary(
         "//cargo/pkgs:clap",
         "//cargo/pkgs:druid",
         "//engine",
+        "//engine/fields",
         "//engine/metro",
         "//engine/quadtree",
         "//engine/tiles",

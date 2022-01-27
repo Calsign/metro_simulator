@@ -26,6 +26,9 @@ fn main() {
         ),
     }));
 
+    // TODO: re-run this when the qtree updates
+    engine.lock().unwrap().update_fields().unwrap();
+
     let state = State {
         content: ContentState::new(engine.clone()),
         metro_lines: MetroLinesState::new(engine),
@@ -192,6 +195,8 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
 }
 
 fn build_menu_panel() -> impl druid::Widget<State> {
+    use druid::WidgetExt;
+
     druid::widget::Flex::column()
         .cross_axis_alignment(druid::widget::CrossAxisAlignment::Start)
         .with_child(druid::widget::Button::new("Save").on_click(
@@ -206,10 +211,53 @@ fn build_menu_panel() -> impl druid::Widget<State> {
                 println!("Saved to {}", path);
             },
         ))
+        .with_default_spacer()
+        .with_child(druid::widget::Label::new("Fields:"))
+        .with_default_spacer()
+        .with_child(
+            druid::widget::RadioGroup::new([
+                ("None", FieldType::None),
+                ("Population", FieldType::Population),
+                ("Employment", FieldType::Employment),
+                ("Land value", FieldType::LandValue),
+            ])
+            .lens(ContentState::current_field)
+            .lens(State::content),
+        )
 }
 
 fn build_empty_panel() -> impl druid::Widget<()> {
     druid::widget::Flex::column()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, druid::Data)]
+enum FieldType {
+    None,
+    Population,
+    Employment,
+    LandValue,
+}
+
+fn field_data_to_color(
+    field_type: &FieldType,
+    fields_state: &fields::FieldsState,
+) -> Option<druid::Color> {
+    let value = match field_type {
+        FieldType::None => None,
+        FieldType::Population => {
+            let peak = 0.05;
+            Some(f64::min(fields_state.population.density, peak) / peak)
+        }
+        FieldType::Employment => {
+            let peak = 0.05;
+            Some(f64::min(fields_state.employment.density, peak) / peak)
+        }
+        FieldType::LandValue => None,
+    };
+    match value {
+        Some(val) => Some(druid::Color::hlca(120.0 * val, 80.0, 80.0, 0.5)),
+        None => None,
+    }
 }
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
@@ -309,6 +357,8 @@ struct ContentState {
     mouse_pos: Option<druid::Point>,
 
     current_leaf: Option<CurrentLeafState>,
+
+    current_field: FieldType,
 }
 
 impl ContentState {
@@ -339,6 +389,7 @@ impl ContentState {
             max_scale,
             mouse_pos: None,
             current_leaf: None,
+            current_field: FieldType::None,
         }
     }
 
@@ -533,6 +584,29 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
         let width = data.width as f64 * self.state.scale + 1.0;
         druid::Rect::from_origin_size(self.state.to_screen((data.x, data.y)), (width, width))
     }
+
+    fn maybe_draw_field(
+        &mut self,
+        fields: &fields::FieldsState,
+        data: &quadtree::VisitData,
+        is_leaf: bool,
+    ) {
+        let width = data.width as f64 * self.state.scale;
+        let threshold = 10.0;
+        if is_leaf || width >= threshold && width < threshold * 2.0 {
+            match field_data_to_color(&self.state.current_field, fields) {
+                Some(color) => {
+                    use druid::RenderContext;
+
+                    // TODO: get_full_rect looks weird because there's overlap,
+                    // get_rect looks weird because there's a gap.
+                    let rect = self.get_rect(data);
+                    self.ctx.fill(rect, &color);
+                }
+                None => (),
+            }
+        }
+    }
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f>
@@ -544,17 +618,17 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
-        if data.width as f64 * self.state.scale >= 5.0 {
-            return Ok(true);
-        } else {
-            // draw a rectangle to indicate that there's stuff here
+        let should_descend = data.width as f64 * self.state.scale >= 5.0;
+
+        if !should_descend {
             use druid::RenderContext;
 
+            // draw a rectangle to indicate that there's stuff here
             let full_rect = self.get_full_rect(data);
             self.ctx.fill(full_rect, &druid::Color::grey8(100));
-
-            return Ok(false);
         }
+
+        Ok(should_descend)
     }
 
     fn visit_leaf(
@@ -599,6 +673,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
             _ => (),
         }
 
+        self.maybe_draw_field(&leaf.fields, data, true);
+
         self.visited += 1;
 
         Ok(())
@@ -609,6 +685,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
+        self.maybe_draw_field(&branch.fields, data, false);
         Ok(())
     }
 }

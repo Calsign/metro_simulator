@@ -37,13 +37,30 @@ impl VisitData {
 }
 
 pub trait Visitor<B, L, E> {
-    fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, E>;
+    fn visit_branch_pre(&mut self, branch: &B, data: &VisitData) -> Result<bool, E>;
     fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), E>;
+    fn visit_branch_post(&mut self, branch: &B, data: &VisitData) -> Result<(), E>;
 }
 
 pub trait MutVisitor<B, L, E> {
-    fn visit_branch(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E>;
+    fn visit_branch_pre(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E>;
     fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData) -> Result<(), E>;
+    fn visit_branch_post(&mut self, branch: &mut B, data: &VisitData) -> Result<(), E>;
+}
+
+pub trait Fold<B, L, T, E> {
+    fn fold_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<T, E>;
+    fn fold_branch(&mut self, branch: &B, children: &QuadMap<T>, data: &VisitData) -> Result<T, E>;
+}
+
+pub trait MutFold<B, L, T, E> {
+    fn fold_leaf(&mut self, leaf: &mut L, data: &VisitData) -> Result<T, E>;
+    fn fold_branch(
+        &mut self,
+        branch: &mut B,
+        children: &QuadMap<T>,
+        data: &VisitData,
+    ) -> Result<T, E>;
 }
 
 impl VisitData {
@@ -111,11 +128,12 @@ impl<B, L> Node<B, L> {
     fn visit<E>(&self, visitor: &mut dyn Visitor<B, L, E>, visit_data: VisitData) -> Result<(), E> {
         match self {
             Node::Branch { data, children, .. } => {
-                if visitor.visit_branch(data, &visit_data)? {
+                if visitor.visit_branch_pre(data, &visit_data)? {
                     for quadrant in QUADRANTS {
                         children[quadrant].visit(visitor, visit_data.child(quadrant))?;
                     }
                 }
+                visitor.visit_branch_post(data, &visit_data)?;
             }
             Node::Leaf { data, .. } => visitor.visit_leaf(data, &visit_data)?,
         }
@@ -129,15 +147,48 @@ impl<B, L> Node<B, L> {
     ) -> Result<(), E> {
         match self {
             Node::Branch { data, children, .. } => {
-                if visitor.visit_branch(data, &visit_data)? {
+                if visitor.visit_branch_pre(data, &visit_data)? {
                     for quadrant in QUADRANTS {
                         children[quadrant].visit_mut(visitor, visit_data.child(quadrant))?;
                     }
                 }
+                visitor.visit_branch_post(data, &visit_data)?;
             }
             Node::Leaf { data, .. } => visitor.visit_leaf(data, &visit_data)?,
         }
         Ok(())
+    }
+
+    fn fold<T, E>(&self, fold: &mut dyn Fold<B, L, T, E>, visit_data: VisitData) -> Result<T, E> {
+        match self {
+            Node::Leaf { data, .. } => fold.fold_leaf(data, &visit_data),
+            Node::Branch { data, children, .. } => {
+                // TODO: this is gross
+                let nw = children[Quadrant::NW].fold(fold, visit_data.child(Quadrant::NW))?;
+                let ne = children[Quadrant::NE].fold(fold, visit_data.child(Quadrant::NE))?;
+                let sw = children[Quadrant::SW].fold(fold, visit_data.child(Quadrant::SW))?;
+                let se = children[Quadrant::SE].fold(fold, visit_data.child(Quadrant::SE))?;
+                fold.fold_branch(data, &QuadMap::new(nw, ne, sw, se), &visit_data)
+            }
+        }
+    }
+
+    fn fold_mut<T, E>(
+        &mut self,
+        fold: &mut dyn MutFold<B, L, T, E>,
+        visit_data: VisitData,
+    ) -> Result<T, E> {
+        match self {
+            Node::Leaf { data, .. } => fold.fold_leaf(data, &visit_data),
+            Node::Branch { data, children, .. } => {
+                // TODO: this is gross
+                let nw = children[Quadrant::NW].fold_mut(fold, visit_data.child(Quadrant::NW))?;
+                let ne = children[Quadrant::NE].fold_mut(fold, visit_data.child(Quadrant::NE))?;
+                let sw = children[Quadrant::SW].fold_mut(fold, visit_data.child(Quadrant::SW))?;
+                let se = children[Quadrant::SE].fold_mut(fold, visit_data.child(Quadrant::SE))?;
+                fold.fold_branch(data, &QuadMap::new(nw, ne, sw, se), &visit_data)
+            }
+        }
     }
 }
 
@@ -326,30 +377,22 @@ impl<B, L> Quadtree<B, L> {
         panic!("invariant violated; nodes nested deeper than max_depth");
     }
 
+    fn root_visit_data(&self) -> VisitData {
+        VisitData {
+            depth: 0,
+            x: 0,
+            y: 0,
+            width: self.width,
+            address: vec![].into(),
+        }
+    }
+
     pub fn visit<E>(&self, visitor: &mut dyn Visitor<B, L, E>) -> Result<(), E> {
-        self.root.visit(
-            visitor,
-            VisitData {
-                depth: 0,
-                x: 0,
-                y: 0,
-                width: self.width,
-                address: vec![].into(),
-            },
-        )
+        self.root.visit(visitor, self.root_visit_data())
     }
 
     pub fn visit_mut<E>(&mut self, visitor: &mut dyn MutVisitor<B, L, E>) -> Result<(), E> {
-        self.root.visit_mut(
-            visitor,
-            VisitData {
-                depth: 0,
-                x: 0,
-                y: 0,
-                width: self.width,
-                address: vec![].into(),
-            },
-        )
+        self.root.visit_mut(visitor, self.root_visit_data())
     }
 
     pub fn visit_rect<E>(
@@ -373,6 +416,14 @@ impl<B, L> Quadtree<B, L> {
             inner: visitor,
         })
     }
+
+    pub fn fold<T, E>(&self, fold: &mut dyn Fold<B, L, T, E>) -> Result<T, E> {
+        self.root.fold(fold, self.root_visit_data())
+    }
+
+    pub fn fold_mut<T, E>(&mut self, fold: &mut dyn MutFold<B, L, T, E>) -> Result<T, E> {
+        self.root.fold_mut(fold, self.root_visit_data())
+    }
 }
 
 struct RectVisitor<'a, 'b, B, L, E> {
@@ -381,8 +432,8 @@ struct RectVisitor<'a, 'b, B, L, E> {
 }
 
 impl<'a, 'b, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, B, L, E> {
-    fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, E> {
-        Ok(self.inner.visit_branch(branch, data)? && data.in_bounds(self.bounds))
+    fn visit_branch_pre(&mut self, branch: &B, data: &VisitData) -> Result<bool, E> {
+        Ok(self.inner.visit_branch_pre(branch, data)? && data.in_bounds(self.bounds))
     }
 
     fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), E> {
@@ -390,6 +441,10 @@ impl<'a, 'b, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, B, L, E> {
             self.inner.visit_leaf(leaf, data)?
         }
         Ok(())
+    }
+
+    fn visit_branch_post(&mut self, branch: &B, data: &VisitData) -> Result<(), E> {
+        Ok(self.inner.visit_branch_post(branch, data)?)
     }
 }
 
@@ -399,8 +454,8 @@ struct MutRectVisitor<'a, 'b, B, L, E> {
 }
 
 impl<'a, 'b, B, L, E> MutVisitor<B, L, E> for MutRectVisitor<'a, 'b, B, L, E> {
-    fn visit_branch(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E> {
-        Ok(self.inner.visit_branch(branch, data)? && data.in_bounds(self.bounds))
+    fn visit_branch_pre(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E> {
+        Ok(self.inner.visit_branch_pre(branch, data)? && data.in_bounds(self.bounds))
     }
 
     fn visit_leaf(&mut self, leaf: &mut L, data: &VisitData) -> Result<(), E> {
@@ -408,6 +463,10 @@ impl<'a, 'b, B, L, E> MutVisitor<B, L, E> for MutRectVisitor<'a, 'b, B, L, E> {
             self.inner.visit_leaf(leaf, data)?
         }
         Ok(())
+    }
+
+    fn visit_branch_post(&mut self, branch: &mut B, data: &VisitData) -> Result<(), E> {
+        Ok(self.inner.visit_branch_post(branch, data)?)
     }
 }
 
@@ -526,13 +585,17 @@ mod tests {
     }
 
     impl<B: Copy, L: Copy> quadtree::Visitor<B, L, ()> for SeenVisitor<B, L> {
-        fn visit_branch(&mut self, branch: &B, data: &VisitData) -> Result<bool, ()> {
+        fn visit_branch_pre(&mut self, branch: &B, data: &VisitData) -> Result<bool, ()> {
             self.branches.push((*branch, data.clone()));
             Ok(true)
         }
 
         fn visit_leaf(&mut self, leaf: &L, data: &VisitData) -> Result<(), ()> {
             self.leaves.push((*leaf, data.clone()));
+            Ok(())
+        }
+
+        fn visit_branch_post(&mut self, branch: &B, data: &VisitData) -> Result<(), ()> {
             Ok(())
         }
     }

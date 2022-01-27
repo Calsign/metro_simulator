@@ -1,0 +1,14 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "fields",
+    srcs = [
+        "lib.rs",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cargo/pkgs:serde",
+        "//engine/quadtree",
+        "//engine/tiles",
+    ],
+)

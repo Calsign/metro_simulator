@@ -18,17 +18,31 @@ pub enum Error {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BranchState {}
+pub struct BranchState {
+    #[serde(skip)]
+    pub fields: fields::FieldsState,
+}
+
+impl BranchState {
+    pub fn default() -> Self {
+        Self {
+            fields: fields::FieldsState::new(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeafState {
     pub tile: tiles::Tile,
+    #[serde(skip)]
+    pub fields: fields::FieldsState,
 }
 
 impl LeafState {
     pub fn default() -> Self {
         Self {
             tile: tiles::EmptyTile {}.into(),
+            fields: fields::FieldsState::new(),
         }
     }
 }
@@ -74,6 +88,12 @@ impl State {
         Ok(std::fs::write(path, self.dump()?)?)
     }
 
+    pub fn update_fields(&mut self) -> Result<(), Error> {
+        let mut fold = UpdateFieldsFold {};
+        let _ = self.qtree.fold_mut(&mut fold)?;
+        Ok(())
+    }
+
     pub fn get_leaf_data<A: Into<quadtree::Address>>(
         &self,
         address: A,
@@ -109,5 +129,35 @@ impl State {
 
         let metro_line = metro::MetroLine::new(id, color, name);
         self.metro_lines.insert(id, metro_line);
+    }
+}
+
+struct UpdateFieldsFold {}
+
+impl quadtree::MutFold<BranchState, LeafState, (bool, fields::FieldsState), Error>
+    for UpdateFieldsFold
+{
+    fn fold_leaf(
+        &mut self,
+        leaf: &mut LeafState,
+        data: &quadtree::VisitData,
+    ) -> Result<(bool, fields::FieldsState), Error> {
+        let changed = leaf.fields.compute_leaf(&leaf.tile, data);
+        Ok((changed, leaf.fields.clone()))
+    }
+
+    fn fold_branch(
+        &mut self,
+        branch: &mut BranchState,
+        children: &quadtree::QuadMap<(bool, fields::FieldsState)>,
+        data: &quadtree::VisitData,
+    ) -> Result<(bool, fields::FieldsState), Error> {
+        let changed = children.values().iter().any(|(c, _)| *c);
+        if changed {
+            // only recompute branch if at least one of the children changed
+            let fields = children.clone().map_into(&|(_, f)| f);
+            branch.fields.compute_branch(&fields, data);
+        }
+        Ok((changed, branch.fields.clone()))
     }
 }

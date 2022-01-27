@@ -48,15 +48,19 @@ pub struct QuadMap<T> {
 
 impl<T> QuadMap<T> {
     pub fn new(nw: T, ne: T, sw: T, se: T) -> Self {
-        return QuadMap {
+        QuadMap {
             data: [nw, ne, sw, se],
-        };
+        }
     }
 
     pub fn map_into<U>(self, f: &dyn Fn(T) -> U) -> QuadMap<U> {
-        return QuadMap {
+        QuadMap {
             data: self.data.map(f),
-        };
+        }
+    }
+
+    pub fn values(&self) -> &[T; 4] {
+        &self.data
     }
 }
 
