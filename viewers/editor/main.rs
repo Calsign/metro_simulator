@@ -517,6 +517,7 @@ impl druid::Widget<ContentState> for Content {
         state: &ContentState,
         env: &druid::Env,
     ) {
+        ctx.request_paint();
     }
 
     fn layout(
