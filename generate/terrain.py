@@ -17,6 +17,9 @@ class Terrain(Layer):
             # priority -100: empty tiles should be replaced by everything else
             self.set_node_data(node, [False], -100)
 
+    def post_init(self, dataset: T.Any, qtree: Quadtree):
+        pass
+
     def node_has_water(self, node: Quadtree) -> bool:
         return self.get_node_data(node)[0]
 
@@ -36,3 +39,6 @@ class Terrain(Layer):
     def fuse(self, entities: T.List[bool]) -> bool:
         # should be impossible
         assert False, entities
+
+    def modify_state(self, state):
+        pass

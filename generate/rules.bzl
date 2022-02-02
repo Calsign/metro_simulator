@@ -139,7 +139,7 @@ def _parse_lat_lon(lat, lon):
 
     return (latf, lonf)
 
-def map(name, latitude, longitude, engine_config, datasets, visibility = ["//visibility:private"]):
+def map(name, latitude, longitude, engine_config, datasets, visibility = ["//visibility:public"]):
     (lat, lon) = _parse_lat_lon(latitude, longitude)
 
     dataset_map = {}

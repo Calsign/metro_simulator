@@ -84,6 +84,9 @@ filegroup(
 """.format(_build_filename(lat, lon)),
         )
 
+def _preprocess():
+    pass
+
 def floor(x):
     if x > 0:
         return int(x)
@@ -121,6 +124,7 @@ def _get_deps(latitude, longitude):
 
 meta_population_density = struct(
     workspace_deps = _workspace_deps,
+    preprocess = _preprocess,
     get_deps = _get_deps,
     data = {
         "type": "geotiff",

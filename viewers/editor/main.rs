@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -30,8 +31,11 @@ fn main() {
     engine.lock().unwrap().update_fields().unwrap();
 
     let state = State {
+        engine: engine.clone(),
+        metro_lines: MetroLinesState::new(engine.clone()),
         content: ContentState::new(engine.clone()),
-        metro_lines: MetroLinesState::new(engine),
+        current_leaf: None,
+        current_field: FieldType::None,
     };
 
     druid::AppLauncher::with_window(window)
@@ -41,8 +45,11 @@ fn main() {
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct State {
-    content: ContentState,
+    engine: Arc<Mutex<engine::state::State>>,
     metro_lines: MetroLinesState,
+    content: ContentState,
+    current_leaf: Option<CurrentLeafState>,
+    current_field: FieldType,
 }
 
 fn build_root_widget() -> impl druid::Widget<State> {
@@ -53,8 +60,7 @@ fn build_root_widget() -> impl druid::Widget<State> {
             druid::widget::Flex::column()
                 .with_flex_child(
                     druid::widget::Maybe::new(build_detail_panel, build_empty_panel)
-                        .lens(ContentState::current_leaf)
-                        .lens(State::content)
+                        .lens(State::current_leaf)
                         .expand()
                         .padding((20.0, 20.0)),
                     1.0,
@@ -66,7 +72,7 @@ fn build_root_widget() -> impl druid::Widget<State> {
                 )
                 .fix_width(300.0),
         )
-        .with_flex_child(Content {}.lens(State::content), 1.0)
+        .with_flex_child(Content {}, 1.0)
         .with_child(
             druid::widget::Flex::column().with_child(
                 build_menu_panel()
@@ -155,7 +161,15 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                 .on_click(
                     |ctx: &mut druid::EventCtx, state: &mut MetroLinesState, env: &druid::Env| {
                         let mut engine = state.engine.lock().unwrap();
-                        engine.add_metro_line(String::from("Metro Line"));
+                        let id = engine.add_metro_line(String::from("Metro Line"), None, None);
+
+                        let mut states = state.states.lock().unwrap();
+                        states.insert(id, MetroLineState::new());
+
+                        // TODO: this isn't quite enough to make it fully refresh
+                        ctx.children_changed();
+                        ctx.request_layout();
+                        ctx.request_paint();
                     },
                 )
                 .lens(State::metro_lines),
@@ -164,6 +178,11 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
         .with_child(
             druid::widget::Scroll::new(druid::widget::List::new(|| {
                 druid::widget::Flex::row()
+                    .with_child(
+                        druid::widget::Checkbox::new("")
+                            .lens(MetroLineState::visible)
+                            .lens(MetroLineData::state),
+                    )
                     .with_child(
                         druid::widget::Painter::new(|ctx, data: &MetroLineData, env| {
                             use druid::RenderContext;
@@ -201,7 +220,7 @@ fn build_menu_panel() -> impl druid::Widget<State> {
         .cross_axis_alignment(druid::widget::CrossAxisAlignment::Start)
         .with_child(druid::widget::Button::new("Save").on_click(
             |ctx: &mut druid::EventCtx, state: &mut State, env: &druid::Env| {
-                let engine = state.content.engine.lock().unwrap();
+                let engine = state.engine.lock().unwrap();
                 let timestamp = chrono::offset::Local::now();
                 let path = format!(
                     "/tmp/metro_simulator_{}.json",
@@ -221,8 +240,7 @@ fn build_menu_panel() -> impl druid::Widget<State> {
                 ("Employment", FieldType::Employment),
                 ("Land value", FieldType::LandValue),
             ])
-            .lens(ContentState::current_field)
-            .lens(State::content),
+            .lens(State::current_field),
         )
 }
 
@@ -261,14 +279,36 @@ fn field_data_to_color(
 }
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
+struct MetroLineState {
+    visible: bool,
+}
+
+impl MetroLineState {
+    fn new() -> Self {
+        MetroLineState { visible: true }
+    }
+}
+
+#[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct MetroLinesState {
     engine: Arc<Mutex<engine::state::State>>,
+    states: Arc<Mutex<HashMap<u64, MetroLineState>>>,
 }
 
 impl MetroLinesState {
     fn new(engine: Arc<Mutex<engine::state::State>>) -> Self {
+        let mut states = HashMap::new();
+
+        {
+            let engine = engine.lock().unwrap();
+            for (id, metro_line) in engine.metro_lines.iter() {
+                states.insert(*id, MetroLineState::new());
+            }
+        }
+
         Self {
             engine: engine.clone(),
+            states: Arc::new(Mutex::new(states)),
         }
     }
 }
@@ -276,33 +316,46 @@ impl MetroLinesState {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct MetroLineData {
     metro_line: Arc<Mutex<metro::MetroLine>>,
+    state: MetroLineState,
 }
 
 impl MetroLineData {
-    fn new(metro_line: &metro::MetroLine) -> Self {
+    fn new(metro_line: &metro::MetroLine, state: &MetroLineState) -> Self {
         Self {
             metro_line: Arc::new(Mutex::new(metro_line.clone())),
+            state: state.clone(),
         }
     }
 }
 
 impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
     fn for_each(&self, mut cb: impl FnMut(&MetroLineData, usize)) {
+        use itertools::Itertools;
+
         let engine = self.engine.lock().unwrap();
-        for (i, (_, metro_line)) in engine.metro_lines.iter().enumerate() {
+        let states = self.states.lock().unwrap();
+
+        // NOTE: sorted because HashMap doesn't have a sorted guarantee
+        for (i, (id, metro_line)) in engine.metro_lines.iter().sorted().enumerate() {
             // TODO: this clone is disgusting
-            let data = MetroLineData::new(metro_line);
+            let data = MetroLineData::new(metro_line, &states[id]);
             cb(&data, i);
         }
     }
 
     fn for_each_mut(&mut self, mut cb: impl FnMut(&mut MetroLineData, usize)) {
+        use itertools::Itertools;
+
         let mut engine = self.engine.lock().unwrap();
-        for (i, (_, metro_line)) in engine.metro_lines.iter_mut().enumerate() {
+        let mut states = self.states.lock().unwrap();
+
+        // NOTE: sorted because HashMap doesn't have a sorted guarantee
+        for (i, (id, metro_line)) in engine.metro_lines.iter_mut().sorted().enumerate() {
             // TODO: this double clone is even more disgusting
-            let mut data = MetroLineData::new(metro_line);
+            let mut data = MetroLineData::new(metro_line, &states[id]);
             cb(&mut data, i);
             *metro_line = data.metro_line.lock().unwrap().clone();
+            *states.get_mut(&id).unwrap() = data.state;
         }
     }
 
@@ -345,8 +398,6 @@ impl CurrentLeafState {
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct ContentState {
-    engine: Arc<Mutex<engine::state::State>>,
-
     scale: f64,
     tx: f64,
     ty: f64,
@@ -355,23 +406,17 @@ struct ContentState {
     max_scale: f64,
 
     mouse_pos: Option<druid::Point>,
-
-    current_leaf: Option<CurrentLeafState>,
-
-    current_field: FieldType,
 }
 
 impl ContentState {
     pub fn new(engine: Arc<Mutex<engine::state::State>>) -> Self {
-        let engine_locked = engine.lock().unwrap();
-
         let (mut width, height) = DEFAULT_WINDOW_SIZE as (f64, f64);
         // account for the two side panels
         // TODO: make this less gross
         width -= 600.0;
 
         let min_dim = f64::min(width, height);
-        let model_width = engine_locked.qtree.width() as f64;
+        let model_width = engine.lock().unwrap().qtree.width() as f64;
 
         let scale = min_dim / model_width / 2.0;
         let tx = width / 2.0 - model_width * scale / 2.0;
@@ -381,15 +426,12 @@ impl ContentState {
         let max_scale = 100.0;
 
         Self {
-            engine: engine.clone(),
             scale,
             tx,
             ty,
             min_scale,
             max_scale,
             mouse_pos: None,
-            current_leaf: None,
-            current_field: FieldType::None,
         }
     }
 
@@ -410,50 +452,53 @@ impl ContentState {
 
 struct Content {}
 
-impl druid::Widget<ContentState> for Content {
+impl druid::Widget<State> for Content {
     fn event(
         &mut self,
         ctx: &mut druid::EventCtx,
         event: &druid::Event,
-        state: &mut ContentState,
+        state: &mut State,
         env: &druid::Env,
     ) {
+        let content = &mut state.content;
         use druid::Event::*;
         match event {
             MouseDown(mouse) | MouseUp(mouse) if mouse.buttons.has_left() => {
-                state.mouse_pos = None;
+                content.mouse_pos = None;
             }
             MouseMove(mouse) if mouse.buttons.has_left() => {
-                if let Some(old) = state.mouse_pos {
+                if let Some(old) = content.mouse_pos {
                     let diff = mouse.pos - old;
-                    state.tx += diff.x;
-                    state.ty += diff.y;
+                    content.tx += diff.x;
+                    content.ty += diff.y;
                     ctx.request_paint();
                 }
-                state.mouse_pos = Some(mouse.pos)
+                content.mouse_pos = Some(mouse.pos)
             }
             Wheel(mouse) => {
                 let new_scale = f64::max(
                     f64::min(
-                        state.scale * 1.1_f64.powf(-mouse.wheel_delta.y / 10.0),
-                        state.max_scale,
+                        content.scale * 1.1_f64.powf(-mouse.wheel_delta.y / 10.0),
+                        content.max_scale,
                     ),
-                    state.min_scale,
+                    content.min_scale,
                 );
 
                 let mx = mouse.pos.x;
                 let my = mouse.pos.y;
 
                 // Zoom centered on mouse
-                state.tx = (mx * state.scale - mx * new_scale + state.tx * new_scale) / state.scale;
-                state.ty = (my * state.scale - my * new_scale + state.ty * new_scale) / state.scale;
+                content.tx =
+                    (mx * content.scale - mx * new_scale + content.tx * new_scale) / content.scale;
+                content.ty =
+                    (my * content.scale - my * new_scale + content.ty * new_scale) / content.scale;
 
-                state.scale = new_scale;
+                content.scale = new_scale;
                 ctx.request_paint();
             }
             MouseDown(mouse) if mouse.buttons.has_right() => {
                 let mut engine = state.engine.lock().unwrap();
-                let (mx, my) = state.to_model(mouse.pos.into());
+                let (mx, my) = content.to_model(mouse.pos.into());
                 let w = engine.qtree.width();
                 if mx > 0 && mx < w && my > 0 && my < w {
                     let address = engine.qtree.get_address(mx, my).unwrap();
@@ -483,7 +528,7 @@ impl druid::Widget<ContentState> for Content {
             }
             MouseDown(mouse) if mouse.buttons.has_middle() => {
                 let engine = state.engine.lock().unwrap();
-                let (mx, my) = state.to_model(mouse.pos.into());
+                let (mx, my) = content.to_model(mouse.pos.into());
                 let w = engine.qtree.width();
                 if mx > 0 && mx < w && my > 0 && my < w {
                     let address = engine.qtree.get_address(mx, my).unwrap();
@@ -505,7 +550,7 @@ impl druid::Widget<ContentState> for Content {
         &mut self,
         ctx: &mut druid::LifeCycleCtx<'_, '_>,
         event: &druid::LifeCycle,
-        state: &ContentState,
+        state: &State,
         env: &druid::Env,
     ) {
     }
@@ -513,8 +558,8 @@ impl druid::Widget<ContentState> for Content {
     fn update(
         &mut self,
         ctx: &mut druid::UpdateCtx<'_, '_>,
-        old_data: &ContentState,
-        state: &ContentState,
+        old_data: &State,
+        state: &State,
         env: &druid::Env,
     ) {
         ctx.request_paint();
@@ -524,7 +569,7 @@ impl druid::Widget<ContentState> for Content {
         &mut self,
         ctx: &mut druid::LayoutCtx<'_, '_>,
         bc: &druid::BoxConstraints,
-        state: &ContentState,
+        state: &State,
         env: &druid::Env,
     ) -> druid::Size {
         if bc.is_width_bounded() && bc.is_height_bounded() {
@@ -534,11 +579,14 @@ impl druid::Widget<ContentState> for Content {
         }
     }
 
-    fn paint(&mut self, ctx: &mut druid::PaintCtx, state: &ContentState, env: &druid::Env) {
-        let engine = state.engine.lock().unwrap();
+    fn paint(&mut self, ctx: &mut druid::PaintCtx, state: &State, env: &druid::Env) {
+        use itertools::Itertools;
 
-        let (x1, y1) = state.to_model((0.0, 0.0));
-        let (x2, y2) = state.to_model(ctx.size().into());
+        let engine = state.engine.lock().unwrap();
+        let states = state.metro_lines.states.lock().unwrap();
+
+        let (x1, y1) = state.content.to_model((0.0, 0.0));
+        let (x2, y2) = state.content.to_model(ctx.size().into());
 
         let mut qtree_visitor = PaintQtreeVisitor {
             ctx,
@@ -551,39 +599,55 @@ impl druid::Widget<ContentState> for Content {
             .visit_rect(&mut qtree_visitor, &quadtree::Rect::corners(x1, y1, x2, y2))
             .unwrap();
 
-        println!("{}", qtree_visitor.visited);
+        // 5 pixel resolution
+        let metro_scale = f64::max(5.0 / state.content.scale, 0.2);
 
-        for (id, metro_line) in engine.metro_lines.iter() {
-            let mut spline_visitor = PaintSplineVisitor {
-                ctx,
-                env,
-                state,
-                last_point: None,
-            };
-            metro_line
-                .visit_spline(&mut spline_visitor, state.scale)
-                .unwrap();
+        let qtree_visited = qtree_visitor.visited;
+        let mut spline_total_visited = 0;
+
+        for (id, metro_line) in engine.metro_lines.iter().sorted() {
+            if states[id].visible {
+                let mut spline_visitor = PaintSplineVisitor {
+                    ctx,
+                    env,
+                    state,
+                    last_point: None,
+                    visited: 0,
+                };
+                metro_line
+                    .visit_spline(&mut spline_visitor, metro_scale)
+                    .unwrap();
+                spline_total_visited += &spline_visitor.visited;
+            }
         }
+
+        println!("qtree: {}, metros: {}", qtree_visited, spline_total_visited);
     }
 }
 
 struct PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
     env: &'b druid::Env,
-    state: &'f ContentState,
+    state: &'f State,
 
     visited: u64,
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     fn get_rect(&self, data: &quadtree::VisitData) -> druid::Rect {
-        let width = data.width as f64 * self.state.scale;
-        druid::Rect::from_origin_size(self.state.to_screen((data.x, data.y)), (width, width))
+        let width = data.width as f64 * self.state.content.scale;
+        druid::Rect::from_origin_size(
+            self.state.content.to_screen((data.x, data.y)),
+            (width, width),
+        )
     }
 
     fn get_full_rect(&self, data: &quadtree::VisitData) -> druid::Rect {
-        let width = data.width as f64 * self.state.scale + 1.0;
-        druid::Rect::from_origin_size(self.state.to_screen((data.x, data.y)), (width, width))
+        let width = data.width as f64 * self.state.content.scale + 1.0;
+        druid::Rect::from_origin_size(
+            self.state.content.to_screen((data.x, data.y)),
+            (width, width),
+        )
     }
 
     fn maybe_draw_field(
@@ -592,7 +656,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
         data: &quadtree::VisitData,
         is_leaf: bool,
     ) {
-        let width = data.width as f64 * self.state.scale;
+        let width = data.width as f64 * self.state.content.scale;
         let threshold = 10.0;
         if is_leaf || width >= threshold && width < threshold * 2.0 {
             match field_data_to_color(&self.state.current_field, fields) {
@@ -619,7 +683,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         branch: &engine::state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
-        let should_descend = data.width as f64 * self.state.scale >= 5.0;
+        let should_descend = data.width as f64 * self.state.content.scale >= 5.0;
 
         if !should_descend {
             use druid::RenderContext;
@@ -639,7 +703,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
     ) -> anyhow::Result<()> {
         use druid::RenderContext;
 
-        let width = data.width as f64 * self.state.scale;
+        let width = data.width as f64 * self.state.content.scale;
         let rect = self.get_rect(data);
         let full_rect = self.get_full_rect(data);
 
@@ -667,7 +731,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
                 self.ctx.fill(&triangle[..], &druid::Color::grey8(255));
             }
             MetroStationTile(tiles::MetroStationTile { x, y, ids }) => {
-                let point = self.state.to_screen((data.x + x, data.y + y));
+                let point = self.state.content.to_screen((data.x + x, data.y + y));
                 let circle = druid::kurbo::Circle::new(point, width / 20.0);
                 self.ctx.stroke(circle, &druid::Color::grey8(255), 1.0);
             }
@@ -711,9 +775,11 @@ fn triangle((x, y): (f64, f64), radius: f64, theta: f64) -> [druid::kurbo::PathE
 struct PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
     env: &'b druid::Env,
-    state: &'f ContentState,
+    state: &'f State,
 
     last_point: Option<(f64, f64)>,
+
+    visited: u64,
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
@@ -728,8 +794,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
         use druid::RenderContext;
 
         let point = (
-            vertex.x * self.state.scale + self.state.tx,
-            vertex.y * self.state.scale + self.state.ty,
+            vertex.x * self.state.content.scale + self.state.content.tx,
+            vertex.y * self.state.content.scale + self.state.content.ty,
         );
 
         if let Some(last_point) = self.last_point {
@@ -739,6 +805,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
                 2.0,
             );
         };
+
+        self.visited += 1;
 
         self.last_point = Some(point);
         Ok(())

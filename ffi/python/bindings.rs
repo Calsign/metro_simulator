@@ -190,6 +190,20 @@ impl State {
         )
     }
 
+    fn add_metro_line(
+        &mut self,
+        name: String,
+        color: Option<(u8, u8, u8)>,
+        keys: Option<Vec<pyo3::PyRef<MetroKey>>>,
+    ) -> PyResult<()> {
+        self.state.add_metro_line(
+            name,
+            color.map(|c| c.into()),
+            keys.map(|v| v.iter().map(|k| k.key.clone()).collect()),
+        );
+        Ok(())
+    }
+
     fn get_metro_line(&self, id: u64) -> Option<MetroLine> {
         self.state
             .metro_lines
@@ -328,12 +342,21 @@ impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyE
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
-struct Station {
+struct MetroStation {
     station: metro::Station,
 }
 
 #[pymethods]
-impl Station {
+impl MetroStation {
+    #[new]
+    fn new(address: &Address) -> Self {
+        Self {
+            station: metro::Station {
+                address: address.address.clone(),
+            },
+        }
+    }
+
     #[getter]
     fn address(&self) -> Address {
         self.station.address.clone().into()
@@ -364,12 +387,35 @@ impl MetroLine {
     }
 
     #[getter]
-    fn stations(&self) -> Vec<Station> {
+    fn stations(&self) -> Vec<MetroStation> {
         self.metro_line
             .stations()
             .iter()
             .map(|station| station.clone().into())
             .collect()
+    }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct MetroKey {
+    key: metro::MetroKey,
+}
+
+#[pymethods]
+impl MetroKey {
+    #[staticmethod]
+    fn key(x: f64, y: f64) -> Self {
+        Self {
+            key: metro::MetroKey::Key((x, y).into()),
+        }
+    }
+
+    #[staticmethod]
+    fn station(x: u64, y: u64, station: &MetroStation) -> Self {
+        Self {
+            key: metro::MetroKey::Station((x, y).into(), station.station.clone()),
+        }
     }
 }
 
@@ -401,5 +447,10 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<LeafState>()?;
     m.add_class::<VisitData>()?;
     m.add_class::<State>()?;
+
+    m.add_class::<MetroStation>()?;
+    m.add_class::<MetroLine>()?;
+    m.add_class::<MetroKey>()?;
+
     return Ok(());
 }

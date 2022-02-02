@@ -11,6 +11,8 @@ import functools
 
 import typing as T
 
+import numpy as np
+
 import toml
 import argh
 
@@ -22,11 +24,12 @@ from generate.layer import Layer, Tile
 from generate.data import Coords, MapConfig, round_to_pow2, centered_box
 from generate.gdal import read_gdal
 from generate.lodes import read_lodes
+from generate.osm import read_osm
 
-from generate import terrain, housing, workplaces
+from generate import terrain, housing, workplaces, metros
 
 
-LAYERS = [terrain.Terrain, housing.Housing, workplaces.Workplaces]
+LAYERS = [terrain.Terrain, housing.Housing, workplaces.Workplaces, metros.Metros]
 
 
 @functools.lru_cache
@@ -76,12 +79,18 @@ class Plotter:
         self.plot_dir = plot_dir
         self.plot_all = names_to_plot == ["all"]
 
-    def plot(self, name, img):
+    def plot(self, name, data):
         if self.plot_all or name in self.names_to_plot:
-            plt().imshow(img)
+            p = plt()
+            if hasattr(data, "plot"):
+                data.plot(p)
+            else:
+                # assume it is an image/nparray
+                p.imshow(data)
+
             if self.plot_dir is not None:
-                plt().savefig(os.path.join(self.plot_dir, "{}.png".format(name)))
-            plt().show()
+                p.savefig(os.path.join(self.plot_dir, "{}.png".format(name)))
+            p.show()
 
 
 def parse_lat_lon(lat, lon):
@@ -180,9 +189,9 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
     max_depth = map_config.engine_config["max_depth"]
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)
-    radius = map_config.engine_config["min_tile_size"] * 2 ** max_depth / 2
+    radius = map_config.engine_config["min_tile_size"] * 2**max_depth / 2
     coords = Coords(lat=lat, lon=lon, radius=radius)
-    max_dim = 2 ** max_depth
+    max_dim = 2**max_depth
 
     plotter = Plotter(plot, plot_dir)
 
@@ -196,31 +205,37 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
         dataset_info = layer.get_dataset()
         dataset_type = dataset_info["data"]["type"]
+
         if dataset_type == "geotiff":
             dataset = read_gdal(dataset_info, coords, max_dim)
         elif dataset_type == "lodes":
             dataset = read_lodes(dataset_info, coords, max_dim)
+        elif dataset_type == "open_street_map":
+            dataset = read_osm(dataset_info, coords, max_dim)
         else:
             raise Exception("Unrecognized dataset type: {}".format(dataset_type))
-
-        (dim, depth) = check_input_grid(dataset)
-        tile_width = max_dim // dim
 
         report_timestamp("plot - {}".format(layer.get_name()))
         plotter.plot(layer.get_name(), dataset)
 
-        report_timestamp("fill - {}".format(layer.get_name()))
-        qtree.fill(lambda: ({}, None), depth)
+        if isinstance(dataset, np.ndarray):
+            (dim, depth) = check_input_grid(dataset)
+            tile_width = max_dim // dim
 
-        def initialize(node, convolve):
-            if convolve.depth == depth:
-                x = convolve.x // tile_width
-                y = convolve.y // tile_width
-                data = dataset[x][y]
-                layer.initialize(data, node, convolve)
+            report_timestamp("fill - {}".format(layer.get_name()))
+            qtree.fill(lambda: ({}, None), depth)
 
-        report_timestamp("initialize - {}".format(layer.get_name()))
-        qtree.convolve(initialize)
+            def initialize(node, convolve):
+                if convolve.depth == depth:
+                    x = convolve.x // tile_width
+                    y = convolve.y // tile_width
+                    data = dataset[x][y]
+                    layer.initialize(data, node, convolve)
+
+            report_timestamp("initialize - {}".format(layer.get_name()))
+            qtree.convolve(initialize)
+
+        layer.post_init(dataset, qtree)
 
     if save is not None or profile_file is not None:
         # remove all entities in children with lower priority than the highest parent entity priority
@@ -229,9 +244,12 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         def bubble_priority_down(node, convolve):
             nonlocal priority_stack
 
-            max_priority = max_or_none(
-                priority for (_, priority) in node.data[0].values()
-            )
+            if node.data is not None:
+                max_priority = max_or_none(
+                    priority for (_, priority) in node.data[0].values()
+                )
+            else:
+                max_priority = None
 
             for _ in range(len(priority_stack) - convolve.depth):
                 priority_stack.pop()
@@ -279,25 +297,37 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
                 # if children have no entities, then get rid of the children
                 node.children.clear()
 
-            min_priority = min_or_none(
-                (
-                    min_or_none(priority for (_, priority) in node.data[0].values()),
-                    min_child_priority,
+            if node.data is not None:
+                min_priority = min_or_none(
+                    (
+                        min_or_none(
+                            priority for (_, priority) in node.data[0].values()
+                        ),
+                        min_child_priority,
+                    )
                 )
-            )
-            max_priority = max_or_none(
-                (
-                    max_or_none(priority for (_, priority) in node.data[0].values()),
-                    max_child_priority,
+                max_priority = max_or_none(
+                    (
+                        max_or_none(
+                            priority for (_, priority) in node.data[0].values()
+                        ),
+                        max_child_priority,
+                    )
                 )
-            )
-            total_entities = child_entities + sum(
-                len(entities) for (entities, _) in node.data[0].values()
-            )
+                total_entities = child_entities + sum(
+                    len(entities) for (entities, _) in node.data[0].values()
+                )
+                node_data = node.data[0]
+            else:
+                min_priority = None
+                max_priority = None
+                total_entities = 0
+                node_data = {}
+
             assert (min_priority is None) == (max_priority is None)
 
             node.data = (
-                node.data[0],
+                node_data,
                 NodeExtra(
                     min_priority=min_priority,
                     max_priority=max_priority,
@@ -417,6 +447,9 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
         report_timestamp("split")
         qtree.convolve(split, post=False)
+
+        for layer in layers:
+            layer.modify_state(state)
 
         report_timestamp("write qtree")
         write_qtree(state, qtree)

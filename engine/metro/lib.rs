@@ -54,6 +54,26 @@ pub struct MetroLine {
     stations: Vec<Station>,
 }
 
+impl PartialEq for MetroLine {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for MetroLine {}
+
+impl Ord for MetroLine {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for MetroLine {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl MetroLine {
     pub fn new(id: u64, color: Color, name: String) -> Self {
         Self {

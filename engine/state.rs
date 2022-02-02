@@ -121,14 +121,32 @@ impl State {
         Ok(())
     }
 
-    pub fn add_metro_line(&mut self, name: String) {
+    pub fn add_metro_line(
+        &mut self,
+        name: String,
+        color: Option<metro::Color>,
+        keys: Option<Vec<metro::MetroKey>>,
+    ) -> u64 {
         let id = self.metro_line_counter;
         self.metro_line_counter += 1;
 
-        let color = metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into();
+        let color = match color {
+            Some(color) => color,
+            None => metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into(),
+        };
 
-        let metro_line = metro::MetroLine::new(id, color, name);
+        let mut metro_line = metro::MetroLine::new(id, color, name);
+
+        match keys {
+            Some(keys) => {
+                metro_line.set_keys(keys);
+            }
+            None => (),
+        }
+
         self.metro_lines.insert(id, metro_line);
+
+        id
     }
 }
 

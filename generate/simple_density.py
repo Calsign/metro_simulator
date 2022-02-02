@@ -30,6 +30,9 @@ class SimpleDensity(Layer):
             # most likely need to merge with neighboring tiles
             self.set_node_data(node, [data], 0)
 
+    def post_init(self, dataset: T.Any, qtree: Quadtree):
+        pass
+
     def merge(self, node: Quadtree, convolve: ConvolveData):
         total = sum(sum(self.get_node_data(child)) for child in node.children)
         if total == 0:
@@ -58,3 +61,6 @@ class SimpleDensity(Layer):
 
     def fuse(self, entities: T.List[float]) -> float:
         return sum(entities)
+
+    def modify_state(self, state):
+        pass

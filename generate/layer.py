@@ -88,6 +88,14 @@ class Layer(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def post_init(self, dataset: T.Any, qtree: Quadtree):
+        """
+        Perform extra initialization after initialize has run.
+        Use this to initialize a dataset that does not produce a np.ndarray.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def merge(self, node: Quadtree, convolve: ConvolveData):
         """
         Optionally merge data from the given nodes children into the node.
@@ -104,10 +112,19 @@ class Layer(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def fuse(self, entities: T.List[T.Any]) -> T.Any:
         """
         Fuse multiple entities into one entity. The implementation is allowed
         to just pick one if they cannot be fused. This function gets called
         when the quadtrree cannot be divided any further.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def modify_state(self, state: T.Any):
+        """
+        Modify the state after the qtree is fully merged.
+        May be used to add non-tile items.
         """
         raise NotImplementedError

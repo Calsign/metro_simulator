@@ -10,6 +10,8 @@ py_binary(
         "layer.py",
         "lodes.py",
         "main.py",
+        "metros.py",
+        "osm.py",
         "quadtree.py",
         "simple_density.py",
         "terrain.py",

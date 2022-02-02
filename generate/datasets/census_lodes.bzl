@@ -135,6 +135,9 @@ filegroup(
             downloaded_file_path = "data.csv.gz",
         )
 
+def _preprocess():
+    pass
+
 def _get_deps(latitude, longitude, states = None):
     if states == None:
         fail("Must specify states using census_lodes.states")
@@ -161,6 +164,7 @@ def _states(states):
 
 census_lodes = struct(
     workspace_deps = _workspace_deps,
+    preprocess = _preprocess,
     get_deps = _get_deps,
     data = {
         "type": "lodes",

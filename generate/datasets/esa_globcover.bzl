@@ -17,11 +17,15 @@ filegroup(
 """,
     )
 
+def _preprocess():
+    pass
+
 def _get_deps(latitude, longitude):
     return ["@globcover//:data"]
 
 esa_globcover = struct(
     workspace_deps = _workspace_deps,
+    preprocess = _preprocess,
     get_deps = _get_deps,
     data = {
         "type": "geotiff",

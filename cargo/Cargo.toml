@@ -13,6 +13,7 @@ lazy_static = "1.4"
 derive_more = "0.99"
 enum_dispatch = "0.3"
 chrono = "0.4"
+itertools = "0.10"
 
 # serde
 serde = {version = "1.0", features = ["derive"]}

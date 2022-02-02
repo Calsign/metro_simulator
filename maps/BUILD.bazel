@@ -2,6 +2,7 @@ load("//generate:rules.bzl", "engine_config", "map")
 load("//generate/datasets:esa_globcover.bzl", "esa_globcover")
 load("//generate/datasets:meta_population_density.bzl", "meta_population_density")
 load("//generate/datasets:census_lodes.bzl", "census_lodes")
+load("//generate/datasets:open_street_map.bzl", "open_street_map")
 
 filegroup(
     name = "maps",
@@ -60,6 +61,7 @@ map(
         "terrain": esa_globcover,
         "population": meta_population_density,
         "employment": census_lodes.states(["ca"]),
+        "osm": open_street_map.regions(["norcal"]),
     },
     engine_config = ":config",
     latitude = "37.7749N",

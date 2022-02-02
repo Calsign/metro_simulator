@@ -1,0 +1,15 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@pip_pkgs//:requirements.bzl", "requirement")
+load(":datasets.bzl", "datasets")
+
+datasets.preprocess()
+
+py_binary(
+    name = "open_street_map_preprocess",
+    srcs = ["open_street_map_preprocess.py"],
+    main = "open_street_map_preprocess.py",
+    deps = [
+        requirement("shapely"),
+        requirement("osmium"),
+    ],
+)
