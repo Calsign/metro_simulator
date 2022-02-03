@@ -1,11 +1,11 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("//maps:maps.bzl", "ALL_MAPS")
 
 rust_binary(
     name = "editor",
     srcs = ["main.rs"],
     data = [
         "//configs",
-        "//maps",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -22,3 +22,21 @@ rust_binary(
         "//engine/tiles",
     ],
 )
+
+# generate a separate target for each map
+[
+    sh_binary(
+        name = name,
+        srcs = ["map_wrapper.sh"],
+        args = ["{}/{}".format(
+            map.package,
+            map.name,
+        )],
+        data = [
+            ":editor",
+            map,
+        ],
+        deps = ["@bazel_tools//tools/bash/runfiles"],
+    )
+    for name, map in ALL_MAPS.items()
+]

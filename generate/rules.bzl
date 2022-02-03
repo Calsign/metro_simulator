@@ -89,7 +89,10 @@ def _generate_map_impl(ctx):
     )
 
     return [
-        DefaultInfo(files = depset([output_file])),
+        DefaultInfo(
+            files = depset([output_file]),
+            runfiles = ctx.runfiles([output_file]),
+        ),
         OutputGroupInfo(
             plots = depset([plot_dir]),
             profile = depset([profile_file]),

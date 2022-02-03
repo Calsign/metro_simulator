@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 static DEFAULT_WINDOW_SIZE: (f64, f64) = (1920.0, 1080.0);
 static WINDOW_TITLE: &str = "Metro Simulator";
-static DEFAULT_CONFIG: &str = "config/debug.toml";
+static DEFAULT_CONFIG: &str = "configs/debug.toml";
 
 #[derive(clap::Parser, Debug)]
 struct Args {
