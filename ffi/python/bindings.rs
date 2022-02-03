@@ -211,7 +211,16 @@ impl State {
             .map(|line| line.clone().into())
     }
 
-    fn visit_metro_line(&self, metro_line: &MetroLine, visitor: &PyAny, step: f64) -> PyResult<()> {
+    fn visit_metro_line(
+        &self,
+        metro_line: &MetroLine,
+        visitor: &PyAny,
+        step: f64,
+        min_x: u64,
+        max_x: u64,
+        min_y: u64,
+        max_y: u64,
+    ) -> PyResult<()> {
         if !visitor.is_callable() {
             return Err(pyo3::exceptions::PyTypeError::new_err(
                 "visitor must be callable",
@@ -220,7 +229,16 @@ impl State {
         let mut visitor = PySplineVisitor {
             visitor: visitor.into(),
         };
-        metro_line.metro_line.visit_spline(&mut visitor, step)
+        metro_line.metro_line.visit_spline(
+            &mut visitor,
+            step,
+            &quadtree::Rect {
+                min_x,
+                max_x,
+                min_y,
+                max_y,
+            },
+        )
     }
 
     fn get_address(&self, x: u64, y: u64) -> PyResult<Address> {

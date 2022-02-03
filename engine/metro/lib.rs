@@ -124,14 +124,46 @@ impl MetroLine {
         &self.stations
     }
 
-    pub fn visit_spline<E>(&self, visitor: &mut dyn SplineVisitor<E>, step: f64) -> Result<(), E> {
+    pub fn visit_spline<E>(
+        &self,
+        visitor: &mut dyn SplineVisitor<E>,
+        step: f64,
+        rect: &quadtree::Rect,
+    ) -> Result<(), E> {
         if self.spline.len() == 0 {
             return Ok(());
         }
+
+        let (min_x, max_x, min_y, max_y) = (
+            rect.min_x as f64,
+            rect.max_x as f64,
+            rect.min_y as f64,
+            rect.max_y as f64,
+        );
+
+        let cx = (max_x + min_x) / 2.0;
+        let cy = (max_y + min_y) / 2.0;
+        let rx = (max_x - min_x) / 2.0;
+        let ry = (max_y - min_y) / 2.0;
+
         let total = (self.length / step).ceil() as u64;
-        for i in 0..=total {
-            let t = (i as f64) * step;
-            visitor.visit(self, self.spline.clamped_sample(t).unwrap(), t)?;
+        let mut i = 0;
+        while i <= total {
+            // probe for points in the rectangle
+            let (point, t) = loop {
+                let t = (i as f64) * step;
+                let point = self.spline.clamped_sample(t).unwrap();
+                // compute Manhatten distance between point and rectangle
+                let dist = f64::min(f64::abs(point.x - cx) - rx, f64::abs(point.y - cy) - ry);
+                if dist <= step || i > total {
+                    i += 1;
+                    break (point, t);
+                } else {
+                    i += f64::max(f64::floor(dist / step), 1.0) as u64;
+                }
+            };
+
+            visitor.visit(self, point, t)?;
         }
         Ok(())
     }

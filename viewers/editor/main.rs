@@ -588,6 +588,8 @@ impl druid::Widget<State> for Content {
         let (x1, y1) = state.content.to_model((0.0, 0.0));
         let (x2, y2) = state.content.to_model(ctx.size().into());
 
+        let bounding_box = quadtree::Rect::corners(x1, y1, x2, y2);
+
         let mut qtree_visitor = PaintQtreeVisitor {
             ctx,
             env,
@@ -596,7 +598,7 @@ impl druid::Widget<State> for Content {
         };
         engine
             .qtree
-            .visit_rect(&mut qtree_visitor, &quadtree::Rect::corners(x1, y1, x2, y2))
+            .visit_rect(&mut qtree_visitor, &bounding_box)
             .unwrap();
 
         // 5 pixel resolution
@@ -615,7 +617,7 @@ impl druid::Widget<State> for Content {
                     visited: 0,
                 };
                 metro_line
-                    .visit_spline(&mut spline_visitor, metro_scale)
+                    .visit_spline(&mut spline_visitor, metro_scale, &bounding_box)
                     .unwrap();
                 spline_total_visited += &spline_visitor.visited;
             }
