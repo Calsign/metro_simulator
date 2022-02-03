@@ -82,6 +82,8 @@ class Plotter:
     def plot(self, name, data):
         if self.plot_all or name in self.names_to_plot:
             p = plt()
+            p.clf()
+
             if hasattr(data, "plot"):
                 data.plot(p)
             else:

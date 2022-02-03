@@ -122,17 +122,28 @@ class OsmData:
         for route in self.routes:
             route.transform(matrix)
 
+    def plot_route(self, plt, route):
+        color = route.tags.get("colour")
+        for member in route.members:
+            if (
+                member.type == "w"
+                and member.ref in self.subway_map
+                and member.role == ""
+            ):
+                subway = self.subway_map[member.ref]
+                plt.plot(*subway.shape.xy, color=color)
+
     def plot(self, plt):
-        for route in self.routes:
-            color = route.tags.get("colour")
-            for member in route.members:
-                if (
-                    member.type == "w"
-                    and member.ref in self.subway_map
-                    and member.role == ""
-                ):
-                    subway = self.subway_map[member.ref]
-                    plt.plot(*subway.shape.xy, color=color)
+        fig, axs = plt.subplots(
+            len(self.routes) + 1, figsize=(8, 8 * (len(self.routes) + 1))
+        )
+
+        axs[0].set_title("all")
+
+        for i, route in enumerate(self.routes):
+            self.plot_route(axs[0], route)
+            self.plot_route(axs[i + 1], route)
+            axs[i + 1].set_title(route.tags.get("name", "<unnamed>"))
 
 
 def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any:

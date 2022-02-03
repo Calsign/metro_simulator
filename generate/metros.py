@@ -45,9 +45,10 @@ class Metros(Layer):
         for route in self.osm.routes:
             name = route.tags.get("name")
             color = parse_color(route.tags.get("colour"))
-            assert name is not None
+            assert name is not None, route
 
             keys = []
+            last_point = None
 
             for member in route.members:
                 if (
@@ -57,7 +58,18 @@ class Metros(Layer):
                 ):
                     subway = self.osm.subway_map[member.ref]
 
-                    for (x, y) in subway.shape.coords:
+                    first, last = subway.shape.boundary
+                    if len(keys) > 1 and last.distance(last_point) < first.distance(
+                        last_point
+                    ):
+                        # the way is flipped around for some reason. need to correct it
+                        last_point = first
+                        coords = reversed(subway.shape.coords)
+                    else:
+                        last_point = last
+                        coords = subway.shape.coords
+
+                    for (x, y) in coords:
                         keys.append(engine.MetroKey.key(x, y))
 
             state.add_metro_line(name, color, keys)
