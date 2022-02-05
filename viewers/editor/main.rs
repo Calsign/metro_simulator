@@ -70,16 +70,17 @@ fn build_root_widget() -> impl druid::Widget<State> {
                     build_metro_lines_panel().expand().padding((20.0, 20.0)),
                     1.0,
                 )
-                .fix_width(300.0),
+                .fix_width(300.0)
+                .background(druid::Color::grey(0.2))
+                .expand_height(),
         )
         .with_flex_child(Content {}, 1.0)
         .with_child(
-            druid::widget::Flex::column().with_child(
-                build_menu_panel()
-                    .expand()
-                    .padding((20.0, 20.0))
-                    .fix_width(300.0),
-            ),
+            druid::widget::Flex::column()
+                .with_child(build_menu_panel().expand().padding((20.0, 20.0)))
+                .fix_width(300.0)
+                .background(druid::Color::grey(0.2))
+                .expand_height(),
         )
 }
 
@@ -200,16 +201,24 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                         })
                         .fix_size(20.0, 20.0),
                     )
-                    .with_child(druid::widget::TextBox::new().lens(druid::lens::Map::new(
-                        |data: &MetroLineData| data.metro_line.lock().unwrap().name.clone(),
-                        |data: &mut MetroLineData, inner: String| {
-                            let mut metro_line = data.metro_line.lock().unwrap();
-                            metro_line.name = inner;
-                        },
-                    )))
+                    .with_child(
+                        druid::widget::TextBox::new()
+                            .lens(druid::lens::Map::new(
+                                |data: &MetroLineData| data.metro_line.lock().unwrap().name.clone(),
+                                |data: &mut MetroLineData, inner: String| {
+                                    let mut metro_line = data.metro_line.lock().unwrap();
+                                    metro_line.name = inner;
+                                },
+                            ))
+                            .scroll()
+                            .horizontal()
+                            .disable_scrollbars()
+                            .fix_width(250.0),
+                    )
             })
             .scroll()
             .vertical()
+            .fix_height(400.0)
             .lens(State::metro_lines),
         )
 }
