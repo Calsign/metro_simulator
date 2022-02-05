@@ -176,7 +176,7 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
         )
         .with_default_spacer()
         .with_child(
-            druid::widget::Scroll::new(druid::widget::List::new(|| {
+            druid::widget::List::new(|| {
                 druid::widget::Flex::row()
                     .with_child(
                         druid::widget::Checkbox::new("")
@@ -207,7 +207,8 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                             metro_line.name = inner;
                         },
                     )))
-            }))
+            })
+            .scroll()
             .vertical()
             .lens(State::metro_lines),
         )

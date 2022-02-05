@@ -3,5 +3,7 @@ build --symlink_prefix=build/bazel-
 test --test_output=errors
 
 # mypy aspect
-build --aspects @mypy_integration//:mypy.bzl%mypy_aspect
-build --output_groups=+mypy
+build:mypy --aspects @mypy_integration//:mypy.bzl%mypy_aspect
+build:mypy --output_groups=+mypy
+
+build --config mypy

@@ -13,7 +13,23 @@ REGIONS = {
     ),
     "ny": struct(
         path = "north-america/us/new-york-220101",
-        hash = None,
+        hash = "0325d3db3fbfe78d99104b123bdfce3fe048f6c31a0f82e4d4a990d765cebfde",
+    ),
+    "nj": struct(
+        path = "north-america/us/new-jersey-220101",
+        hash = "3ca09045fb1a3d24978c9eb2a271eeacf76d1df3fe8f85325bf7b42a1dd10fa6",
+    ),
+    "dc": struct(
+        path = "north-america/us/district-of-columbia-220101",
+        hash = "b48a3265cc0eda60b42061871488b8a971d6a96af0579c395fb72910ff4ca300",
+    ),
+    "md": struct(
+        path = "north-america/us/maryland-220101",
+        hash = "f79c6252a379f35adb449649c6703293eceb1334e86c7209e23ad77f96643a43",
+    ),
+    "va": struct(
+        path = "north-america/us/virginia-220101",
+        hash = "a255af233ff9a1ce8146ec2c52a54b5fa757a58d601a77a1ff964bc783e6e1b2",
     ),
 }
 

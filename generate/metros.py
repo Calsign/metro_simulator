@@ -1,5 +1,7 @@
 import typing as T
 
+from matplotlib.colors import to_rgba
+
 import engine
 
 from generate.data import MapConfig
@@ -16,7 +18,11 @@ def parse_color(color):
         b = int(color[5:7], 16)
         return (r, g, b)
     else:
-        raise Exception("Unrecognized color format: {}".format(color))
+        try:
+            (r, g, b, _) = to_rgba(color)
+            return (int(r * 255), int(g * 255), int(b * 255))
+        except ValueError:
+            raise Exception("Unrecognized color: {}".format(color))
 
 
 class Metros(Layer):
@@ -42,9 +48,11 @@ class Metros(Layer):
         pass
 
     def modify_state(self, state: T.Any):
+        max_dim = 2 ** self.map_config.engine_config["max_depth"]
+
         for route in self.osm.routes:
             name = route.tags.get("name")
-            color = parse_color(route.tags.get("colour"))
+            color = route.tags.get("colour")
             assert name is not None, route
 
             keys = []
@@ -58,6 +66,9 @@ class Metros(Layer):
                 ):
                     subway = self.osm.subway_map[member.ref]
 
+                    if color is None:
+                        color = subway.tags.get("colour")
+
                     first, last = subway.shape.boundary
                     if len(keys) > 1 and last.distance(last_point) < first.distance(
                         last_point
@@ -70,6 +81,16 @@ class Metros(Layer):
                         coords = subway.shape.coords
 
                     for (x, y) in coords:
-                        keys.append(engine.MetroKey.key(x, y))
+                        # discard out-of-bounds data
+                        if 0 <= x <= max_dim or 0 <= y <= max_dim:
+                            keys.append(engine.MetroKey.key(x, y))
 
-            state.add_metro_line(name, color, keys)
+            if color is None:
+                print("Warning: missing color for metro line {}".format(name))
+                color = "#000000"
+
+            parsed_color = parse_color(color)
+
+            # only add line if it has no out-of-bounds data
+            if len(keys) > 0:
+                state.add_metro_line(name, parsed_color, keys)
