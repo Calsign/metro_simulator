@@ -125,7 +125,10 @@ impl<B, L> Node<B, L> {
         };
     }
 
-    fn visit<E>(&self, visitor: &mut dyn Visitor<B, L, E>, visit_data: VisitData) -> Result<(), E> {
+    fn visit<V, E>(&self, visitor: &mut V, visit_data: VisitData) -> Result<(), E>
+    where
+        V: Visitor<B, L, E>,
+    {
         match self {
             Node::Branch { data, children, .. } => {
                 if visitor.visit_branch_pre(data, &visit_data)? {
@@ -140,11 +143,10 @@ impl<B, L> Node<B, L> {
         Ok(())
     }
 
-    fn visit_mut<E>(
-        &mut self,
-        visitor: &mut dyn MutVisitor<B, L, E>,
-        visit_data: VisitData,
-    ) -> Result<(), E> {
+    fn visit_mut<V, E>(&mut self, visitor: &mut V, visit_data: VisitData) -> Result<(), E>
+    where
+        V: MutVisitor<B, L, E>,
+    {
         match self {
             Node::Branch { data, children, .. } => {
                 if visitor.visit_branch_pre(data, &visit_data)? {
@@ -159,7 +161,10 @@ impl<B, L> Node<B, L> {
         Ok(())
     }
 
-    fn fold<T, E>(&self, fold: &mut dyn Fold<B, L, T, E>, visit_data: VisitData) -> Result<T, E> {
+    fn fold<F, T, E>(&self, fold: &mut F, visit_data: VisitData) -> Result<T, E>
+    where
+        F: Fold<B, L, T, E>,
+    {
         match self {
             Node::Leaf { data, .. } => fold.fold_leaf(data, &visit_data),
             Node::Branch { data, children, .. } => {
@@ -173,11 +178,10 @@ impl<B, L> Node<B, L> {
         }
     }
 
-    fn fold_mut<T, E>(
-        &mut self,
-        fold: &mut dyn MutFold<B, L, T, E>,
-        visit_data: VisitData,
-    ) -> Result<T, E> {
+    fn fold_mut<F, T, E>(&mut self, fold: &mut F, visit_data: VisitData) -> Result<T, E>
+    where
+        F: MutFold<B, L, T, E>,
+    {
         match self {
             Node::Leaf { data, .. } => fold.fold_leaf(data, &visit_data),
             Node::Branch { data, children, .. } => {
@@ -387,51 +391,70 @@ impl<B, L> Quadtree<B, L> {
         }
     }
 
-    pub fn visit<E>(&self, visitor: &mut dyn Visitor<B, L, E>) -> Result<(), E> {
+    pub fn visit<V, E>(&self, visitor: &mut V) -> Result<(), E>
+    where
+        V: Visitor<B, L, E>,
+    {
         self.root.visit(visitor, self.root_visit_data())
     }
 
-    pub fn visit_mut<E>(&mut self, visitor: &mut dyn MutVisitor<B, L, E>) -> Result<(), E> {
+    pub fn visit_mut<V, E>(&mut self, visitor: &mut V) -> Result<(), E>
+    where
+        V: MutVisitor<B, L, E>,
+    {
         self.root.visit_mut(visitor, self.root_visit_data())
     }
 
-    pub fn visit_rect<E>(
-        &self,
-        visitor: &mut dyn Visitor<B, L, E>,
-        bounds: &Rect,
-    ) -> Result<(), E> {
+    pub fn visit_rect<V, E>(&self, visitor: &mut V, bounds: &Rect) -> Result<(), E>
+    where
+        V: Visitor<B, L, E>,
+    {
         self.visit(&mut RectVisitor {
             bounds,
             inner: visitor,
+            phantom: std::marker::PhantomData::default(),
         })
     }
 
-    pub fn visit_rect_mut<E>(
-        &mut self,
-        visitor: &mut dyn MutVisitor<B, L, E>,
-        bounds: &Rect,
-    ) -> Result<(), E> {
+    pub fn visit_rect_mut<V, E>(&mut self, visitor: &mut V, bounds: &Rect) -> Result<(), E>
+    where
+        V: MutVisitor<B, L, E>,
+    {
         self.visit_mut(&mut MutRectVisitor {
             bounds,
             inner: visitor,
+            phantom: std::marker::PhantomData::default(),
         })
     }
 
-    pub fn fold<T, E>(&self, fold: &mut dyn Fold<B, L, T, E>) -> Result<T, E> {
+    pub fn fold<F, T, E>(&self, fold: &mut F) -> Result<T, E>
+    where
+        F: Fold<B, L, T, E>,
+    {
         self.root.fold(fold, self.root_visit_data())
     }
 
-    pub fn fold_mut<T, E>(&mut self, fold: &mut dyn MutFold<B, L, T, E>) -> Result<T, E> {
+    pub fn fold_mut<F, T, E>(&mut self, fold: &mut F) -> Result<T, E>
+    where
+        F: MutFold<B, L, T, E>,
+    {
         self.root.fold_mut(fold, self.root_visit_data())
     }
 }
 
-struct RectVisitor<'a, 'b, B, L, E> {
+struct RectVisitor<'a, 'b, V, B, L, E>
+where
+    V: Visitor<B, L, E>,
+{
     bounds: &'a Rect,
-    inner: &'b mut dyn Visitor<B, L, E>,
+    inner: &'b mut V,
+    phantom: std::marker::PhantomData<(B, L, E)>,
 }
 
-impl<'a, 'b, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, B, L, E> {
+impl<'a, 'b, V, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, V, B, L, E>
+where
+    V: Visitor<B, L, E>,
+{
     fn visit_branch_pre(&mut self, branch: &B, data: &VisitData) -> Result<bool, E> {
         Ok(self.inner.visit_branch_pre(branch, data)? && data.in_bounds(self.bounds))
     }
@@ -448,12 +471,19 @@ impl<'a, 'b, B, L, E> Visitor<B, L, E> for RectVisitor<'a, 'b, B, L, E> {
     }
 }
 
-struct MutRectVisitor<'a, 'b, B, L, E> {
+struct MutRectVisitor<'a, 'b, V, B, L, E>
+where
+    V: MutVisitor<B, L, E>,
+{
     bounds: &'a Rect,
-    inner: &'b mut dyn MutVisitor<B, L, E>,
+    inner: &'b mut V,
+    phantom: std::marker::PhantomData<(B, L, E)>,
 }
 
-impl<'a, 'b, B, L, E> MutVisitor<B, L, E> for MutRectVisitor<'a, 'b, B, L, E> {
+impl<'a, 'b, V, B, L, E> MutVisitor<B, L, E> for MutRectVisitor<'a, 'b, V, B, L, E>
+where
+    V: MutVisitor<B, L, E>,
+{
     fn visit_branch_pre(&mut self, branch: &mut B, data: &VisitData) -> Result<bool, E> {
         Ok(self.inner.visit_branch_pre(branch, data)? && data.in_bounds(self.bounds))
     }

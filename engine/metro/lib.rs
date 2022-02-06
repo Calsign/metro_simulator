@@ -124,12 +124,15 @@ impl MetroLine {
         &self.stations
     }
 
-    pub fn visit_spline<E>(
+    pub fn visit_spline<V, E>(
         &self,
-        visitor: &mut dyn SplineVisitor<E>,
+        visitor: &mut V,
         step: f64,
         rect: &quadtree::Rect,
-    ) -> Result<(), E> {
+    ) -> Result<(), E>
+    where
+        V: SplineVisitor<E>,
+    {
         if self.spline.len() == 0 {
             return Ok(());
         }

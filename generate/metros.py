@@ -55,7 +55,7 @@ class Metros(Layer):
             color = route.tags.get("colour")
             assert name is not None, route
 
-            keys = []
+            keys: T.List[T.Any] = []
             last_point = None
 
             for member in route.members:

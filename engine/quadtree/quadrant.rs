@@ -53,7 +53,10 @@ impl<T> QuadMap<T> {
         }
     }
 
-    pub fn map_into<U>(self, f: &dyn Fn(T) -> U) -> QuadMap<U> {
+    pub fn map_into<F, U>(self, f: &F) -> QuadMap<U>
+    where
+        F: Fn(T) -> U,
+    {
         QuadMap {
             data: self.data.map(f),
         }

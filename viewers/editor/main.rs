@@ -302,6 +302,7 @@ impl MetroLineState {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct MetroLinesState {
     engine: Arc<Mutex<engine::state::State>>,
+    // TODO: use a functional map type instead so that the map updates correctly when this changes
     states: Arc<Mutex<HashMap<u64, MetroLineState>>>,
 }
 
