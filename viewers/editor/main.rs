@@ -213,7 +213,7 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                             .scroll()
                             .horizontal()
                             .disable_scrollbars()
-                            .fix_width(250.0),
+                            .fix_width(200.0),
                     )
             })
             .scroll()

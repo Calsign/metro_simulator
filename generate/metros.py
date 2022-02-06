@@ -50,7 +50,14 @@ class Metros(Layer):
     def modify_state(self, state: T.Any):
         max_dim = 2 ** self.map_config.engine_config["max_depth"]
 
+        seen_routes = set()
+
         for route in self.osm.routes:
+            # if we are crossing state boundaries, we have multiple copies of each route
+            if route.id in seen_routes:
+                continue
+            seen_routes.add(route.id)
+
             name = route.tags.get("name")
             color = route.tags.get("colour")
             assert name is not None, route
