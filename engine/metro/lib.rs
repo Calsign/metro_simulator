@@ -40,7 +40,7 @@ pub struct Station {
 pub enum MetroKey {
     Key(cg::Vector2<f64>),
     // NOTE: u64 because stations have to be on discrete unit tiles
-    Station(cg::Vector2<u64>, Station),
+    Stop(cg::Vector2<f64>, Station),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,7 +51,7 @@ pub struct MetroLine {
     keys: Vec<MetroKey>,
     spline: splines::Spline<f64, cg::Vector2<f64>>,
     length: f64,
-    stations: Vec<Station>,
+    stops: Vec<Station>,
 }
 
 impl PartialEq for MetroLine {
@@ -83,7 +83,7 @@ impl MetroLine {
             keys: vec![],
             spline: splines::Spline::from_vec(vec![]),
             length: 0.0,
-            stations: vec![],
+            stops: vec![],
         }
     }
 
@@ -95,33 +95,34 @@ impl MetroLine {
         use cg::MetricSpace;
 
         let mut spline_keys: Vec<splines::Key<f64, cg::Vector2<f64>>> = Vec::new();
-        let mut stations = Vec::new();
+        let mut stops = Vec::new();
         let mut t = 0.0;
-        for key in keys {
+        for key in &keys {
             let vec = match key {
                 MetroKey::Key(vec) => vec,
-                MetroKey::Station(vec, station) => {
-                    stations.push(station);
-                    vec.cast().unwrap()
+                MetroKey::Stop(vec, station) => {
+                    stops.push(station.clone());
+                    vec
                 }
             };
             if let Some(last) = spline_keys.last() {
                 t += vec.distance(last.value);
             }
-            spline_keys.push(splines::Key::new(t, vec, splines::Interpolation::Linear));
+            spline_keys.push(splines::Key::new(t, *vec, splines::Interpolation::Linear));
         }
 
+        self.keys = keys;
         self.spline = splines::Spline::from_vec(spline_keys);
         self.length = t;
-        self.stations = stations;
+        self.stops = stops;
     }
 
     pub fn length(&self) -> f64 {
         self.length
     }
 
-    pub fn stations(&self) -> &Vec<Station> {
-        &self.stations
+    pub fn stops(&self) -> &Vec<Station> {
+        &self.stops
     }
 
     pub fn visit_spline<V, E>(
@@ -170,8 +171,38 @@ impl MetroLine {
         }
         Ok(())
     }
+
+    pub fn visit_keys<V, E>(&self, visitor: &mut V, rect: &quadtree::Rect) -> Result<(), E>
+    where
+        V: KeyVisitor<E>,
+    {
+        if self.keys.len() == 0 {
+            return Ok(());
+        }
+
+        for key in &self.keys {
+            let loc = match key {
+                MetroKey::Key(loc) => loc,
+                MetroKey::Stop(loc, _) => loc,
+            };
+
+            if loc.x >= rect.min_x as f64
+                && loc.x <= rect.max_x as f64
+                && loc.y >= rect.min_y as f64
+                && loc.y <= rect.max_y as f64
+            {
+                visitor.visit(self, key)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 pub trait SplineVisitor<E> {
     fn visit(&mut self, line: &MetroLine, vertex: cg::Vector2<f64>, t: f64) -> Result<(), E>;
+}
+
+pub trait KeyVisitor<E> {
+    fn visit(&mut self, line: &MetroLine, key: &MetroKey) -> Result<(), E>;
 }

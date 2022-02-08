@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -36,6 +35,7 @@ fn main() {
         content: ContentState::new(engine.clone()),
         current_leaf: None,
         current_field: FieldType::None,
+        show_metro_keys: false,
     };
 
     druid::AppLauncher::with_window(window)
@@ -50,6 +50,7 @@ struct State {
     content: ContentState,
     current_leaf: Option<CurrentLeafState>,
     current_field: FieldType,
+    show_metro_keys: bool,
 }
 
 fn build_root_widget() -> impl druid::Widget<State> {
@@ -164,8 +165,7 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                         let mut engine = state.engine.lock().unwrap();
                         let id = engine.add_metro_line(String::from("Metro Line"), None, None);
 
-                        let mut states = state.states.lock().unwrap();
-                        states.insert(id, MetroLineState::new());
+                        state.states.insert(id, MetroLineState::new());
 
                         // TODO: this isn't quite enough to make it fully refresh
                         ctx.children_changed();
@@ -252,6 +252,8 @@ fn build_menu_panel() -> impl druid::Widget<State> {
             ])
             .lens(State::current_field),
         )
+        .with_default_spacer()
+        .with_child(druid::widget::Checkbox::new("Show metro keys").lens(State::show_metro_keys))
 }
 
 fn build_empty_panel() -> impl druid::Widget<()> {
@@ -302,13 +304,12 @@ impl MetroLineState {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct MetroLinesState {
     engine: Arc<Mutex<engine::state::State>>,
-    // TODO: use a functional map type instead so that the map updates correctly when this changes
-    states: Arc<Mutex<HashMap<u64, MetroLineState>>>,
+    states: druid::im::HashMap<u64, MetroLineState>,
 }
 
 impl MetroLinesState {
     fn new(engine: Arc<Mutex<engine::state::State>>) -> Self {
-        let mut states = HashMap::new();
+        let mut states = druid::im::HashMap::new();
 
         {
             let engine = engine.lock().unwrap();
@@ -319,7 +320,7 @@ impl MetroLinesState {
 
         Self {
             engine: engine.clone(),
-            states: Arc::new(Mutex::new(states)),
+            states,
         }
     }
 }
@@ -344,12 +345,11 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
         use itertools::Itertools;
 
         let engine = self.engine.lock().unwrap();
-        let states = self.states.lock().unwrap();
 
         // NOTE: sorted because HashMap doesn't have a sorted guarantee
         for (i, (id, metro_line)) in engine.metro_lines.iter().sorted().enumerate() {
             // TODO: this clone is disgusting
-            let data = MetroLineData::new(metro_line, &states[id]);
+            let data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&data, i);
         }
     }
@@ -358,15 +358,14 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
         use itertools::Itertools;
 
         let mut engine = self.engine.lock().unwrap();
-        let mut states = self.states.lock().unwrap();
 
         // NOTE: sorted because HashMap doesn't have a sorted guarantee
         for (i, (id, metro_line)) in engine.metro_lines.iter_mut().sorted().enumerate() {
             // TODO: this double clone is even more disgusting
-            let mut data = MetroLineData::new(metro_line, &states[id]);
+            let mut data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&mut data, i);
             *metro_line = data.metro_line.lock().unwrap().clone();
-            *states.get_mut(&id).unwrap() = data.state;
+            *self.states.get_mut(&id).unwrap() = data.state;
         }
     }
 
@@ -594,7 +593,6 @@ impl druid::Widget<State> for Content {
         use itertools::Itertools;
 
         let engine = state.engine.lock().unwrap();
-        let states = state.metro_lines.states.lock().unwrap();
 
         let (x1, y1) = state.content.to_model((0.0, 0.0));
         let (x2, y2) = state.content.to_model(ctx.size().into());
@@ -619,7 +617,7 @@ impl druid::Widget<State> for Content {
         let mut spline_total_visited = 0;
 
         for (id, metro_line) in engine.metro_lines.iter().sorted() {
-            if states[id].visible {
+            if state.metro_lines.states[id].visible {
                 let mut spline_visitor = PaintSplineVisitor {
                     ctx,
                     env,
@@ -631,6 +629,14 @@ impl druid::Widget<State> for Content {
                     .visit_spline(&mut spline_visitor, metro_scale, &bounding_box)
                     .unwrap();
                 spline_total_visited += &spline_visitor.visited;
+
+                if state.show_metro_keys {
+                    let mut key_visitor = PaintKeysVisitor { ctx, env, state };
+
+                    metro_line
+                        .visit_keys(&mut key_visitor, &bounding_box)
+                        .unwrap();
+                }
             }
         }
 
@@ -822,6 +828,41 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
         self.visited += 1;
 
         self.last_point = Some(point);
+        Ok(())
+    }
+}
+
+struct PaintKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
+    ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+    env: &'b druid::Env,
+    state: &'f State,
+}
+
+impl<'a, 'b, 'c, 'd, 'e, 'f> metro::KeyVisitor<anyhow::Error>
+    for PaintKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+{
+    fn visit(
+        &mut self,
+        line: &metro::MetroLine,
+        key: &metro::MetroKey,
+    ) -> Result<(), anyhow::Error> {
+        use druid::RenderContext;
+
+        match key {
+            metro::MetroKey::Key(loc) => {
+                let point = (
+                    loc.x * self.state.content.scale + self.state.content.tx,
+                    loc.y * self.state.content.scale + self.state.content.ty,
+                );
+
+                self.ctx.fill(
+                    druid::kurbo::Circle::new(point, 5.0),
+                    &druid::Color::rgb8(line.color.red, line.color.green, line.color.blue),
+                );
+            }
+            metro::MetroKey::Stop(loc, _) => {}
+        }
+
         Ok(())
     }
 }

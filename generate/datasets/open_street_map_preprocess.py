@@ -23,6 +23,7 @@ class Handler(osmium.SimpleHandler):
 
         self.subways = []
         self.stations = []
+        self.stops = []
         self.route_masters = []
         self.routes = []
 
@@ -49,6 +50,17 @@ class Handler(osmium.SimpleHandler):
         if self.matches(n.tags, railway="station", station="subway"):
             # https://wiki.openstreetmap.org/wiki/Tag:railway%3Dstation
             self.stations.append(
+                {
+                    "id": n.id,
+                    "tags": dict(n.tags),
+                    "location": (n.location.lon, n.location.lat),
+                }
+            )
+        if self.matches(
+            n.tags, railway="stop", public_transport="stop_position", subway="yes"
+        ):
+            # https://wiki.openstreetmap.org/wiki/Tag:public%20transport=stop%20position?uselang=en
+            self.stops.append(
                 {
                     "id": n.id,
                     "tags": dict(n.tags),
@@ -88,6 +100,7 @@ class Handler(osmium.SimpleHandler):
         return {
             "subways": self.subways,
             "stations": self.stations,
+            "stops": self.stops,
             "route_masters": self.route_masters,
             "routes": self.routes,
         }

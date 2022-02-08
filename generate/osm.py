@@ -42,6 +42,22 @@ class Station:
 
 
 @dataclass
+class Stop:
+    id: int
+    tags: T.Dict[str, str]
+    location: T.Tuple[float, float]
+
+    @staticmethod
+    def parse(data: T.Dict[str, T.Any]) -> Stop:
+        return Stop(**data)
+
+    def transform(self, matrix: T.List[float]):
+        p = shapely.geometry.Point(self.location)
+        t = affine_transform(p, matrix)
+        self.location = (t.x, t.y)
+
+
+@dataclass
 class RelMember:
     ref: int
     type: str
@@ -93,12 +109,13 @@ class Route:
 class OsmData:
     subways: T.List[Subway]
     stations: T.List[Station]
+    stops: T.List[Stop]
     route_masters: T.List[RouteMaster]
     routes: T.List[Route]
 
     @staticmethod
     def create() -> OsmData:
-        return OsmData([], [], [], [])
+        return OsmData([], [], [], [], [])
 
     @functools.cached_property
     def subway_map(self) -> T.Dict[int, Subway]:
@@ -109,6 +126,10 @@ class OsmData:
         return {station.id: station for station in self.stations}
 
     @functools.cached_property
+    def stop_map(self) -> T.Dict[int, Stop]:
+        return {stop.id: stop for stop in self.stops}
+
+    @functools.cached_property
     def route_map(self) -> T.Dict[int, Route]:
         return {route.id: route for route in self.routes}
 
@@ -117,6 +138,8 @@ class OsmData:
             subway.transform(matrix)
         for station in self.stations:
             station.transform(matrix)
+        for stop in self.stops:
+            stop.transform(matrix)
         for route_master in self.route_masters:
             route_master.transform(matrix)
         for route in self.routes:
@@ -162,7 +185,7 @@ def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any
     yscale = max_dim / (max_lat - min_lat)
     matrix = [xscale, 0, 0, yscale, -min_lon * xscale, -min_lat * yscale]
 
-    osm = OsmData([], [], [], [])
+    osm = OsmData.create()
 
     for path in sorted(dataset["tiles"]):
         with open(path, "r") as f:
@@ -170,12 +193,14 @@ def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any
 
         osm.subways.extend(map(Subway.parse, data["subways"]))
         osm.stations.extend(map(Station.parse, data["stations"]))
+        osm.stops.extend(map(Stop.parse, data["stops"]))
         osm.route_masters.extend(map(RouteMaster.parse, data["route_masters"]))
         osm.routes.extend(map(Route.parse, data["routes"]))
 
     # sort to ensure hermeticity
     osm.subways.sort(key=lambda s: s.id)
     osm.stations.sort(key=lambda s: s.id)
+    osm.stops.sort(key=lambda s: s.id)
     osm.route_masters.sort(key=lambda m: m.id)
     osm.routes.sort(key=lambda r: r.id)
 

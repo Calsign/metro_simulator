@@ -405,9 +405,9 @@ impl MetroLine {
     }
 
     #[getter]
-    fn stations(&self) -> Vec<MetroStation> {
+    fn stops(&self) -> Vec<MetroStation> {
         self.metro_line
-            .stations()
+            .stops()
             .iter()
             .map(|station| station.clone().into())
             .collect()
@@ -430,9 +430,9 @@ impl MetroKey {
     }
 
     #[staticmethod]
-    fn station(x: u64, y: u64, station: &MetroStation) -> Self {
+    fn stop(x: f64, y: f64, station: &MetroStation) -> Self {
         Self {
-            key: metro::MetroKey::Station((x, y).into(), station.station.clone()),
+            key: metro::MetroKey::Stop((x, y).into(), station.station.clone()),
         }
     }
 }
