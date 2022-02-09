@@ -88,7 +88,7 @@ class Layer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def post_init(self, dataset: T.Any, qtree: Quadtree):
+    def post_init(self, dataset: T.Any, qtree: Quadtree, state: T.Any):
         """
         Perform extra initialization after initialize has run.
         Use this to initialize a dataset that does not produce a np.ndarray.

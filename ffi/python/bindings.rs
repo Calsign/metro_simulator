@@ -195,13 +195,12 @@ impl State {
         name: String,
         color: Option<(u8, u8, u8)>,
         keys: Option<Vec<pyo3::PyRef<MetroKey>>>,
-    ) -> PyResult<()> {
+    ) -> u64 {
         self.state.add_metro_line(
             name,
             color.map(|c| c.into()),
             keys.map(|v| v.iter().map(|k| k.key.clone()).collect()),
-        );
-        Ok(())
+        )
     }
 
     fn get_metro_line(&self, id: u64) -> Option<MetroLine> {

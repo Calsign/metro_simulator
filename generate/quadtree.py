@@ -21,6 +21,15 @@ class Quadtree:
         for _ in range(len(Quadtree.CHILD_QUADRANTS)):
             self.children.append(Quadtree(max_depth=self.max_depth - 1, data=data_f()))
 
+    def get_or_create_child(self, address, data_f):
+        if len(address) == 0:
+            return self
+
+        if len(self.children) == 0:
+            self.add_children(data_f)
+
+        return self.children[address[0]].get_or_create_child(address[1:], data_f)
+
     def fill(self, data_f, depth=None):
         if depth is None:
             depth = self.max_depth

@@ -750,8 +750,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
                 self.ctx.fill(&triangle[..], &druid::Color::grey8(255));
             }
             MetroStationTile(tiles::MetroStationTile { x, y, ids }) => {
-                let point = self.state.content.to_screen((data.x + x, data.y + y));
-                let circle = druid::kurbo::Circle::new(point, width / 20.0);
+                // let point = self.state.content.to_screen((*x, *y));
+                let circle = druid::kurbo::Circle::new(rect.center(), width / 4.0);
                 self.ctx.stroke(circle, &druid::Color::grey8(255), 1.0);
             }
             _ => (),

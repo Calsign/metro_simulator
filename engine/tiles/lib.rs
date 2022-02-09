@@ -59,7 +59,7 @@ impl TileType for WorkplaceTile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MetroStationTile {
-    // Exact location of station within tile, relative to tile.
+    // Exact location of station within the tile, in absolute coordinates.
     pub x: u64,
     pub y: u64,
     // IDs to lookup metro lines. If there is more than one, then this is a transfer station.

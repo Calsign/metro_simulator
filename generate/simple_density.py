@@ -30,7 +30,7 @@ class SimpleDensity(Layer):
             # most likely need to merge with neighboring tiles
             self.set_node_data(node, [data], 0)
 
-    def post_init(self, dataset: T.Any, qtree: Quadtree):
+    def post_init(self, dataset: T.Any, qtree: Quadtree, state: T.Any):
         pass
 
     def merge(self, node: Quadtree, convolve: ConvolveData):

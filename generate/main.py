@@ -237,7 +237,7 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
             report_timestamp("initialize - {}".format(layer.get_name()))
             qtree.convolve(initialize)
 
-        layer.post_init(dataset, qtree)
+        layer.post_init(dataset, qtree, state)
 
     if save is not None or profile_file is not None:
         # remove all entities in children with lower priority than the highest parent entity priority
