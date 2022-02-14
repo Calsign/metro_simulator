@@ -7,3 +7,6 @@ build:mypy --aspects @mypy_integration//:mypy.bzl%mypy_aspect
 build:mypy --output_groups=+mypy
 
 build --config mypy
+
+# rust-analyzer support?
+build --repo_env=RULES_RUST_TOOLCHAIN_INCLUDE_RUSTC_SRCS=true

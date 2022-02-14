@@ -4,14 +4,16 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # RUST
 
-# `main` branch as of 2021-12-21
-RULES_RUST_REF = "6630fd5b6b7fe143ea09f80f64dc20e3514495b4"
+# `main` branch as of 2022-02-10
+RULES_RUST_REF = "c435cf4478fc6e097edc5dba0e71de6608ab77d8"
 
 RUST_VERSION = "1.57.0"
 
 http_archive(
     name = "rules_rust",
-    sha256 = "285a4d967abf3739f1dcb34e2f5a7d056dde1de3e3bb3f0145522e9b9433cba9",
+    patch_args = ["-p1"],
+    patches = ["//patches:rules_rust__compile_one_dependency.patch"],
+    sha256 = "8e190ea711500bf076f8de6c4c2729ac0d676a992a3d8aefb409f1e786a3f080",
     strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),
     urls = ["https://github.com/bazelbuild/rules_rust/archive/{}.tar.gz".format(RULES_RUST_REF)],
 )
