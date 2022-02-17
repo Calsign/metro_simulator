@@ -1,5 +1,5 @@
 mod color;
-mod timing;
+pub mod timing;
 mod types;
 
 pub use color::{Color, DEFAULT_COLORS};

@@ -216,11 +216,16 @@ class Metros(Layer):
                     station_y,
                     self.max_depth,
                 )
-                line_stations.append(stations_coord_map[(station_x, station_y)])
+                station_data = stations_coord_map[(station_x, station_y)]
+                line_stations.append(station_data)
 
                 x, y = stop.location
                 to_insert[index] = engine.MetroKey.stop(
-                    x, y, engine.MetroStation(engine.Address(station_address))
+                    x,
+                    y,
+                    engine.MetroStation(
+                        station_data.name, engine.Address(station_address)
+                    ),
                 )
 
             # NOTE: traverse in reverse order so that we don't mess up the indices
@@ -277,7 +282,10 @@ class Metros(Layer):
         pass
 
     def finalize(self, data: Station) -> Tile:
-        return Tile("MetroStationTile", dict(x=data.x, y=data.y, ids=data.metro_lines))
+        return Tile(
+            "MetroStationTile",
+            dict(name=data.name, x=data.x, y=data.y, ids=data.metro_lines),
+        )
 
     def fuse(self, entities: T.List[Station]) -> Station:
         assert False, entities

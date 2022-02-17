@@ -36,6 +36,10 @@ clap = {version = "3", features = ["derive"]}
 # master as of 2022-01-03
 druid = { git = "https://github.com/linebender/druid", rev = "3790463cf4e724719dc0c1867afe59c3f2d22b3b", features = ["im"] }
 
+# plotting
+plotters = "0.3.1"
+plotters-bitmap = "0.3.1"
+
 # support for cargo-raze bazel integration
 [package.metadata.raze]
 workspace_path = "//cargo/pkgs"
@@ -60,4 +64,12 @@ compile_data_attr = "glob([\"**/*.ftl\"])"
 compile_data_attr = "[\"README.md\"]"
 
 [package.metadata.raze.crates.clap_derive.'*']
+compile_data_attr = "[\"README.md\"]"
+
+# needed for plotters
+
+[package.metadata.raze.crates.gif.'*']
+compile_data_attr = "[\"README.md\"]"
+
+[package.metadata.raze.crates.image.'*']
 compile_data_attr = "[\"README.md\"]"

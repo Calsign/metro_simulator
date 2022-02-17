@@ -366,9 +366,10 @@ struct MetroStation {
 #[pymethods]
 impl MetroStation {
     #[new]
-    fn new(address: &Address) -> Self {
+    fn new(name: &str, address: &Address) -> Self {
         Self {
             station: metro::Station {
+                name: name.to_string(),
                 address: address.address.clone(),
             },
         }
@@ -391,6 +392,11 @@ impl MetroLine {
     #[getter]
     fn id(&self) -> u64 {
         self.metro_line.id
+    }
+
+    #[getter]
+    fn name(&self) -> &str {
+        &self.metro_line.name
     }
 
     #[getter]

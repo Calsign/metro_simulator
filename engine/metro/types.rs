@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::color;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Station {
+    pub name: String,
     pub address: quadtree::Address,
 }
 

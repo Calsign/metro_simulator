@@ -59,6 +59,7 @@ impl TileType for WorkplaceTile {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MetroStationTile {
+    pub name: String,
     // Exact location of station within the tile, in absolute coordinates.
     pub x: u64,
     pub y: u64,
