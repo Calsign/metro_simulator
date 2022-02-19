@@ -192,9 +192,12 @@ fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
                     }
                     minima.push(sqrt_pair);
                 }
-                Some(std::cmp::Ordering::Equal) => {
-                    panic!("got duplicate entries: {:?}, {:?}", last, sqrt_pair)
-                }
+                Some(std::cmp::Ordering::Equal) => match minima.last_mut() {
+                    Some(last) => {
+                        last.station = sqrt_pair.station;
+                    }
+                    None => (),
+                },
             },
             None => {
                 minima.push(sqrt_pair);

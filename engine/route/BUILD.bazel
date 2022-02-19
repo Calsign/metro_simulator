@@ -1,0 +1,28 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+rust_library(
+    name = "route",
+    srcs = [
+        "lib.rs",
+        "mode.rs",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cargo/pkgs:itertools",
+        "//cargo/pkgs:petgraph",
+        "//engine/fields",
+        "//engine/metro",
+        "//engine/quadtree",
+    ],
+)
+
+rust_binary(
+    name = "route_tool",
+    srcs = ["route_tool.rs"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":route",
+        "//cargo/pkgs:clap",
+        "//engine",
+    ],
+)

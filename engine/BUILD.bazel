@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library")
 
 rust_library(
     name = "engine",
@@ -19,19 +19,7 @@ rust_library(
         "//engine/fields",
         "//engine/metro",
         "//engine/quadtree",
+        "//engine/route",
         "//engine/tiles",
-    ],
-)
-
-rust_binary(
-    name = "timetable_tool",
-    srcs = ["timetable_tool.rs"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":engine",
-        "//cargo/pkgs:clap",
-        "//cargo/pkgs:plotters",
-        "//cargo/pkgs:plotters_bitmap",
-        "//engine/metro",
     ],
 )

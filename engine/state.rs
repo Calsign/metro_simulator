@@ -1,7 +1,7 @@
 use crate::config::Config;
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -147,6 +147,21 @@ impl State {
         self.metro_lines.insert(id, metro_line);
 
         id
+    }
+
+    pub fn construct_base_route_graph_filter(
+        &self,
+        metro_lines: Option<HashSet<u64>>,
+    ) -> route::Graph {
+        route::construct_base_graph(route::BaseGraphInput {
+            metro_lines: self.metro_lines.values(),
+            tile_size: self.config.min_tile_size as f64,
+            filter_metro_lines: metro_lines,
+        })
+    }
+
+    pub fn construct_base_route_graph(&self) -> route::Graph {
+        self.construct_base_route_graph_filter(None)
     }
 }
 

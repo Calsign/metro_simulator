@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 rust_library(
     name = "metro",
@@ -25,5 +25,18 @@ rust_test(
     deps = [
         ":metro",
         "//cargo/pkgs:float_cmp",
+    ],
+)
+
+rust_binary(
+    name = "timetable_tool",
+    srcs = ["timetable_tool.rs"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":metro",
+        "//cargo/pkgs:clap",
+        "//cargo/pkgs:plotters",
+        "//cargo/pkgs:plotters_bitmap",
+        "//engine",
     ],
 )

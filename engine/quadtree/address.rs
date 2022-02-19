@@ -1,6 +1,6 @@
 use crate::quadrant::Quadrant;
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Address {
     data: Vec<Quadrant>,
 }
