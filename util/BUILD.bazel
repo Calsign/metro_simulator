@@ -1,0 +1,8 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "test_util",
+    testonly = True,
+    srcs = ["test_util.rs"],
+    visibility = ["//visibility:public"],
+)

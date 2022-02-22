@@ -48,8 +48,17 @@ pub struct QuadMap<T> {
 
 impl<T> QuadMap<T> {
     pub fn new(nw: T, ne: T, sw: T, se: T) -> Self {
-        QuadMap {
+        Self {
             data: [nw, ne, sw, se],
+        }
+    }
+
+    pub fn each<F>(f: F) -> Self
+    where
+        F: Fn() -> T,
+    {
+        Self {
+            data: [f(), f(), f(), f()],
         }
     }
 
@@ -77,6 +86,16 @@ impl<T> std::ops::Index<Quadrant> for QuadMap<T> {
 impl<T> std::ops::IndexMut<Quadrant> for QuadMap<T> {
     fn index_mut(&mut self, quadrant: Quadrant) -> &mut T {
         return &mut self.data[quadrant.index() as usize];
+    }
+}
+
+impl<T> From<Vec<T>> for QuadMap<T> {
+    fn from(vec: Vec<T>) -> Self {
+        Self {
+            data: vec
+                .try_into()
+                .unwrap_or_else(|v: Vec<T>| panic!("vec must have size 4")),
+        }
     }
 }
 

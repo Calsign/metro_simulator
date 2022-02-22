@@ -5,7 +5,9 @@ rust_library(
     srcs = [
         "address.rs",
         "lib.rs",
+        "neighbors.rs",
         "quadrant.rs",
+        "quadtree.rs",
         "rect.rs",
     ],
     visibility = ["//visibility:public"],
@@ -19,5 +21,8 @@ rust_library(
 rust_test(
     name = "quadtree_tests",
     crate = ":quadtree",
-    deps = [":quadtree"],
+    deps = [
+        ":quadtree",
+        "//util:test_util",
+    ],
 )
