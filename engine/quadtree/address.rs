@@ -39,6 +39,24 @@ impl Address {
         address.push(quadrant);
         return address.into();
     }
+
+    pub fn to_xy(&self, max_depth: u32) -> (u64, u64) {
+        let mut x = 0;
+        let mut y = 0;
+        let mut w = 2_u64.pow(max_depth);
+        for quadrant in self.data.iter() {
+            let (right, bottom) = match quadrant {
+                Quadrant::NW => (false, false),
+                Quadrant::NE => (true, false),
+                Quadrant::SW => (false, true),
+                Quadrant::SE => (true, true),
+            };
+            w /= 2;
+            x += (right as u64) * w;
+            y += (bottom as u64) * w;
+        }
+        (x, y)
+    }
 }
 
 impl From<Vec<Quadrant>> for Address {
@@ -56,5 +74,22 @@ impl From<Address> for Vec<Quadrant> {
 impl From<Address> for Vec<u8> {
     fn from(address: Address) -> Self {
         address.to_vec()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use quadtree::*;
+    use Quadrant::*;
+
+    #[test]
+    fn to_xy() {
+        assert_eq!(Address::from(vec![NW, NW, NW]).to_xy(3), (0, 0));
+        assert_eq!(Address::from(vec![NW, NE, NW]).to_xy(3), (2, 0));
+        assert_eq!(Address::from(vec![SE, SE, SE]).to_xy(3), (7, 7));
+        assert_eq!(
+            Address::from(vec![NE, SE, NW, SW, NW, SW, NW, SE, SW, SW, NW, NW]).to_xy(12),
+            (3088, 1372)
+        );
     }
 }

@@ -2,12 +2,19 @@ mod mode;
 
 use std::collections::{HashMap, HashSet};
 
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum Error {
+    #[error("Quadtree error: {0}")]
+    QuadtreeError(#[from] quadtree::Error),
+}
+
 pub struct BaseGraphInput<'a, I>
 where
     I: Iterator<Item = &'a metro::MetroLine>,
 {
     pub metro_lines: I,
     pub tile_size: f64,
+    pub max_depth: u32,
 
     pub filter_metro_lines: Option<HashSet<u64>>,
 }
@@ -80,6 +87,10 @@ enum Edge {
         metro_line: u64,
         station: metro::Station,
     },
+    ModeSegment {
+        mode: mode::Mode,
+        distance: f64,
+    },
 }
 
 impl Edge {
@@ -95,6 +106,7 @@ impl Edge {
                 metro_line,
                 station,
             } => 0.0,
+            ModeSegment { mode, distance } => mode.linear_speed() * distance,
         }
     }
 }
@@ -103,7 +115,7 @@ impl std::fmt::Display for Edge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Edge::*;
         match self {
-            MetroSegment { time } => write!(f, "{:.2}", time),
+            MetroSegment { time } => write!(f, "metro:{:.2}", time),
             MetroEmbark {
                 metro_line,
                 station,
@@ -112,6 +124,7 @@ impl std::fmt::Display for Edge {
                 metro_line,
                 station,
             } => write!(f, "disembark:{}:{}", metro_line, station.name),
+            ModeSegment { mode, distance } => write!(f, "{}:{:.2}", mode, distance),
         }
     }
 }
@@ -130,7 +143,7 @@ impl Graph {
     }
 }
 
-pub fn construct_base_graph<'a, I>(input: BaseGraphInput<'a, I>) -> Graph
+pub fn construct_base_graph<'a, I>(input: BaseGraphInput<'a, I>) -> Result<Graph, Error>
 where
     I: Iterator<Item = &'a metro::MetroLine>,
 {
@@ -139,6 +152,7 @@ where
     let mut graph = InnerGraph::new();
 
     let mut station_map = HashMap::new();
+    let mut walking_neighbors = quadtree::NeighborsStore::new(4, input.max_depth);
 
     for metro_line in input.metro_lines {
         if let Some(ref filter) = input.filter_metro_lines {
@@ -155,9 +169,14 @@ where
             let station_id = *station_map
                 .entry(station.address.clone())
                 .or_insert_with(|| {
-                    graph.add_node(Node::MetroStation {
+                    let station_id = graph.add_node(Node::MetroStation {
                         station: station.clone(),
-                    })
+                    });
+
+                    let (x, y) = station.address.to_xy(input.max_depth);
+                    walking_neighbors.insert(station_id, x as f64, y as f64);
+
+                    station_id
                 });
 
             let stop_id = graph.add_node(Node::MetroStop {
@@ -195,5 +214,39 @@ where
         }
     }
 
-    Graph(graph)
+    walking_neighbors.visit_all_radius(
+        &mut AddEdgesVisitor {
+            graph: &mut graph,
+            tile_size: input.tile_size,
+        },
+        |_| crate::mode::Mode::Walking.max_radius() / input.tile_size,
+    )?;
+
+    Ok(Graph(graph))
+}
+
+struct AddEdgesVisitor<'a> {
+    graph: &'a mut InnerGraph,
+    tile_size: f64,
+}
+
+impl<'a> quadtree::AllNeighborsVisitor<petgraph::graph::NodeIndex, Error> for AddEdgesVisitor<'a> {
+    fn visit(
+        &mut self,
+        base: &petgraph::graph::NodeIndex,
+        entry: &petgraph::graph::NodeIndex,
+        distance: f64,
+    ) -> Result<(), Error> {
+        if base != entry {
+            self.graph.add_edge(
+                *base,
+                *entry,
+                Edge::ModeSegment {
+                    mode: mode::Mode::Walking,
+                    distance: distance * self.tile_size,
+                },
+            );
+        }
+        Ok(())
+    }
 }

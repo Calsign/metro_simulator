@@ -24,10 +24,14 @@ fn main() {
 
     match args.operation {
         Operation::Construct => {
-            let graph = state.construct_base_route_graph_filter(metro_lines);
+            let graph = state
+                .construct_base_route_graph_filter(metro_lines)
+                .unwrap();
         }
         Operation::Dump { output } => {
-            let graph = state.construct_base_route_graph_filter(metro_lines);
+            let graph = state
+                .construct_base_route_graph_filter(metro_lines)
+                .unwrap();
             match output {
                 Some(path) => graph
                     .dump(&mut std::fs::File::create(path).unwrap())

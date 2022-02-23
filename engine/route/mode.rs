@@ -1,3 +1,5 @@
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[non_exhaustive]
 pub enum Mode {
     Walking,
     Biking,
@@ -8,7 +10,7 @@ impl Mode {
     /**
      * Average speed, in m/s.
      */
-    fn linear_speed(&self) -> f64 {
+    pub fn linear_speed(&self) -> f64 {
         use Mode::*;
         match self {
             Walking => 1.5,  // normal walking speed
@@ -21,12 +23,23 @@ impl Mode {
      * Max distance it is reasonable to travel for the first or last
      * segment of a trip, in meters.
      */
-    fn max_radius(&self) -> f64 {
+    pub fn max_radius(&self) -> f64 {
         use Mode::*;
         match self {
             Walking => 3000.0,  // about 2 miles
             Biking => 16000.0,  // about 10 miles
             Driving => 80000.0, // about 50 miles
+        }
+    }
+}
+
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Mode::*;
+        match self {
+            Walking => write!(f, "walking"),
+            Biking => write!(f, "biking"),
+            Driving => write!(f, "driving"),
         }
     }
 }

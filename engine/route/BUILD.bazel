@@ -10,6 +10,7 @@ rust_library(
     deps = [
         "//cargo/pkgs:itertools",
         "//cargo/pkgs:petgraph",
+        "//cargo/pkgs:thiserror",
         "//engine/fields",
         "//engine/metro",
         "//engine/quadtree",

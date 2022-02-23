@@ -18,7 +18,11 @@ pub struct NeighborsStore<T> {
 }
 
 pub trait NeighborsVisitor<T, E> {
-    fn visit(&mut self, entry: &T, x: f64, y: f64) -> Result<(), E>;
+    fn visit(&mut self, entry: &T, x: f64, y: f64, distance: f64) -> Result<(), E>;
+}
+
+pub trait AllNeighborsVisitor<T, E> {
+    fn visit(&mut self, base: &T, entry: &T, distance: f64) -> Result<(), E>;
 }
 
 impl<T> NeighborsStore<T> {
@@ -82,6 +86,21 @@ impl<T> NeighborsStore<T> {
         self.qtree.visit_rect(&mut visitor, &rect)?;
         Ok(())
     }
+
+    pub fn visit_all_radius<V, F, E>(&self, visitor: &mut V, radius: F) -> Result<(), E>
+    where
+        V: AllNeighborsVisitor<T, E>,
+        F: Fn(&T) -> f64,
+    {
+        let mut visitor = NeighborsAllRadiusVisitorImpl {
+            store: self,
+            radius,
+            visitor,
+            phantom: std::marker::PhantomData::default(),
+        };
+        self.qtree.visit(&mut visitor)?;
+        Ok(())
+    }
 }
 
 struct NeighborsVisitorImpl<'a, V, T, E>
@@ -106,9 +125,68 @@ where
 
     fn visit_leaf(&mut self, leaf: &Vec<Entry<T>>, data: &VisitData) -> Result<(), E> {
         for entry in leaf {
-            if (entry.x - self.x).powi(2) + (entry.y - self.y).powi(2) <= self.radius.powi(2) {
-                self.visitor.visit(&entry.data, entry.x, entry.y)?;
+            let distance = ((entry.x - self.x).powi(2) + (entry.y - self.y).powi(2)).sqrt();
+            if distance <= self.radius {
+                self.visitor
+                    .visit(&entry.data, entry.x, entry.y, distance)?;
             }
+        }
+        Ok(())
+    }
+
+    fn visit_branch_post(&mut self, branch: &(), data: &VisitData) -> Result<(), E> {
+        Ok(())
+    }
+}
+
+struct AllNeighborsVisitorImpl<'a, 'b, V, T, E>
+where
+    V: AllNeighborsVisitor<T, E>,
+{
+    visitor: &'a mut V,
+    base: &'b T,
+    phantom: std::marker::PhantomData<E>,
+}
+
+impl<'a, 'b, V, T, E> NeighborsVisitor<T, E> for AllNeighborsVisitorImpl<'a, 'b, V, T, E>
+where
+    V: AllNeighborsVisitor<T, E>,
+{
+    fn visit(&mut self, entry: &T, _x: f64, _y: f64, distance: f64) -> Result<(), E> {
+        self.visitor.visit(self.base, entry, distance)
+    }
+}
+
+struct NeighborsAllRadiusVisitorImpl<'a, 'b, V, T, F, E>
+where
+    V: AllNeighborsVisitor<T, E>,
+    F: Fn(&T) -> f64,
+{
+    store: &'a NeighborsStore<T>,
+    radius: F,
+    visitor: &'b mut V,
+    phantom: std::marker::PhantomData<E>,
+}
+
+impl<'a, 'b, V, T, F, E> crate::quadtree::Visitor<(), Vec<Entry<T>>, E>
+    for NeighborsAllRadiusVisitorImpl<'a, 'b, V, T, F, E>
+where
+    V: AllNeighborsVisitor<T, E>,
+    F: Fn(&T) -> f64,
+{
+    fn visit_branch_pre(&mut self, branch: &(), data: &VisitData) -> Result<bool, E> {
+        Ok(true)
+    }
+
+    fn visit_leaf(&mut self, leaf: &Vec<Entry<T>>, data: &VisitData) -> Result<(), E> {
+        for entry in leaf {
+            let mut visitor = AllNeighborsVisitorImpl {
+                visitor: self.visitor,
+                base: &entry.data,
+                phantom: std::marker::PhantomData::default(),
+            };
+            self.store
+                .visit_radius(&mut visitor, entry.x, entry.y, (self.radius)(&entry.data))?;
         }
         Ok(())
     }
@@ -134,7 +212,13 @@ mod tests {
     }
 
     impl NeighborsVisitor<u32, quadtree::Error> for TestVisitor {
-        fn visit(&mut self, data: &u32, x: f64, y: f64) -> Result<(), quadtree::Error> {
+        fn visit(
+            &mut self,
+            data: &u32,
+            x: f64,
+            y: f64,
+            distance: f64,
+        ) -> Result<(), quadtree::Error> {
             self.seen.push(*data);
             Ok(())
         }

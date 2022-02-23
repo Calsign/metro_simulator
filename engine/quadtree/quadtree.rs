@@ -9,7 +9,7 @@ pub enum Error {
     #[error("Expected leaf, but got branch")]
     ExpectedLeaf(),
     #[error("Max depth exceeded: {0}")]
-    MaxDepthExceeded(usize),
+    MaxDepthExceeded(u32),
     #[error("Coordinates out of bounds: {0}, {1}")]
     CoordsOutOfBoundsU64(u64, u64),
     #[error("Coordinates out of bounds: {0}, {1}")]
@@ -19,7 +19,7 @@ pub enum Error {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VisitData {
     pub address: Address,
-    pub depth: usize,
+    pub depth: u32,
     pub x: u64,
     pub y: u64,
     pub width: u64,
@@ -211,7 +211,7 @@ pub struct Quadtree<B, L> {
     /** The root node */
     root: Box<Node<B, L>>,
     /** The maximum allowable depth of nodes below the root node */
-    max_depth: usize,
+    max_depth: u32,
     /**
      * The width of the grid if all nodes are fully expanded out to max_depth.
      * Equivalent to 2^max_depth.
@@ -238,7 +238,7 @@ impl<B, L> Quadtree<B, L> {
         self.width
     }
 
-    pub fn max_depth(&self) -> usize {
+    pub fn max_depth(&self) -> u32 {
         self.max_depth
     }
 
@@ -300,7 +300,7 @@ impl<B, L> Quadtree<B, L> {
     ) -> Result<(), Error> {
         let address = address.into();
         let new_depth = address.depth() + 1;
-        if new_depth > self.max_depth {
+        if new_depth > self.max_depth as usize {
             return Err(Error::MaxDepthExceeded(self.max_depth));
         }
 
@@ -364,7 +364,7 @@ impl<B, L> Quadtree<B, L> {
         for _depth in 0..=self.max_depth {
             match &**node {
                 Node::Leaf { .. } => {
-                    let depth = address.len();
+                    let depth = address.len() as u32;
                     return Ok(VisitData {
                         address: address.into(),
                         depth,
@@ -634,7 +634,7 @@ mod tests {
 
     fn make_visit_data(
         address: Vec<Quadrant>,
-        depth: usize,
+        depth: u32,
         x: u64,
         y: u64,
         width: u64,
