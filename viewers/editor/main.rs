@@ -512,7 +512,7 @@ impl druid::Widget<State> for Content {
                 let w = engine.qtree.width();
                 if mx > 0 && mx < w && my > 0 && my < w {
                     let address = engine.qtree.get_address(mx, my).unwrap();
-                    if address.depth() < engine.qtree.max_depth() {
+                    if address.depth() < engine.qtree.max_depth() as usize {
                         use engine::state::{BranchState, LeafState};
                         engine
                             .qtree

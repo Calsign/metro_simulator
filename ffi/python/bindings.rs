@@ -144,7 +144,7 @@ impl State {
     }
 
     #[getter]
-    fn max_depth(&self) -> usize {
+    fn max_depth(&self) -> u32 {
         self.state.qtree.max_depth()
     }
 
@@ -295,7 +295,7 @@ impl VisitData {
     }
 
     #[getter]
-    fn depth(&self) -> usize {
+    fn depth(&self) -> u32 {
         self.data.depth
     }
 
