@@ -16,8 +16,8 @@ where
 type InnerGraph = petgraph::Graph<Node, Edge>;
 
 pub struct Graph {
-    graph: InnerGraph,
-    walking_neighbors: quadtree::NeighborsStore<petgraph::graph::NodeIndex>,
+    pub graph: InnerGraph,
+    pub walking_neighbors: quadtree::NeighborsStore<petgraph::graph::NodeIndex>,
 }
 
 impl Graph {

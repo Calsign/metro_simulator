@@ -40,6 +40,10 @@ impl Address {
         return address.into();
     }
 
+    /**
+     * Returns the (x, y) coordinates of the center of the tile
+     * represented by this address in a quadtree with `max_depth`.
+     */
     pub fn to_xy(&self, max_depth: u32) -> (u64, u64) {
         let mut x = 0;
         let mut y = 0;
@@ -55,7 +59,8 @@ impl Address {
             x += (right as u64) * w;
             y += (bottom as u64) * w;
         }
-        (x, y)
+        // center of tile
+        (x + w / 2, y + w / 2)
     }
 }
 
@@ -87,6 +92,8 @@ mod tests {
         assert_eq!(Address::from(vec![NW, NW, NW]).to_xy(3), (0, 0));
         assert_eq!(Address::from(vec![NW, NE, NW]).to_xy(3), (2, 0));
         assert_eq!(Address::from(vec![SE, SE, SE]).to_xy(3), (7, 7));
+        assert_eq!(Address::from(vec![SE, SE]).to_xy(3), (7, 7));
+        assert_eq!(Address::from(vec![SE]).to_xy(3), (6, 6));
         assert_eq!(
             Address::from(vec![NE, SE, NW, SW, NW, SW, NW, SE, SW, SW, NW, NW]).to_xy(12),
             (3088, 1372)

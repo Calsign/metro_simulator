@@ -64,6 +64,12 @@ pub enum Node {
         station: metro::Station,
         metro_line: u64,
     },
+    StartNode {
+        address: quadtree::Address,
+    },
+    EndNode {
+        address: quadtree::Address,
+    },
 }
 
 impl Node {
@@ -75,6 +81,7 @@ impl Node {
                 station,
                 metro_line,
             } => &station.address,
+            StartNode { address } | EndNode { address } => address,
         }
     }
 
@@ -86,6 +93,7 @@ impl Node {
                 station,
                 metro_line,
             } => unimplemented!(),
+            StartNode { address } | EndNode { address } => unimplemented!(),
         }
     }
 }
@@ -100,6 +108,8 @@ impl std::fmt::Display for Node {
                 station,
                 metro_line,
             } => write!(f, "stop:{}:{}", metro_line, station.name),
+            StartNode { .. } => write!(f, "start"),
+            EndNode { .. } => write!(f, "end"),
         }
     }
 }

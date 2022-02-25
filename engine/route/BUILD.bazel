@@ -6,6 +6,7 @@ rust_library(
         "base_graph.rs",
         "common.rs",
         "lib.rs",
+        "query.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
