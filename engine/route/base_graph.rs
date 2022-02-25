@@ -61,7 +61,7 @@ where
                         station: station.clone(),
                     });
 
-                    let (x, y) = station.address.to_xy(input.max_depth);
+                    let (x, y) = station.address.to_xy();
                     walking_neighbors.insert(station_id, x as f64, y as f64);
 
                     station_id

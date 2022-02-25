@@ -120,7 +120,7 @@ def check_input_grid(grid):
 
 def write_qtree(state, qtree):
     def write(node, data):
-        address = engine.Address(data.address)
+        address = engine.Address(data.address, qtree.max_depth)
         if len(node.children) > 0:
             assert len(node.children) == 4
             state.split(

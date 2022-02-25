@@ -3,11 +3,16 @@ use crate::quadrant::Quadrant;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Address {
     data: Vec<Quadrant>,
+    max_depth: u32,
 }
 
 impl Address {
     pub fn depth(&self) -> usize {
         self.data.len()
+    }
+
+    pub fn max_depth(&self) -> u32 {
+        self.max_depth
     }
 
     pub fn at(&self, index: usize) -> Quadrant {
@@ -18,12 +23,22 @@ impl Address {
         index > 0 && index < self.depth()
     }
 
-    pub fn try_from(address: &Vec<u8>) -> Option<Self> {
+    pub fn from_vec(data: Vec<Quadrant>, max_depth: u32) -> Self {
+        assert!(
+            data.len() < max_depth as usize + 1,
+            "{}, {}",
+            data.len(),
+            max_depth
+        );
+        Self { data, max_depth }
+    }
+
+    pub fn try_from(address: &Vec<u8>, max_depth: u32) -> Option<Self> {
         let mut vec = Vec::new();
         for index in address.iter() {
             vec.push(Quadrant::try_from(*index)?);
         }
-        Some(Address::from(vec))
+        Some(Self::from_vec(vec, max_depth))
     }
 
     pub fn to_vec(self) -> Vec<u8> {
@@ -37,17 +52,17 @@ impl Address {
     pub fn child(&self, quadrant: Quadrant) -> Self {
         let mut address = self.data.clone();
         address.push(quadrant);
-        return address.into();
+        return Self::from_vec(address, self.max_depth);
     }
 
     /**
      * Returns the (x, y) coordinates of the center of the tile
-     * represented by this address in a quadtree with `max_depth`.
+     * represented by this address.
      */
-    pub fn to_xy(&self, max_depth: u32) -> (u64, u64) {
+    pub fn to_xy(&self) -> (u64, u64) {
         let mut x = 0;
         let mut y = 0;
-        let mut w = 2_u64.pow(max_depth);
+        let mut w = 2_u64.pow(self.max_depth());
         for quadrant in self.data.iter() {
             let (right, bottom) = match quadrant {
                 Quadrant::NW => (false, false),
@@ -64,12 +79,6 @@ impl Address {
     }
 }
 
-impl From<Vec<Quadrant>> for Address {
-    fn from(data: Vec<Quadrant>) -> Self {
-        Self { data }
-    }
-}
-
 impl From<Address> for Vec<Quadrant> {
     fn from(address: Address) -> Self {
         address.data
@@ -82,6 +91,12 @@ impl From<Address> for Vec<u8> {
     }
 }
 
+impl From<(Vec<Quadrant>, u32)> for Address {
+    fn from((data, max_depth): (Vec<Quadrant>, u32)) -> Self {
+        Self::from_vec(data, max_depth)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use quadtree::*;
@@ -89,13 +104,13 @@ mod tests {
 
     #[test]
     fn to_xy() {
-        assert_eq!(Address::from(vec![NW, NW, NW]).to_xy(3), (0, 0));
-        assert_eq!(Address::from(vec![NW, NE, NW]).to_xy(3), (2, 0));
-        assert_eq!(Address::from(vec![SE, SE, SE]).to_xy(3), (7, 7));
-        assert_eq!(Address::from(vec![SE, SE]).to_xy(3), (7, 7));
-        assert_eq!(Address::from(vec![SE]).to_xy(3), (6, 6));
+        assert_eq!(Address::from_vec(vec![NW, NW, NW], 3).to_xy(), (0, 0));
+        assert_eq!(Address::from_vec(vec![NW, NE, NW], 3).to_xy(), (2, 0));
+        assert_eq!(Address::from_vec(vec![SE, SE, SE], 3).to_xy(), (7, 7));
+        assert_eq!(Address::from_vec(vec![SE, SE], 3).to_xy(), (7, 7));
+        assert_eq!(Address::from_vec(vec![SE], 3).to_xy(), (6, 6));
         assert_eq!(
-            Address::from(vec![NE, SE, NW, SW, NW, SW, NW, SE, SW, SW, NW, NW]).to_xy(12),
+            Address::from_vec(vec![NE, SE, NW, SW, NW, SW, NW, SE, SW, SW, NW, NW], 12).to_xy(),
             (3088, 1372)
         );
     }

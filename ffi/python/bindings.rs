@@ -36,8 +36,8 @@ struct Address {
 #[pymethods]
 impl Address {
     #[new]
-    fn new(address: Vec<u8>) -> PyResult<Self> {
-        match quadtree::Address::try_from(&address) {
+    fn new(address: Vec<u8>, max_depth: u32) -> PyResult<Self> {
+        match quadtree::Address::try_from(&address, max_depth) {
             Some(address) => Ok(address.into()),
             None => Err(pyo3::exceptions::PyValueError::new_err(
                 "quadrants must be in [0, 3]",

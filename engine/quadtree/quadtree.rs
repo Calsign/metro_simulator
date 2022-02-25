@@ -366,7 +366,7 @@ impl<B, L> Quadtree<B, L> {
                 Node::Leaf { .. } => {
                     let depth = address.len() as u32;
                     return Ok(VisitData {
-                        address: address.into(),
+                        address: Address::from_vec(address, self.max_depth),
                         depth,
                         x: min_x,
                         y: min_y,
@@ -410,7 +410,7 @@ impl<B, L> Quadtree<B, L> {
             x: 0,
             y: 0,
             width: self.width,
-            address: vec![].into(),
+            address: Address::from_vec(vec![], self.max_depth),
         }
     }
 
@@ -531,47 +531,51 @@ mod tests {
     #[test]
     fn create() {
         let qtree: Quadtree<(), i32> = Quadtree::new(42, 0);
-        assert_eq!(qtree.get_leaf(vec!()), Ok(&42));
+        assert_eq!(qtree.get_leaf((vec!(), 0)), Ok(&42));
     }
 
     #[test]
     fn modify() {
         let mut qtree: Quadtree<(), i32> = Quadtree::new(42, 0);
-        *qtree.get_leaf_mut(vec![]).unwrap() = 43;
-        assert_eq!(qtree.get_leaf(vec!()), Ok(&43));
+        *qtree.get_leaf_mut((vec![], 0)).unwrap() = 43;
+        assert_eq!(qtree.get_leaf((vec!(), 0)), Ok(&43));
     }
 
     #[test]
     fn split() {
         let root = "root";
         let mut qtree = Quadtree::new(0, 1);
-        qtree.split(vec![], root, QuadMap::new(1, 2, 3, 4)).unwrap();
+        qtree
+            .split((vec![], 1), root, QuadMap::new(1, 2, 3, 4))
+            .unwrap();
 
-        assert_eq!(qtree.get_branch(vec!()), Ok(&root));
-        assert_eq!(qtree.get_leaf(vec!(Quadrant::NW)), Ok(&1));
-        assert_eq!(qtree.get_leaf(vec!(Quadrant::NE)), Ok(&2));
-        assert_eq!(qtree.get_leaf(vec!(Quadrant::SW)), Ok(&3));
-        assert_eq!(qtree.get_leaf(vec!(Quadrant::SE)), Ok(&4));
+        assert_eq!(qtree.get_branch((vec!(), 1)), Ok(&root));
+        assert_eq!(qtree.get_leaf((vec!(Quadrant::NW), 1)), Ok(&1));
+        assert_eq!(qtree.get_leaf((vec!(Quadrant::NE), 1)), Ok(&2));
+        assert_eq!(qtree.get_leaf((vec!(Quadrant::SW), 1)), Ok(&3));
+        assert_eq!(qtree.get_leaf((vec!(Quadrant::SE), 1)), Ok(&4));
     }
 
     #[test]
     fn get_mut() {
         let mut root = "root";
         let mut qtree = Quadtree::new(0, 1);
-        qtree.split(vec![], root, QuadMap::new(1, 2, 3, 4)).unwrap();
+        qtree
+            .split((vec![], 1), root, QuadMap::new(1, 2, 3, 4))
+            .unwrap();
 
-        assert_eq!(qtree.get_branch_mut(vec!()), Ok(&mut root));
-        assert_eq!(qtree.get_leaf_mut(vec!(Quadrant::NW)), Ok(&mut 1));
-        assert_eq!(qtree.get_leaf_mut(vec!(Quadrant::NE)), Ok(&mut 2));
-        assert_eq!(qtree.get_leaf_mut(vec!(Quadrant::SW)), Ok(&mut 3));
-        assert_eq!(qtree.get_leaf_mut(vec!(Quadrant::SE)), Ok(&mut 4));
+        assert_eq!(qtree.get_branch_mut((vec!(), 1)), Ok(&mut root));
+        assert_eq!(qtree.get_leaf_mut((vec!(Quadrant::NW), 1)), Ok(&mut 1));
+        assert_eq!(qtree.get_leaf_mut((vec!(Quadrant::NE), 1)), Ok(&mut 2));
+        assert_eq!(qtree.get_leaf_mut((vec!(Quadrant::SW), 1)), Ok(&mut 3));
+        assert_eq!(qtree.get_leaf_mut((vec!(Quadrant::SE), 1)), Ok(&mut 4));
     }
 
     #[test]
     fn max_depth() {
         let mut qtree = Quadtree::new(0, 0);
         assert_eq!(
-            qtree.split(vec![], 0, QuadMap::new(0, 0, 0, 0)),
+            qtree.split((vec![], 0), 0, QuadMap::new(0, 0, 0, 0)),
             Err(Error::MaxDepthExceeded(0))
         );
     }
@@ -579,14 +583,16 @@ mod tests {
     #[test]
     fn get_address() {
         let mut qtree = Quadtree::new(0, 2);
-        assert_eq!(qtree.get_address(0, 0), Ok(vec!().into()));
-        assert_eq!(qtree.get_address(2, 2), Ok(vec!().into()));
+        assert_eq!(qtree.get_address(0, 0), Ok((vec!(), 2).into()));
+        assert_eq!(qtree.get_address(2, 2), Ok((vec!(), 2).into()));
 
-        qtree.split(vec![], 0, QuadMap::new(1, 2, 3, 4)).unwrap();
-        assert_eq!(qtree.get_address(0, 0), Ok(vec!(Quadrant::NW).into()));
-        assert_eq!(qtree.get_address(2, 0), Ok(vec!(Quadrant::NE).into()));
-        assert_eq!(qtree.get_address(0, 2), Ok(vec!(Quadrant::SW).into()));
-        assert_eq!(qtree.get_address(2, 2), Ok(vec!(Quadrant::SE).into()));
+        qtree
+            .split((vec![], 2), 0, QuadMap::new(1, 2, 3, 4))
+            .unwrap();
+        assert_eq!(qtree.get_address(0, 0), Ok((vec!(Quadrant::NW), 2).into()));
+        assert_eq!(qtree.get_address(2, 0), Ok((vec!(Quadrant::NE), 2).into()));
+        assert_eq!(qtree.get_address(0, 2), Ok((vec!(Quadrant::SW), 2).into()));
+        assert_eq!(qtree.get_address(2, 2), Ok((vec!(Quadrant::SE), 2).into()));
 
         assert_eq!(
             qtree.get_address(4, 4),
@@ -594,11 +600,11 @@ mod tests {
         );
 
         qtree
-            .split(vec![Quadrant::SE], 5, QuadMap::new(6, 7, 8, 9))
+            .split((vec![Quadrant::SE], 2), 5, QuadMap::new(6, 7, 8, 9))
             .unwrap();
         assert_eq!(
             qtree.get_address(3, 2),
-            Ok(vec!(Quadrant::SE, Quadrant::NE).into())
+            Ok((vec!(Quadrant::SE, Quadrant::NE), 2).into())
         );
     }
 
@@ -638,9 +644,10 @@ mod tests {
         x: u64,
         y: u64,
         width: u64,
+        max_depth: u32,
     ) -> VisitData {
         return VisitData {
-            address: address.into(),
+            address: Address::from_vec(address, max_depth),
             depth,
             x,
             y,
@@ -657,28 +664,30 @@ mod tests {
         assert_equal_vec_unordered(visitor.branches, vec![]);
         assert_equal_vec_unordered(
             visitor.leaves,
-            vec![(0, make_visit_data(vec![], 0, 0, 0, 1))],
+            vec![(0, make_visit_data(vec![], 0, 0, 0, 1, 0))],
         );
     }
 
     #[test]
     fn visit2() {
         let mut qtree = Quadtree::new(0, 1);
-        qtree.split(vec![], 0, QuadMap::new(1, 2, 3, 4)).unwrap();
+        qtree
+            .split((vec![], 1), 0, QuadMap::new(1, 2, 3, 4))
+            .unwrap();
         let mut visitor = SeenVisitor::new();
         qtree.visit(&mut visitor).unwrap();
 
         assert_equal_vec_unordered(
             visitor.branches,
-            vec![(0, make_visit_data(vec![], 0, 0, 0, 2))],
+            vec![(0, make_visit_data(vec![], 0, 0, 0, 2, 1))],
         );
         assert_equal_vec_unordered(
             visitor.leaves,
             vec![
-                (1, make_visit_data(vec![Quadrant::NW], 1, 0, 0, 1)),
-                (2, make_visit_data(vec![Quadrant::NE], 1, 1, 0, 1)),
-                (3, make_visit_data(vec![Quadrant::SW], 1, 0, 1, 1)),
-                (4, make_visit_data(vec![Quadrant::SE], 1, 1, 1, 1)),
+                (1, make_visit_data(vec![Quadrant::NW], 1, 0, 0, 1, 1)),
+                (2, make_visit_data(vec![Quadrant::NE], 1, 1, 0, 1, 1)),
+                (3, make_visit_data(vec![Quadrant::SW], 1, 0, 1, 1, 1)),
+                (4, make_visit_data(vec![Quadrant::SE], 1, 1, 1, 1, 1)),
             ],
         );
     }
@@ -686,9 +695,11 @@ mod tests {
     #[test]
     fn visit3() {
         let mut qtree = Quadtree::new(0, 2);
-        qtree.split(vec![], 0, QuadMap::new(1, 2, 3, 4)).unwrap();
         qtree
-            .split(vec![Quadrant::NE], 5, QuadMap::new(6, 7, 8, 9))
+            .split((vec![], 2), 0, QuadMap::new(1, 2, 3, 4))
+            .unwrap();
+        qtree
+            .split((vec![Quadrant::NE], 2), 5, QuadMap::new(6, 7, 8, 9))
             .unwrap();
         let mut visitor = SeenVisitor::new();
         qtree.visit(&mut visitor).unwrap();
@@ -697,20 +708,20 @@ mod tests {
         assert_equal_vec_unordered(
             visitor.branches,
             vec![
-                (0, make_visit_data(vec![], 0, 0, 0, 4)),
-                (5, make_visit_data(vec![NE], 1, 2, 0, 2)),
+                (0, make_visit_data(vec![], 0, 0, 0, 4, 2)),
+                (5, make_visit_data(vec![NE], 1, 2, 0, 2, 2)),
             ],
         );
         assert_equal_vec_unordered(
             visitor.leaves,
             vec![
-                (1, make_visit_data(vec![NW], 1, 0, 0, 2)),
-                (6, make_visit_data(vec![NE, NW], 2, 2, 0, 1)),
-                (7, make_visit_data(vec![NE, NE], 2, 3, 0, 1)),
-                (8, make_visit_data(vec![NE, SW], 2, 2, 1, 1)),
-                (9, make_visit_data(vec![NE, SE], 2, 3, 1, 1)),
-                (3, make_visit_data(vec![SW], 1, 0, 2, 2)),
-                (4, make_visit_data(vec![SE], 1, 2, 2, 2)),
+                (1, make_visit_data(vec![NW], 1, 0, 0, 2, 2)),
+                (6, make_visit_data(vec![NE, NW], 2, 2, 0, 1, 2)),
+                (7, make_visit_data(vec![NE, NE], 2, 3, 0, 1, 2)),
+                (8, make_visit_data(vec![NE, SW], 2, 2, 1, 1, 2)),
+                (9, make_visit_data(vec![NE, SE], 2, 3, 1, 1, 2)),
+                (3, make_visit_data(vec![SW], 1, 0, 2, 2, 2)),
+                (4, make_visit_data(vec![SE], 1, 2, 2, 2, 2)),
             ],
         );
     }

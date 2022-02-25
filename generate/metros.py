@@ -224,7 +224,8 @@ class Metros(Layer):
                     x,
                     y,
                     engine.MetroStation(
-                        station_data.name, engine.Address(station_address)
+                        station_data.name,
+                        engine.Address(station_address, self.max_depth),
                     ),
                 )
 
