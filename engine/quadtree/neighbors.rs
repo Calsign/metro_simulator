@@ -2,6 +2,7 @@ use crate::quadrant::{QuadMap, QUADRANTS};
 use crate::quadtree::{Error, Quadtree, VisitData};
 use crate::rect::Rect;
 
+#[derive(Debug)]
 struct Entry<T> {
     x: f64,
     y: f64,
@@ -12,6 +13,7 @@ struct Entry<T> {
  * A data structure which can be used to efficiently query all
  * neighbors of one entry. Backed by a quadtree.
  */
+#[derive(Debug)]
 pub struct NeighborsStore<T> {
     qtree: Quadtree<(), Vec<Entry<T>>>,
     load_factor: u32,
@@ -78,10 +80,10 @@ impl<T> NeighborsStore<T> {
         };
         // center rect, rounding to the outside
         let rect = Rect::corners(
-            (x - radius.ceil() / 2.0).floor() as u64,
-            (y - radius.ceil() / 2.0).floor() as u64,
-            (x + radius.ceil() / 2.0).ceil() as u64,
-            (x + radius.ceil() / 2.0).ceil() as u64,
+            (x - radius.ceil()).floor() as u64,
+            (y - radius.ceil()).floor() as u64,
+            (x + radius.ceil()).ceil() as u64,
+            (y + radius.ceil()).ceil() as u64,
         );
         self.qtree.visit_rect(&mut visitor, &rect)?;
         Ok(())

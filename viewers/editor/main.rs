@@ -117,6 +117,13 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
             },
         ))
         .with_default_spacer()
+        .with_child(druid::widget::Label::dynamic(
+            |state: &CurrentLeafState, env: &druid::Env| {
+                let (x, y) = state.address.to_xy();
+                format!("Center: ({}, {})", x, y)
+            },
+        ))
+        .with_default_spacer()
         .with_child(
             druid::widget::TextBox::multiline()
                 .fix_width(200.0)

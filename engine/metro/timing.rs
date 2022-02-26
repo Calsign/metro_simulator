@@ -3,11 +3,11 @@ use cgmath as cg;
 use crate::types;
 
 // 70 mph, maximum speed of BART
-const MAX_SPEED: f64 = 31.0;
+pub const MAX_SPEED: f64 = 31.0;
 // recommended by https://link.springer.com/article/10.1007/s40864-015-0012-y
-const MAX_ACCEL: f64 = 1.5;
+pub const MAX_ACCEL: f64 = 1.5;
 // estimate, in practice this varies based on number of passengers
-const STATION_TIME: f64 = 30.0;
+pub const STATION_TIME: f64 = 30.0;
 
 trait GetVec {
     fn vec(&self, tile_size: f64) -> cg::Vector2<f64>;

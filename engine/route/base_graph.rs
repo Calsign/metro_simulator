@@ -13,11 +13,13 @@ where
     pub filter_metro_lines: Option<HashSet<u64>>,
 }
 
-type InnerGraph = petgraph::Graph<Node, Edge>;
+pub type InnerGraph = petgraph::Graph<Node, Edge>;
 
 pub struct Graph {
     pub graph: InnerGraph,
     pub walking_neighbors: quadtree::NeighborsStore<petgraph::graph::NodeIndex>,
+    pub tile_size: f64,
+    pub max_depth: u32,
 }
 
 impl Graph {
@@ -47,6 +49,11 @@ where
             if !filter.contains(&metro_line.id) {
                 continue;
             }
+            // NOTE: print to stderr so that we can pipe dump output to xdot
+            eprintln!(
+                "Filtering metro lines selected {}: {}",
+                &metro_line.id, &metro_line.name
+            );
         }
 
         let mut stop_map = HashMap::new();
@@ -62,7 +69,9 @@ where
                     });
 
                     let (x, y) = station.address.to_xy();
-                    walking_neighbors.insert(station_id, x as f64, y as f64);
+                    walking_neighbors
+                        .insert(station_id, x as f64, y as f64)
+                        .unwrap();
 
                     station_id
                 });
@@ -106,6 +115,7 @@ where
         &mut AddEdgesVisitor {
             graph: &mut graph,
             tile_size: input.tile_size,
+            mode: Mode::Walking,
         },
         |_| Mode::Walking.max_radius() / input.tile_size,
     )?;
@@ -113,12 +123,15 @@ where
     Ok(Graph {
         graph,
         walking_neighbors,
+        tile_size: input.tile_size,
+        max_depth: input.max_depth,
     })
 }
 
 struct AddEdgesVisitor<'a> {
     graph: &'a mut InnerGraph,
     tile_size: f64,
+    mode: Mode,
 }
 
 impl<'a> quadtree::AllNeighborsVisitor<petgraph::graph::NodeIndex, Error> for AddEdgesVisitor<'a> {
@@ -133,7 +146,7 @@ impl<'a> quadtree::AllNeighborsVisitor<petgraph::graph::NodeIndex, Error> for Ad
                 *base,
                 *entry,
                 Edge::ModeSegment {
-                    mode: Mode::Walking,
+                    mode: self.mode,
                     distance: distance * self.tile_size,
                 },
             );

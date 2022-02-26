@@ -8,6 +8,12 @@ pub enum Error {
 #[non_exhaustive]
 pub struct WorldState {}
 
+impl WorldState {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
 pub enum Mode {
@@ -15,6 +21,8 @@ pub enum Mode {
     Biking,
     Driving,
 }
+
+static MODES: &'static [Mode] = &[Mode::Walking, Mode::Biking, Mode::Driving];
 
 impl Mode {
     /**
@@ -54,7 +62,7 @@ impl std::fmt::Display for Mode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum Node {
     MetroStation {
@@ -88,12 +96,18 @@ impl Node {
     pub fn location(&self) -> (f64, f64) {
         use Node::*;
         match self {
-            MetroStation { station } => unimplemented!(),
-            MetroStop {
-                station,
-                metro_line,
-            } => unimplemented!(),
-            StartNode { address } | EndNode { address } => unimplemented!(),
+            MetroStation {
+                station: metro::Station { address, .. },
+            }
+            | MetroStop {
+                station: metro::Station { address, .. },
+                ..
+            }
+            | StartNode { address }
+            | EndNode { address } => {
+                let (x, y) = address.to_xy();
+                (x as f64, y as f64)
+            }
         }
     }
 }
@@ -115,7 +129,7 @@ impl std::fmt::Display for Node {
 }
 
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Edge {
     MetroSegment {
         time: f64,

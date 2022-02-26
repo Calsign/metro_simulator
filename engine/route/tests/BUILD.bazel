@@ -1,0 +1,12 @@
+load("@rules_rust//rust:defs.bzl", "rust_test")
+
+rust_test(
+    name = "sf_routes",
+    srcs = ["sf_routes.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//cargo/pkgs:lazy_static",
+        "//engine",
+        "//engine/route",
+    ],
+)
