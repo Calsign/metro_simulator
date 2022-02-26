@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 
 use engine::state::State;
-use route::{best_route, Node, Route, WorldState};
+use route::{best_route, Graph, Node, Route, WorldState};
 
 #[derive(Debug, Clone)]
-enum StringPredicate {
+pub enum StringPredicate {
     MatchesStr(&'static str),
     MatchesString(String),
     ContainsStr(&'static str),
@@ -38,7 +38,7 @@ impl From<String> for StringPredicate {
 }
 
 #[derive(Debug, Clone)]
-enum RoutePredicate {
+pub enum RoutePredicate {
     Not(Box<RoutePredicate>),
     Or(Vec<RoutePredicate>),
     HasMetroStation(StringPredicate),
@@ -49,7 +49,7 @@ enum RoutePredicate {
 }
 
 impl RoutePredicate {
-    fn eval(&self, route: &Route) -> bool {
+    pub fn eval(&self, route: &Route) -> bool {
         use RoutePredicate::*;
         match self {
             Not(inner) => !inner.eval(route),
@@ -70,18 +70,18 @@ impl RoutePredicate {
     }
 }
 
-type Coord = (u64, u64);
+pub type Coord = (u64, u64);
 
-struct RouteTest {
-    name: String,
-    start: Coord,
-    end: Coord,
-    predicates: Vec<RoutePredicate>,
-    world_state: WorldState,
+pub struct RouteTest {
+    pub name: String,
+    pub start: Coord,
+    pub end: Coord,
+    pub predicates: Vec<RoutePredicate>,
+    pub world_state: WorldState,
 }
 
 impl RouteTest {
-    fn new(name: &str, start: Coord, end: Coord, predicates: Vec<RoutePredicate>) -> Self {
+    pub fn new(name: &str, start: Coord, end: Coord, predicates: Vec<RoutePredicate>) -> Self {
         Self {
             name: String::from(name),
             start,
@@ -101,7 +101,7 @@ lazy_static! {
     static ref OAKLAND_DOWNTOWN: Coord = (2370, 1965);
     static ref PITTSBURG: Coord = (3084, 1364);
     static ref PLEASANTON: Coord = (3186, 2246);
-    static ref TESTS: Box<[RouteTest]> = Box::new([
+    pub static ref TESTS: Box<[RouteTest]> = Box::new([
         RouteTest::new(
             "sfo -> downtown",
             *SFO,
@@ -133,57 +133,17 @@ lazy_static! {
     ]);
 }
 
-#[test]
-fn sf_routes_test() {
+pub fn setup() -> (State, Graph) {
     let state = State::load_file(&PathBuf::from("maps/sf.json")).unwrap();
-    let mut graph = state.construct_base_route_graph().unwrap();
+    let graph = state.construct_base_route_graph().unwrap();
+    (state, graph)
+}
 
-    let mut success = true;
-    for test in TESTS.iter() {
-        println!("Computing best route for {}", test.name);
+pub fn perform_query(state: &State, graph: &mut Graph, test: &RouteTest) -> Route {
+    let start = state.qtree.get_address(test.start.0, test.start.1).unwrap();
+    let end = state.qtree.get_address(test.end.0, test.end.1).unwrap();
 
-        let start = state.qtree.get_address(test.start.0, test.start.1).unwrap();
-        let end = state.qtree.get_address(test.end.0, test.end.1).unwrap();
-
-        let route = best_route(&mut graph, start, end, &test.world_state)
-            .unwrap()
-            .unwrap();
-
-        let mut failed_predicates = Vec::new();
-        for predicate in &test.predicates {
-            if !predicate.eval(&route) {
-                println!("Test {} failed predicate {:?}", test.name, predicate);
-                failed_predicates.push(predicate.clone());
-            }
-        }
-
-        if !failed_predicates.is_empty() {
-            success = false;
-
-            println!();
-            println!(
-                "Test {} failed {} predicate(s)",
-                test.name,
-                failed_predicates.len()
-            );
-            println!();
-            println!(
-                "Route with cost {:?} (minutes: {:?}):",
-                route.cost,
-                route.cost / 60.0,
-            );
-            for node in route.nodes {
-                println!("  {}", node);
-            }
-            println!();
-            println!("Failed predicates:");
-            for predicate in failed_predicates {
-                println!("  {:?}", predicate);
-            }
-        }
-    }
-
-    println!();
-    println!();
-    assert!(success, "Some predicates failed");
+    best_route(graph, start, end, &test.world_state)
+        .unwrap()
+        .unwrap()
 }

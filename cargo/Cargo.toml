@@ -15,6 +15,7 @@ enum_dispatch = "0.3"
 chrono = "0.4"
 itertools = "0.10"
 float-cmp = { git = "https://github.com/mikedilger/float-cmp", rev = "418c5d9d339268f355363ea7cf6c546e69d63b7b" }
+bencher = "0.1.5"
 
 # serde
 serde = {version = "1.0", features = ["derive"]}

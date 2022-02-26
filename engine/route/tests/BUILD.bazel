@@ -1,6 +1,6 @@
-load("@rules_rust//rust:defs.bzl", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
-rust_test(
+rust_library(
     name = "sf_routes",
     srcs = ["sf_routes.rs"],
     data = ["//maps:sf"],
@@ -8,5 +8,20 @@ rust_test(
         "//cargo/pkgs:lazy_static",
         "//engine",
         "//engine/route",
+    ],
+)
+
+rust_test(
+    name = "sf_routes_test",
+    srcs = ["sf_routes_test.rs"],
+    deps = [":sf_routes"],
+)
+
+rust_binary(
+    name = "sf_routes_benchmark",
+    srcs = ["sf_routes_benchmark.rs"],
+    deps = [
+        ":sf_routes",
+        "//cargo/pkgs:bencher",
     ],
 )
