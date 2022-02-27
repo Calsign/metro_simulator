@@ -41,6 +41,9 @@ druid = { git = "https://github.com/linebender/druid", rev = "3790463cf4e724719d
 plotters = "0.3.1"
 plotters-bitmap = "0.3.1"
 
+# java bindings
+jni = "0.19.0"
+
 # support for cargo-raze bazel integration
 [package.metadata.raze]
 workspace_path = "//cargo/pkgs"

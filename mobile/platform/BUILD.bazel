@@ -1,0 +1,29 @@
+platform(
+    name = "android_platform_arm",
+    constraint_values = [
+        "@platforms//os:android",
+        "@platforms//cpu:armv7",
+    ],
+)
+
+platform(
+    name = "android_platform_arm64",
+    constraint_values = [
+        "@platforms//os:android",
+        "@platforms//cpu:aarch64",
+    ],
+)
+
+# NOTE: The NDK doesn't seem to provide an armv7-compatible toolchain.
+# So provide this one here. I believe this is correct. Unforuntately I
+# haven't been able to verify that it works on an actual armeabi-v7a
+# device yet.
+toolchain(
+    name = "armv7-linux-androideabi_toolchain",
+    target_compatible_with = [
+        "@platforms//os:android",
+        "@platforms//cpu:armv7",
+    ],
+    toolchain = "@androidndk//:arm-linux-androideabi-clang9.0.8-v7a-libcpp",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)

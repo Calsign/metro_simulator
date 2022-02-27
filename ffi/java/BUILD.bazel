@@ -1,0 +1,38 @@
+load("@rules_rust//rust:defs.bzl", "rust_shared_library")
+load("@rules_java//java:defs.bzl", "java_library", "java_test")
+load("@rules_cc//cc:defs.bzl", "cc_import")
+
+rust_shared_library(
+    name = "engine",
+    srcs = ["engine.rs"],
+    deps = ["//cargo/pkgs:jni"],
+)
+
+cc_import(
+    name = "engine_cc",
+    shared_library = ":engine",
+)
+
+java_library(
+    name = "java",
+    srcs = glob(["src/**/*.java"]),
+    visibility = ["//visibility:public"],
+    deps = [":engine_cc"],
+)
+
+# for some reason this indirection is necessary for the shared library to appear in the runfiles of the test
+genrule(
+    name = "engine_so",
+    srcs = [":engine"],
+    outs = ["lib/libengine.so"],
+    cmd = "cp $< $@",
+)
+
+java_test(
+    name = "load_test",
+    srcs = ["load_test.java"],
+    data = [":engine_so"],
+    jvm_flags = ["-Djava.library.path=ffi/java/lib"],
+    main_class = "LoadTest",
+    deps = [":java"],
+)

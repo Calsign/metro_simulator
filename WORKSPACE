@@ -12,17 +12,45 @@ RUST_VERSION = "1.57.0"
 http_archive(
     name = "rules_rust",
     patch_args = ["-p1"],
-    patches = ["//patches:rules_rust__compile_one_dependency.patch"],
+    patches = [
+        "//patches:rules_rust__compile_one_dependency.patch",
+        "//patches:rules_rust__android_armeabi-v7a.patch",
+    ],
     sha256 = "8e190ea711500bf076f8de6c4c2729ac0d676a992a3d8aefb409f1e786a3f080",
     strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),
     urls = ["https://github.com/bazelbuild/rules_rust/archive/{}.tar.gz".format(RULES_RUST_REF)],
 )
 
-load("@rules_rust//rust:repositories.bzl", "rust_repositories")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
 
-rust_repositories(
+rules_rust_dependencies()
+
+# register default toolchains
+rust_register_toolchains(
     edition = "2021",
     include_rustc_srcs = True,
+    version = RUST_VERSION,
+)
+
+# Rust support for Android armeabi-v7a
+rust_repository_set(
+    name = "rust_android_arm",
+    edition = "2021",
+    exec_triple = "x86_64-unknown-linux-gnu",
+    extra_target_triples = ["armv7-linux-androideabi"],
+    register_toolchain = True,
+    rustfmt_version = RUST_VERSION,
+    version = RUST_VERSION,
+)
+
+# Rust support for Android aarch64
+rust_repository_set(
+    name = "rust_android_aarch64",
+    edition = "2021",
+    exec_triple = "x86_64-unknown-linux-gnu",
+    extra_target_triples = ["aarch64-linux-android"],
+    register_toolchain = True,
+    rustfmt_version = RUST_VERSION,
     version = RUST_VERSION,
 )
 
@@ -100,6 +128,58 @@ mypy_deps(
     mypy_requirements_file = "//python/mypy:mypy_version.txt",
     python_interpreter = "python3.10",
 )
+
+# C++
+
+RULES_CC_VERSION = "0.1.1"
+
+http_archive(
+    name = "rules_cc",
+    sha256 = None,
+    strip_prefix = "rules_cc-{}".format(RULES_CC_VERSION),
+    url = "https://github.com/bazelbuild/rules_cc/archive/refs/tags/{}.tar.gz".format(RULES_CC_VERSION),
+)
+
+# JAVA
+
+RULES_JAVA_VERSION = "5.0.0"
+
+http_archive(
+    name = "rules_java",
+    sha256 = "ddc9e11f4836265fea905d2845ac1d04ebad12a255f791ef7fd648d1d2215a5b",
+    strip_prefix = "rules_java-{}".format(RULES_JAVA_VERSION),
+    url = "https://github.com/bazelbuild/rules_java/archive/refs/tags/{}.tar.gz".format(RULES_JAVA_VERSION),
+)
+
+# ANDROID
+
+RULES_ANDROID_VERSION = "0.1.1"
+
+http_archive(
+    name = "rules_android",
+    sha256 = "6461c1c5744442b394f46645957d6bd3420eb1b421908fe63caa03091b1b3655",
+    strip_prefix = "rules_android-{}".format(RULES_ANDROID_VERSION),
+    url = "https://github.com/bazelbuild/rules_android/archive/refs/tags/v{}.tar.gz".format(RULES_ANDROID_VERSION),
+)
+
+load("@rules_android//android:rules.bzl", "android_ndk_repository", "android_sdk_repository")
+
+# NOTE: requires ANDROID_HOME environment variable to be set.
+android_sdk_repository(
+    name = "androidsdk",
+    api_level = 30,
+    build_tools_version = "30.0.3",
+)
+
+# NOTE: requires ANDROID_NDK_HOME environment variable to be set.
+android_ndk_repository(
+    name = "androidndk",
+    api_level = 30,
+)
+
+register_toolchains("@androidndk//:all")
+
+register_toolchains("//mobile/platform:armv7-linux-androideabi_toolchain")
 
 # DATASETS
 
