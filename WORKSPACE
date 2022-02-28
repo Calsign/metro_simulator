@@ -4,8 +4,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # RUST
 
-# `main` branch as of 2022-02-10
-RULES_RUST_REF = "c435cf4478fc6e097edc5dba0e71de6608ab77d8"
+# `main` branch as of 2022-02-17
+RULES_RUST_REF = "adf2790f3ff063d909acd70aacdd2832756113a5"
 
 RUST_VERSION = "1.57.0"
 
@@ -16,7 +16,7 @@ http_archive(
         "//patches:rules_rust__compile_one_dependency.patch",
         "//patches:rules_rust__android_armeabi-v7a.patch",
     ],
-    sha256 = "8e190ea711500bf076f8de6c4c2729ac0d676a992a3d8aefb409f1e786a3f080",
+    sha256 = "8e55060b70991ae9d36cb6501365b30bb6c7a08f886c882a0222f446e0091900",
     strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),
     urls = ["https://github.com/bazelbuild/rules_rust/archive/{}.tar.gz".format(RULES_RUST_REF)],
 )
@@ -54,30 +54,33 @@ rust_repository_set(
     version = RUST_VERSION,
 )
 
-# CARGO RAZE
+# CRATE UNIVERSE
 
-CARGO_RAZE_VERSION = "0.14.0"
+load("@rules_rust//crate_universe:bootstrap.bzl", "crate_universe_bootstrap")
+load("@rules_rust//crate_universe:defs.bzl", "crate", "crate_universe")
 
-http_archive(
-    name = "cargo_raze",
-    sha256 = "92a4116f82938027a19748580d2ec8d2d06801c868503b1b195bd312ad608d19",
-    strip_prefix = "cargo-raze-{}".format(CARGO_RAZE_VERSION),
-    url = "https://github.com/google/cargo-raze/archive/v{}.tar.gz".format(CARGO_RAZE_VERSION),
+# we're on a bleeding edge version of rules_rust, so we need to bootstrap our own resolver
+crate_universe_bootstrap()
+
+crate_universe(
+    name = "crates",
+    cargo_toml_files = ["//cargo:Cargo.toml"],
+    lockfile = "//cargo:crate_universe.lock",
+    overrides = {
+        "wgpu-hal": crate.override(
+            # crate_universe doesn't correctly handle resolver v2
+            features_to_remove = [
+                "dx12",
+                "metal",
+            ],
+        ),
+    },
+    resolver = "@rules_rust_crate_universe_bootstrap//:crate_universe_resolver",
 )
 
-load("@cargo_raze//:repositories.bzl", "cargo_raze_repositories")
+load("@crates//:defs.bzl", "pinned_rust_install")
 
-cargo_raze_repositories()
-
-load("@cargo_raze//:transitive_deps.bzl", "cargo_raze_transitive_deps")
-
-cargo_raze_transitive_deps()
-
-# CARGO DEPENDENCIES VIA RAZE
-
-load("//cargo/pkgs:crates.bzl", "raze_fetch_remote_crates")
-
-raze_fetch_remote_crates()
+pinned_rust_install()
 
 # RUST ANALYZER (rust-project.json)
 

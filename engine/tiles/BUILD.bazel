@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "tiles",
@@ -6,11 +7,11 @@ rust_library(
         "lib.rs",
     ],
     proc_macro_deps = [
-        "//cargo/pkgs:enum_dispatch",
+        crate("enum_dispatch"),
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//cargo/pkgs:serde",
+        crate("serde"),
     ],
 )
 

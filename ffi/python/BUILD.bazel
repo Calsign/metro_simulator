@@ -1,17 +1,18 @@
 load("@rules_rust//rust:defs.bzl", "rust_shared_library")
+load("@crates//:defs.bzl", "crate")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 rust_shared_library(
     name = "bindings",
     srcs = ["bindings.rs"],
     proc_macro_deps = [
-        "//cargo/pkgs:derive_more",
+        crate("derive_more"),
     ],
     deps = [
-        "//cargo/pkgs:cgmath",
-        "//cargo/pkgs:pyo3",
-        "//cargo/pkgs:serde_json",
-        "//cargo/pkgs:thiserror",
+        crate("cgmath"),
+        crate("pyo3"),
+        crate("serde_json"),
+        crate("thiserror"),
         "//engine",
         "//engine/metro",
         "//engine/quadtree",

@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "route",
@@ -10,10 +11,10 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//cargo/pkgs:cgmath",
-        "//cargo/pkgs:itertools",
-        "//cargo/pkgs:petgraph",
-        "//cargo/pkgs:thiserror",
+        crate("cgmath"),
+        crate("itertools"),
+        crate("petgraph"),
+        crate("thiserror"),
         "//engine/fields",
         "//engine/metro",
         "//engine/quadtree",
@@ -26,7 +27,7 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":route",
-        "//cargo/pkgs:clap",
+        crate("clap"),
         "//engine",
     ],
 )

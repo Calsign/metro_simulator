@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "engine",
@@ -9,13 +10,13 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//cargo/pkgs:cgmath",
-        "//cargo/pkgs:petgraph",
-        "//cargo/pkgs:serde",
-        "//cargo/pkgs:serde_json",
-        "//cargo/pkgs:splines",
-        "//cargo/pkgs:thiserror",
-        "//cargo/pkgs:toml",
+        crate("cgmath"),
+        crate("petgraph"),
+        crate("serde"),
+        crate("serde_json"),
+        crate("splines"),
+        crate("thiserror"),
+        crate("toml"),
         "//engine/fields",
         "//engine/metro",
         "//engine/quadtree",

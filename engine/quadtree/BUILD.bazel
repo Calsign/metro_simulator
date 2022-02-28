@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "quadtree",
@@ -12,9 +13,9 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//cargo/pkgs:anyhow",
-        "//cargo/pkgs:serde",
-        "//cargo/pkgs:thiserror",
+        crate("anyhow"),
+        crate("serde"),
+        crate("thiserror"),
     ],
 )
 

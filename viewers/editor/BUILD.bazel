@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("@crates//:defs.bzl", "crate")
 load("//maps:maps.bzl", "ALL_MAPS")
 
 rust_binary(
@@ -9,12 +10,12 @@ rust_binary(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//cargo/pkgs:anyhow",
-        "//cargo/pkgs:cgmath",
-        "//cargo/pkgs:chrono",
-        "//cargo/pkgs:clap",
-        "//cargo/pkgs:druid",
-        "//cargo/pkgs:itertools",
+        crate("anyhow"),
+        crate("cgmath"),
+        crate("chrono"),
+        crate("clap"),
+        crate("druid"),
+        crate("itertools"),
         "//engine",
         "//engine/fields",
         "//engine/metro",

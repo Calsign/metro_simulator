@@ -1,11 +1,12 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "sf_routes",
     srcs = ["sf_routes.rs"],
     data = ["//maps:sf"],
     deps = [
-        "//cargo/pkgs:lazy_static",
+        crate("lazy_static"),
         "//engine",
         "//engine/route",
     ],
@@ -22,6 +23,6 @@ rust_binary(
     srcs = ["sf_routes_benchmark.rs"],
     deps = [
         ":sf_routes",
-        "//cargo/pkgs:bencher",
+        crate("bencher"),
     ],
 )
