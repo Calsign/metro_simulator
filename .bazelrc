@@ -8,9 +8,6 @@ build:mypy --output_groups=+mypy
 
 build --config mypy
 
-# rust-analyzer support?
-build --repo_env=RULES_RUST_TOOLCHAIN_INCLUDE_RUSTC_SRCS=true
-
 # print backtraces in tests
 test --test_env RUST_BACKTRACE=1
 
@@ -18,8 +15,11 @@ test --test_env RUST_BACKTRACE=1
 mobile-install --start_app
 
 # enable C++ toolchains, necessary for Rust finding the NDK linkers
-build --incompatible_use_cc_configure_from_rules_cc
+common --incompatible_use_cc_configure_from_rules_cc
 build --incompatible_enable_cc_toolchain_resolution
 
 # map Android NDK configuration to platforms
 build --platform_mappings=mobile/platform/platform_mappings
+
+# don't pass through PATH
+build --incompatible_strict_action_env
