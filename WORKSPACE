@@ -15,6 +15,7 @@ http_archive(
     patches = [
         "//patches:rules_rust__compile_one_dependency.patch",
         "//patches:rules_rust__android_armeabi-v7a.patch",
+        "//patches:rules_rust__crate_universe_deduplicate.patch",
     ],
     sha256 = "8e55060b70991ae9d36cb6501365b30bb6c7a08f886c882a0222f446e0091900",
     strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),

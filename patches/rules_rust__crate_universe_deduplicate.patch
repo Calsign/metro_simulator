@@ -1,0 +1,73 @@
+diff --git a/crate_universe/src/renderer.rs b/crate_universe/src/renderer.rs
+index 52fe173..d13664f 100644
+--- a/crate_universe/src/renderer.rs
++++ b/crate_universe/src/renderer.rs
+@@ -178,6 +178,59 @@ fn empty_deps_context() -> CrateDependencyContext {
+     }
+ }
+ 
++fn deduplicate_selects(crate_context: &mut CrateContext) {
++    // count occurrences of each dependency
++    let mut deps = HashMap::new();
++    let mut buildable_deps = HashMap::new();
++    for targeted_dep in &crate_context.targeted_deps {
++        for dep in &targeted_dep.deps.dependencies {
++            let entry = deps
++                .entry(dep.buildable_target.clone())
++                .or_insert_with(|| Vec::new());
++            entry.push((
++                targeted_dep.target.clone(),
++                targeted_dep.platform_targets.clone(),
++            ));
++            buildable_deps
++                .entry(dep.buildable_target.clone())
++                .or_insert(dep.clone());
++        }
++    }
++    // only worry about the duplicates
++    deps.retain(|_, v| v.len() >= 2);
++    // remove these entries from targeted_deps
++    for targeted_dep in crate_context.targeted_deps.iter_mut() {
++        targeted_dep
++            .deps
++            .dependencies
++            .retain(|dep| !deps.contains_key(&dep.buildable_target));
++    }
++    // add them at the end in their own section
++    for (dep, pairs) in deps.drain() {
++        let mut target_parts = Vec::new();
++        let mut platform_targets = HashSet::new();
++        for (dep_target, dep_platform_targets) in pairs {
++            target_parts.push(dep_target);
++            platform_targets.extend(dep_platform_targets);
++        }
++        let target = format!("Split from {}", target_parts.join(" and "));
++        crate_context.targeted_deps.push(CrateTargetedDepContext {
++            target,
++            deps: CrateDependencyContext {
++                dependencies: BTreeSet::from([buildable_deps.get(&dep).unwrap().clone()]),
++                proc_macro_dependencies: BTreeSet::new(),
++                data_dependencies: BTreeSet::new(),
++                build_dependencies: BTreeSet::new(),
++                build_proc_macro_dependencies: BTreeSet::new(),
++                build_data_dependencies: BTreeSet::new(),
++                dev_dependencies: BTreeSet::new(),
++                aliased_dependencies: BTreeMap::new(),
++            },
++            platform_targets: platform_targets.into_iter().collect(),
++        });
++    }
++}
++
+ impl Renderer {
+     fn new_tera() -> Tera {
+         let mut internal_renderer = Tera::new("src/not/a/dir/*").unwrap();
+@@ -312,6 +365,8 @@ impl Renderer {
+                     .iter()
+                     .any(|target| target.kind == "proc-macro");
+ 
++                deduplicate_selects(&mut crate_context);
++
+                 RenderablePackage {
+                     crate_context,
+                     per_triple_metadata,
