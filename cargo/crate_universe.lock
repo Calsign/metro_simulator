@@ -3,7 +3,7 @@
     "repo_rule_name": "crates",
     "rules_rust_workspace_name": "rules_rust"
   },
-  "hash": "27710b23a2a43181f66bde7ee5c15bee956365fa87ee42a6a9ca6c1cd3be0475",
+  "hash": "f2fdc9ad17eff4e944224021d95995e4ab23fedff4055fb3e4fb6cd42078c057",
   "transitive_renderable_packages": [
     {
       "crate_context": {
@@ -678,6 +678,265 @@
             "proc_macro_dependencies": [],
             "data_dependencies": [],
             "build_dependencies": [],
+            "build_proc_macro_dependencies": [],
+            "build_data_dependencies": [],
+            "dev_dependencies": [],
+            "aliased_dependencies": {}
+          },
+          "platform_targets": [
+            "//conditions:default"
+          ]
+        }
+      },
+      "is_proc_macro": false
+    },
+    {
+      "crate_context": {
+        "pkg_name": "android_log-sys",
+        "pkg_version": "0.2.0",
+        "edition": "2015",
+        "raze_settings": {
+          "additional_deps": [],
+          "skipped_deps": [],
+          "extra_aliased_targets": [],
+          "additional_flags": [],
+          "additional_env": {},
+          "gen_buildrs": null,
+          "data_attr": null,
+          "data_dependencies": [],
+          "compile_data_attr": null,
+          "build_data_dependencies": [],
+          "buildrs_additional_environment_variables": {},
+          "buildrs_additional_deps": [],
+          "patch_args": [],
+          "patch_cmds": [],
+          "patch_cmds_win": [],
+          "patch_tool": null,
+          "patches": [],
+          "additional_build_file": null
+        },
+        "canonical_additional_build_file": null,
+        "default_deps": {
+          "dependencies": [],
+          "proc_macro_dependencies": [],
+          "data_dependencies": [],
+          "build_dependencies": [],
+          "build_proc_macro_dependencies": [],
+          "build_data_dependencies": [],
+          "dev_dependencies": [],
+          "aliased_dependencies": {}
+        },
+        "targeted_deps": [],
+        "license": {
+          "name": "MIT from expression \"MIT OR Apache-2.0\"",
+          "rating": "notice"
+        },
+        "features": [],
+        "workspace_path_to_crate": "@crates__android_log_sys__0_2_0//",
+        "workspace_member_dependents": [],
+        "workspace_member_dev_dependents": [],
+        "workspace_member_build_dependents": [],
+        "is_workspace_member_dependency": false,
+        "is_binary_dependency": false,
+        "targets": [
+          {
+            "kind": "lib",
+            "name": "android_log_sys",
+            "path": "src/lib.rs",
+            "edition": "2015"
+          }
+        ],
+        "build_script_target": null,
+        "links": null,
+        "source_details": {
+          "git_data": null,
+          "download_url": "https://crates.io/api/v1/crates/android_log-sys/0.2.0/download"
+        },
+        "sha256": "85965b6739a430150bdd138e2374a98af0c3ee0d030b3bb7fc3bddff58d0102e",
+        "expected_build_path": "remote/BUILD.android_log-sys-0.2.0.bazel",
+        "lib_target_name": "android_log_sys",
+        "is_proc_macro": false
+      },
+      "per_triple_metadata": {
+        "//conditions:default": {
+          "target": "Default",
+          "deps": {
+            "dependencies": [],
+            "proc_macro_dependencies": [],
+            "data_dependencies": [],
+            "build_dependencies": [],
+            "build_proc_macro_dependencies": [],
+            "build_data_dependencies": [],
+            "dev_dependencies": [],
+            "aliased_dependencies": {}
+          },
+          "platform_targets": [
+            "//conditions:default"
+          ]
+        }
+      },
+      "is_proc_macro": false
+    },
+    {
+      "crate_context": {
+        "pkg_name": "android_logger",
+        "pkg_version": "0.10.1",
+        "edition": "2015",
+        "raze_settings": {
+          "additional_deps": [],
+          "skipped_deps": [],
+          "extra_aliased_targets": [],
+          "additional_flags": [],
+          "additional_env": {},
+          "gen_buildrs": null,
+          "data_attr": null,
+          "data_dependencies": [],
+          "compile_data_attr": null,
+          "build_data_dependencies": [],
+          "buildrs_additional_environment_variables": {},
+          "buildrs_additional_deps": [],
+          "patch_args": [],
+          "patch_cmds": [],
+          "patch_cmds_win": [],
+          "patch_tool": null,
+          "patches": [],
+          "additional_build_file": null
+        },
+        "canonical_additional_build_file": null,
+        "default_deps": {
+          "dependencies": [
+            {
+              "buildable_target": "@crates__android_log_sys__0_2_0//:android_log_sys",
+              "name": "android_log-sys",
+              "version": "0.2.0",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__env_logger__0_8_4//:env_logger",
+              "name": "env_logger",
+              "version": "0.8.4",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__lazy_static__1_4_0//:lazy_static",
+              "name": "lazy_static",
+              "version": "1.4.0",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__log__0_4_14//:log",
+              "name": "log",
+              "version": "0.4.14",
+              "is_proc_macro": false
+            }
+          ],
+          "proc_macro_dependencies": [],
+          "data_dependencies": [],
+          "build_dependencies": [
+            {
+              "buildable_target": "@crates__android_log_sys__0_2_0//:android_log_sys",
+              "name": "android_log-sys",
+              "version": "0.2.0",
+              "is_proc_macro": false
+            }
+          ],
+          "build_proc_macro_dependencies": [],
+          "build_data_dependencies": [],
+          "dev_dependencies": [],
+          "aliased_dependencies": {}
+        },
+        "targeted_deps": [],
+        "license": {
+          "name": "MIT from expression \"MIT OR Apache-2.0\"",
+          "rating": "notice"
+        },
+        "features": [
+          "default",
+          "regex"
+        ],
+        "workspace_path_to_crate": "@crates__android_logger__0_10_1//",
+        "workspace_member_dependents": [],
+        "workspace_member_dev_dependents": [],
+        "workspace_member_build_dependents": [],
+        "is_workspace_member_dependency": false,
+        "is_binary_dependency": false,
+        "targets": [
+          {
+            "kind": "lib",
+            "name": "android_logger",
+            "path": "src/lib.rs",
+            "edition": "2015"
+          },
+          {
+            "kind": "test",
+            "name": "config_log_level",
+            "path": "tests/config_log_level.rs",
+            "edition": "2015"
+          },
+          {
+            "kind": "test",
+            "name": "default_init",
+            "path": "tests/default_init.rs",
+            "edition": "2015"
+          },
+          {
+            "kind": "test",
+            "name": "multiple_init",
+            "path": "tests/multiple_init.rs",
+            "edition": "2015"
+          }
+        ],
+        "build_script_target": null,
+        "links": null,
+        "source_details": {
+          "git_data": null,
+          "download_url": "https://crates.io/api/v1/crates/android_logger/0.10.1/download"
+        },
+        "sha256": "d9ed09b18365ed295d722d0b5ed59c01b79a826ff2d2a8f73d5ecca8e6fb2f66",
+        "expected_build_path": "remote/BUILD.android_logger-0.10.1.bazel",
+        "lib_target_name": "android_logger",
+        "is_proc_macro": false
+      },
+      "per_triple_metadata": {
+        "//conditions:default": {
+          "target": "Default",
+          "deps": {
+            "dependencies": [
+              {
+                "buildable_target": "@crates__android_log_sys__0_2_0//:android_log_sys",
+                "name": "android_log-sys",
+                "version": "0.2.0",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__env_logger__0_8_4//:env_logger",
+                "name": "env_logger",
+                "version": "0.8.4",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__lazy_static__1_4_0//:lazy_static",
+                "name": "lazy_static",
+                "version": "1.4.0",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__log__0_4_14//:log",
+                "name": "log",
+                "version": "0.4.14",
+                "is_proc_macro": false
+              }
+            ],
+            "proc_macro_dependencies": [],
+            "data_dependencies": [],
+            "build_dependencies": [
+              {
+                "buildable_target": "@crates__android_log_sys__0_2_0//:android_log_sys",
+                "name": "android_log-sys",
+                "version": "0.2.0",
+                "is_proc_macro": false
+              }
+            ],
             "build_proc_macro_dependencies": [],
             "build_data_dependencies": [],
             "dev_dependencies": [],
@@ -4846,7 +5105,7 @@
     {
       "crate_context": {
         "pkg_name": "clap",
-        "pkg_version": "3.1.3",
+        "pkg_version": "3.1.5",
         "edition": "2018",
         "raze_settings": {
           "additional_deps": [],
@@ -4908,23 +5167,23 @@
               "is_proc_macro": false
             },
             {
-              "buildable_target": "@crates__termcolor__1_1_2//:termcolor",
+              "buildable_target": "@crates__termcolor__1_1_3//:termcolor",
               "name": "termcolor",
-              "version": "1.1.2",
+              "version": "1.1.3",
               "is_proc_macro": false
             },
             {
-              "buildable_target": "@crates__textwrap__0_14_2//:textwrap",
+              "buildable_target": "@crates__textwrap__0_15_0//:textwrap",
               "name": "textwrap",
-              "version": "0.14.2",
+              "version": "0.15.0",
               "is_proc_macro": false
             }
           ],
           "proc_macro_dependencies": [
             {
-              "buildable_target": "@crates__clap_derive__3_1_2//:clap_derive",
+              "buildable_target": "@crates__clap_derive__3_1_4//:clap_derive",
               "name": "clap_derive",
-              "version": "3.1.2",
+              "version": "3.1.4",
               "is_proc_macro": true
             }
           ],
@@ -4952,7 +5211,7 @@
           "suggestions",
           "termcolor"
         ],
-        "workspace_path_to_crate": "@crates__clap__3_1_3//",
+        "workspace_path_to_crate": "@crates__clap__3_1_5//",
         "workspace_member_dependents": [
           ""
         ],
@@ -5284,10 +5543,10 @@
         "links": null,
         "source_details": {
           "git_data": null,
-          "download_url": "https://crates.io/api/v1/crates/clap/3.1.3/download"
+          "download_url": "https://crates.io/api/v1/crates/clap/3.1.5/download"
         },
-        "sha256": "86f8c0e2a6b902acc18214e24a6935cdaf8a8e34231913d4404dcaee659f65a1",
-        "expected_build_path": "remote/BUILD.clap-3.1.3.bazel",
+        "sha256": "ced1892c55c910c1219e98d6fc8d71f6bddba7905866ce740066d8bfea859312",
+        "expected_build_path": "remote/BUILD.clap-3.1.5.bazel",
         "lib_target_name": "clap",
         "is_proc_macro": false
       },
@@ -5333,23 +5592,23 @@
                 "is_proc_macro": false
               },
               {
-                "buildable_target": "@crates__termcolor__1_1_2//:termcolor",
+                "buildable_target": "@crates__termcolor__1_1_3//:termcolor",
                 "name": "termcolor",
-                "version": "1.1.2",
+                "version": "1.1.3",
                 "is_proc_macro": false
               },
               {
-                "buildable_target": "@crates__textwrap__0_14_2//:textwrap",
+                "buildable_target": "@crates__textwrap__0_15_0//:textwrap",
                 "name": "textwrap",
-                "version": "0.14.2",
+                "version": "0.15.0",
                 "is_proc_macro": false
               }
             ],
             "proc_macro_dependencies": [
               {
-                "buildable_target": "@crates__clap_derive__3_1_2//:clap_derive",
+                "buildable_target": "@crates__clap_derive__3_1_4//:clap_derive",
                 "name": "clap_derive",
-                "version": "3.1.2",
+                "version": "3.1.4",
                 "is_proc_macro": true
               }
             ],
@@ -5370,7 +5629,7 @@
     {
       "crate_context": {
         "pkg_name": "clap_derive",
-        "pkg_version": "3.1.2",
+        "pkg_version": "3.1.4",
         "edition": "2018",
         "raze_settings": {
           "additional_deps": [],
@@ -5442,7 +5701,7 @@
         "features": [
           "default"
         ],
-        "workspace_path_to_crate": "@crates__clap_derive__3_1_2//",
+        "workspace_path_to_crate": "@crates__clap_derive__3_1_4//",
         "workspace_member_dependents": [],
         "workspace_member_dev_dependents": [],
         "workspace_member_build_dependents": [],
@@ -5460,10 +5719,10 @@
         "links": null,
         "source_details": {
           "git_data": null,
-          "download_url": "https://crates.io/api/v1/crates/clap_derive/3.1.2/download"
+          "download_url": "https://crates.io/api/v1/crates/clap_derive/3.1.4/download"
         },
-        "sha256": "01d42c94ce7c2252681b5fed4d3627cc807b13dfc033246bd05d5b252399000e",
-        "expected_build_path": "remote/BUILD.clap_derive-3.1.2.bazel",
+        "sha256": "da95d038ede1a964ce99f49cbe27a7fb538d1da595e4b4f70b8c8f338d17bf16",
+        "expected_build_path": "remote/BUILD.clap_derive-3.1.4.bazel",
         "lib_target_name": "clap_derive",
         "is_proc_macro": true
       },
@@ -6036,9 +6295,9 @@
         "default_deps": {
           "dependencies": [
             {
-              "buildable_target": "@crates__termcolor__1_1_2//:termcolor",
+              "buildable_target": "@crates__termcolor__1_1_3//:termcolor",
               "name": "termcolor",
-              "version": "1.1.2",
+              "version": "1.1.3",
               "is_proc_macro": false
             },
             {
@@ -6129,9 +6388,9 @@
           "deps": {
             "dependencies": [
               {
-                "buildable_target": "@crates__termcolor__1_1_2//:termcolor",
+                "buildable_target": "@crates__termcolor__1_1_3//:termcolor",
                 "name": "termcolor",
-                "version": "1.1.2",
+                "version": "1.1.3",
                 "is_proc_macro": false
               },
               {
@@ -12101,6 +12360,145 @@
     {
       "crate_context": {
         "pkg_name": "env_logger",
+        "pkg_version": "0.8.4",
+        "edition": "2018",
+        "raze_settings": {
+          "additional_deps": [],
+          "skipped_deps": [],
+          "extra_aliased_targets": [],
+          "additional_flags": [],
+          "additional_env": {},
+          "gen_buildrs": null,
+          "data_attr": null,
+          "data_dependencies": [],
+          "compile_data_attr": null,
+          "build_data_dependencies": [],
+          "buildrs_additional_environment_variables": {},
+          "buildrs_additional_deps": [],
+          "patch_args": [],
+          "patch_cmds": [],
+          "patch_cmds_win": [],
+          "patch_tool": null,
+          "patches": [],
+          "additional_build_file": null
+        },
+        "canonical_additional_build_file": null,
+        "default_deps": {
+          "dependencies": [
+            {
+              "buildable_target": "@crates__log__0_4_14//:log",
+              "name": "log",
+              "version": "0.4.14",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__regex__1_5_4//:regex",
+              "name": "regex",
+              "version": "1.5.4",
+              "is_proc_macro": false
+            }
+          ],
+          "proc_macro_dependencies": [],
+          "data_dependencies": [],
+          "build_dependencies": [],
+          "build_proc_macro_dependencies": [],
+          "build_data_dependencies": [],
+          "dev_dependencies": [],
+          "aliased_dependencies": {}
+        },
+        "targeted_deps": [],
+        "license": {
+          "name": "MIT from expression \"MIT OR Apache-2.0\"",
+          "rating": "notice"
+        },
+        "features": [
+          "regex"
+        ],
+        "workspace_path_to_crate": "@crates__env_logger__0_8_4//",
+        "workspace_member_dependents": [],
+        "workspace_member_dev_dependents": [],
+        "workspace_member_build_dependents": [],
+        "is_workspace_member_dependency": false,
+        "is_binary_dependency": false,
+        "targets": [
+          {
+            "kind": "lib",
+            "name": "env_logger",
+            "path": "src/lib.rs",
+            "edition": "2018"
+          },
+          {
+            "kind": "test",
+            "name": "init-twice-retains-filter",
+            "path": "tests/init-twice-retains-filter.rs",
+            "edition": "2018"
+          },
+          {
+            "kind": "test",
+            "name": "log-in-log",
+            "path": "tests/log-in-log.rs",
+            "edition": "2018"
+          },
+          {
+            "kind": "test",
+            "name": "log_tls_dtors",
+            "path": "tests/log_tls_dtors.rs",
+            "edition": "2018"
+          },
+          {
+            "kind": "test",
+            "name": "regexp_filter",
+            "path": "tests/regexp_filter.rs",
+            "edition": "2018"
+          }
+        ],
+        "build_script_target": null,
+        "links": null,
+        "source_details": {
+          "git_data": null,
+          "download_url": "https://crates.io/api/v1/crates/env_logger/0.8.4/download"
+        },
+        "sha256": "a19187fea3ac7e84da7dacf48de0c45d63c6a76f9490dae389aead16c243fce3",
+        "expected_build_path": "remote/BUILD.env_logger-0.8.4.bazel",
+        "lib_target_name": "env_logger",
+        "is_proc_macro": false
+      },
+      "per_triple_metadata": {
+        "//conditions:default": {
+          "target": "Default",
+          "deps": {
+            "dependencies": [
+              {
+                "buildable_target": "@crates__log__0_4_14//:log",
+                "name": "log",
+                "version": "0.4.14",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__regex__1_5_4//:regex",
+                "name": "regex",
+                "version": "1.5.4",
+                "is_proc_macro": false
+              }
+            ],
+            "proc_macro_dependencies": [],
+            "data_dependencies": [],
+            "build_dependencies": [],
+            "build_proc_macro_dependencies": [],
+            "build_data_dependencies": [],
+            "dev_dependencies": [],
+            "aliased_dependencies": {}
+          },
+          "platform_targets": [
+            "//conditions:default"
+          ]
+        }
+      },
+      "is_proc_macro": false
+    },
+    {
+      "crate_context": {
+        "pkg_name": "env_logger",
         "pkg_version": "0.9.0",
         "edition": "2018",
         "raze_settings": {
@@ -12151,9 +12549,9 @@
               "is_proc_macro": false
             },
             {
-              "buildable_target": "@crates__termcolor__1_1_2//:termcolor",
+              "buildable_target": "@crates__termcolor__1_1_3//:termcolor",
               "name": "termcolor",
-              "version": "1.1.2",
+              "version": "1.1.3",
               "is_proc_macro": false
             }
           ],
@@ -12258,9 +12656,9 @@
                 "is_proc_macro": false
               },
               {
-                "buildable_target": "@crates__termcolor__1_1_2//:termcolor",
+                "buildable_target": "@crates__termcolor__1_1_3//:termcolor",
                 "name": "termcolor",
-                "version": "1.1.2",
+                "version": "1.1.3",
                 "is_proc_macro": false
               }
             ],
@@ -25912,6 +26310,196 @@
     },
     {
       "crate_context": {
+        "pkg_name": "ndk",
+        "pkg_version": "0.6.0",
+        "edition": "2018",
+        "raze_settings": {
+          "additional_deps": [],
+          "skipped_deps": [],
+          "extra_aliased_targets": [],
+          "additional_flags": [],
+          "additional_env": {},
+          "gen_buildrs": null,
+          "data_attr": null,
+          "data_dependencies": [],
+          "compile_data_attr": null,
+          "build_data_dependencies": [],
+          "buildrs_additional_environment_variables": {},
+          "buildrs_additional_deps": [],
+          "patch_args": [],
+          "patch_cmds": [],
+          "patch_cmds_win": [],
+          "patch_tool": null,
+          "patches": [],
+          "additional_build_file": null
+        },
+        "canonical_additional_build_file": null,
+        "default_deps": {
+          "dependencies": [
+            {
+              "buildable_target": "@crates__bitflags__1_3_2//:bitflags",
+              "name": "bitflags",
+              "version": "1.3.2",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+              "name": "jni-sys",
+              "version": "0.3.0",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__ndk_sys__0_3_0//:ndk_sys",
+              "name": "ndk-sys",
+              "version": "0.3.0",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__num_enum__0_5_6//:num_enum",
+              "name": "num_enum",
+              "version": "0.5.6",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__thiserror__1_0_30//:thiserror",
+              "name": "thiserror",
+              "version": "1.0.30",
+              "is_proc_macro": false
+            }
+          ],
+          "proc_macro_dependencies": [],
+          "data_dependencies": [],
+          "build_dependencies": [
+            {
+              "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+              "name": "jni-sys",
+              "version": "0.3.0",
+              "is_proc_macro": false
+            },
+            {
+              "buildable_target": "@crates__ndk_sys__0_3_0//:ndk_sys",
+              "name": "ndk-sys",
+              "version": "0.3.0",
+              "is_proc_macro": false
+            }
+          ],
+          "build_proc_macro_dependencies": [],
+          "build_data_dependencies": [],
+          "dev_dependencies": [],
+          "aliased_dependencies": {
+            "@crates__ndk_sys__0_3_0//:ndk_sys": {
+              "target": "@crates__ndk_sys__0_3_0//:ndk_sys",
+              "alias": "ffi"
+            }
+          }
+        },
+        "targeted_deps": [],
+        "license": {
+          "name": "MIT from expression \"MIT OR Apache-2.0\"",
+          "rating": "notice"
+        },
+        "features": [
+          "api-level-23",
+          "trace"
+        ],
+        "workspace_path_to_crate": "@crates__ndk__0_6_0//",
+        "workspace_member_dependents": [
+          ""
+        ],
+        "workspace_member_dev_dependents": [],
+        "workspace_member_build_dependents": [],
+        "is_workspace_member_dependency": true,
+        "is_binary_dependency": false,
+        "targets": [
+          {
+            "kind": "lib",
+            "name": "ndk",
+            "path": "src/lib.rs",
+            "edition": "2018"
+          }
+        ],
+        "build_script_target": null,
+        "links": null,
+        "source_details": {
+          "git_data": null,
+          "download_url": "https://crates.io/api/v1/crates/ndk/0.6.0/download"
+        },
+        "sha256": "2032c77e030ddee34a6787a64166008da93f6a352b629261d0fee232b8742dd4",
+        "expected_build_path": "remote/BUILD.ndk-0.6.0.bazel",
+        "lib_target_name": "ndk",
+        "is_proc_macro": false
+      },
+      "per_triple_metadata": {
+        "//conditions:default": {
+          "target": "Default",
+          "deps": {
+            "dependencies": [
+              {
+                "buildable_target": "@crates__bitflags__1_3_2//:bitflags",
+                "name": "bitflags",
+                "version": "1.3.2",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+                "name": "jni-sys",
+                "version": "0.3.0",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__ndk_sys__0_3_0//:ndk_sys",
+                "name": "ndk-sys",
+                "version": "0.3.0",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__num_enum__0_5_6//:num_enum",
+                "name": "num_enum",
+                "version": "0.5.6",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__thiserror__1_0_30//:thiserror",
+                "name": "thiserror",
+                "version": "1.0.30",
+                "is_proc_macro": false
+              }
+            ],
+            "proc_macro_dependencies": [],
+            "data_dependencies": [],
+            "build_dependencies": [
+              {
+                "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+                "name": "jni-sys",
+                "version": "0.3.0",
+                "is_proc_macro": false
+              },
+              {
+                "buildable_target": "@crates__ndk_sys__0_3_0//:ndk_sys",
+                "name": "ndk-sys",
+                "version": "0.3.0",
+                "is_proc_macro": false
+              }
+            ],
+            "build_proc_macro_dependencies": [],
+            "build_data_dependencies": [],
+            "dev_dependencies": [],
+            "aliased_dependencies": {
+              "@crates__ndk_sys__0_3_0//:ndk_sys": {
+                "target": "@crates__ndk_sys__0_3_0//:ndk_sys",
+                "alias": "ffi"
+              }
+            }
+          },
+          "platform_targets": [
+            "//conditions:default"
+          ]
+        }
+      },
+      "is_proc_macro": false
+    },
+    {
+      "crate_context": {
         "pkg_name": "ndk-context",
         "pkg_version": "0.1.0",
         "edition": "2021",
@@ -25953,10 +26541,12 @@
         },
         "features": [],
         "workspace_path_to_crate": "@crates__ndk_context__0_1_0//",
-        "workspace_member_dependents": [],
+        "workspace_member_dependents": [
+          ""
+        ],
         "workspace_member_dev_dependents": [],
         "workspace_member_build_dependents": [],
-        "is_workspace_member_dependency": false,
+        "is_workspace_member_dependency": true,
         "is_binary_dependency": false,
         "targets": [
           {
@@ -26026,6 +26616,12 @@
         "default_deps": {
           "dependencies": [
             {
+              "buildable_target": "@crates__android_logger__0_10_1//:android_logger",
+              "name": "android_logger",
+              "version": "0.10.1",
+              "is_proc_macro": false
+            },
+            {
               "buildable_target": "@crates__lazy_static__1_4_0//:lazy_static",
               "name": "lazy_static",
               "version": "1.4.0",
@@ -26090,13 +26686,17 @@
           "rating": "notice"
         },
         "features": [
-          "default"
+          "android_logger",
+          "default",
+          "logger"
         ],
         "workspace_path_to_crate": "@crates__ndk_glue__0_5_1//",
-        "workspace_member_dependents": [],
+        "workspace_member_dependents": [
+          ""
+        ],
         "workspace_member_dev_dependents": [],
         "workspace_member_build_dependents": [],
-        "is_workspace_member_dependency": false,
+        "is_workspace_member_dependency": true,
         "is_binary_dependency": false,
         "targets": [
           {
@@ -26122,6 +26722,12 @@
           "target": "Default",
           "deps": {
             "dependencies": [
+              {
+                "buildable_target": "@crates__android_logger__0_10_1//:android_logger",
+                "name": "android_logger",
+                "version": "0.10.1",
+                "is_proc_macro": false
+              },
               {
                 "buildable_target": "@crates__lazy_static__1_4_0//:lazy_static",
                 "name": "lazy_static",
@@ -26261,7 +26867,8 @@
           "rating": "notice"
         },
         "features": [
-          "default"
+          "default",
+          "logger"
         ],
         "workspace_path_to_crate": "@crates__ndk_macro__0_3_0//",
         "workspace_member_dependents": [],
@@ -26414,6 +27021,121 @@
             "proc_macro_dependencies": [],
             "data_dependencies": [],
             "build_dependencies": [],
+            "build_proc_macro_dependencies": [],
+            "build_data_dependencies": [],
+            "dev_dependencies": [],
+            "aliased_dependencies": {}
+          },
+          "platform_targets": [
+            "//conditions:default"
+          ]
+        }
+      },
+      "is_proc_macro": false
+    },
+    {
+      "crate_context": {
+        "pkg_name": "ndk-sys",
+        "pkg_version": "0.3.0",
+        "edition": "2018",
+        "raze_settings": {
+          "additional_deps": [],
+          "skipped_deps": [],
+          "extra_aliased_targets": [],
+          "additional_flags": [],
+          "additional_env": {},
+          "gen_buildrs": null,
+          "data_attr": null,
+          "data_dependencies": [],
+          "compile_data_attr": null,
+          "build_data_dependencies": [],
+          "buildrs_additional_environment_variables": {},
+          "buildrs_additional_deps": [],
+          "patch_args": [],
+          "patch_cmds": [],
+          "patch_cmds_win": [],
+          "patch_tool": null,
+          "patches": [],
+          "additional_build_file": null
+        },
+        "canonical_additional_build_file": null,
+        "default_deps": {
+          "dependencies": [
+            {
+              "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+              "name": "jni-sys",
+              "version": "0.3.0",
+              "is_proc_macro": false
+            }
+          ],
+          "proc_macro_dependencies": [],
+          "data_dependencies": [],
+          "build_dependencies": [
+            {
+              "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+              "name": "jni-sys",
+              "version": "0.3.0",
+              "is_proc_macro": false
+            }
+          ],
+          "build_proc_macro_dependencies": [],
+          "build_data_dependencies": [],
+          "dev_dependencies": [],
+          "aliased_dependencies": {}
+        },
+        "targeted_deps": [],
+        "license": {
+          "name": "MIT from expression \"MIT OR Apache-2.0\"",
+          "rating": "notice"
+        },
+        "features": [],
+        "workspace_path_to_crate": "@crates__ndk_sys__0_3_0//",
+        "workspace_member_dependents": [],
+        "workspace_member_dev_dependents": [],
+        "workspace_member_build_dependents": [],
+        "is_workspace_member_dependency": false,
+        "is_binary_dependency": false,
+        "targets": [
+          {
+            "kind": "lib",
+            "name": "ndk-sys",
+            "path": "src/lib.rs",
+            "edition": "2018"
+          }
+        ],
+        "build_script_target": null,
+        "links": null,
+        "source_details": {
+          "git_data": null,
+          "download_url": "https://crates.io/api/v1/crates/ndk-sys/0.3.0/download"
+        },
+        "sha256": "6e5a6ae77c8ee183dcbbba6150e2e6b9f3f4196a7666c02a715a95692ec1fa97",
+        "expected_build_path": "remote/BUILD.ndk-sys-0.3.0.bazel",
+        "lib_target_name": "ndk-sys",
+        "is_proc_macro": false
+      },
+      "per_triple_metadata": {
+        "//conditions:default": {
+          "target": "Default",
+          "deps": {
+            "dependencies": [
+              {
+                "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+                "name": "jni-sys",
+                "version": "0.3.0",
+                "is_proc_macro": false
+              }
+            ],
+            "proc_macro_dependencies": [],
+            "data_dependencies": [],
+            "build_dependencies": [
+              {
+                "buildable_target": "@crates__jni_sys__0_3_0//:jni_sys",
+                "name": "jni-sys",
+                "version": "0.3.0",
+                "is_proc_macro": false
+              }
+            ],
             "build_proc_macro_dependencies": [],
             "build_data_dependencies": [],
             "dev_dependencies": [],
@@ -41127,7 +41849,7 @@
     {
       "crate_context": {
         "pkg_name": "termcolor",
-        "pkg_version": "1.1.2",
+        "pkg_version": "1.1.3",
         "edition": "2018",
         "raze_settings": {
           "additional_deps": [],
@@ -41190,7 +41912,7 @@
           "rating": "unencumbered"
         },
         "features": [],
-        "workspace_path_to_crate": "@crates__termcolor__1_1_2//",
+        "workspace_path_to_crate": "@crates__termcolor__1_1_3//",
         "workspace_member_dependents": [],
         "workspace_member_dev_dependents": [],
         "workspace_member_build_dependents": [],
@@ -41208,10 +41930,10 @@
         "links": null,
         "source_details": {
           "git_data": null,
-          "download_url": "https://crates.io/api/v1/crates/termcolor/1.1.2/download"
+          "download_url": "https://crates.io/api/v1/crates/termcolor/1.1.3/download"
         },
-        "sha256": "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4",
-        "expected_build_path": "remote/BUILD.termcolor-1.1.2.bazel",
+        "sha256": "bab24d30b911b2376f3a13cc2cd443142f0c81dda04c118693e35b3835757755",
+        "expected_build_path": "remote/BUILD.termcolor-1.1.3.bazel",
         "lib_target_name": "termcolor",
         "is_proc_macro": false
       },
@@ -41261,7 +41983,7 @@
     {
       "crate_context": {
         "pkg_name": "textwrap",
-        "pkg_version": "0.14.2",
+        "pkg_version": "0.15.0",
         "edition": "2018",
         "raze_settings": {
           "additional_deps": [],
@@ -41300,7 +42022,7 @@
           "rating": "notice"
         },
         "features": [],
-        "workspace_path_to_crate": "@crates__textwrap__0_14_2//",
+        "workspace_path_to_crate": "@crates__textwrap__0_15_0//",
         "workspace_member_dependents": [],
         "workspace_member_dev_dependents": [],
         "workspace_member_build_dependents": [],
@@ -41320,6 +42042,18 @@
             "edition": "2018"
           },
           {
+            "kind": "example",
+            "name": "hyphenation",
+            "path": "examples/hyphenation.rs",
+            "edition": "2018"
+          },
+          {
+            "kind": "example",
+            "name": "termwidth",
+            "path": "examples/termwidth.rs",
+            "edition": "2018"
+          },
+          {
             "kind": "lib",
             "name": "textwrap",
             "path": "src/lib.rs",
@@ -41333,12 +42067,6 @@
           },
           {
             "kind": "test",
-            "name": "traits",
-            "path": "tests/traits.rs",
-            "edition": "2018"
-          },
-          {
-            "kind": "test",
             "name": "version-numbers",
             "path": "tests/version-numbers.rs",
             "edition": "2018"
@@ -41348,10 +42076,10 @@
         "links": null,
         "source_details": {
           "git_data": null,
-          "download_url": "https://crates.io/api/v1/crates/textwrap/0.14.2/download"
+          "download_url": "https://crates.io/api/v1/crates/textwrap/0.15.0/download"
         },
-        "sha256": "0066c8d12af8b5acd21e00547c3797fde4e8677254a7ee429176ccebbe93dd80",
-        "expected_build_path": "remote/BUILD.textwrap-0.14.2.bazel",
+        "sha256": "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb",
+        "expected_build_path": "remote/BUILD.textwrap-0.15.0.bazel",
         "lib_target_name": "textwrap",
         "is_proc_macro": false
       },
@@ -53083,10 +53811,10 @@
               "aliased_dependencies": {}
             },
             "platform_targets": [
-              "x86_64-unknown-freebsd",
-              "x86_64-pc-windows-msvc",
               "x86_64-unknown-linux-gnu",
-              "aarch64-unknown-linux-gnu"
+              "aarch64-unknown-linux-gnu",
+              "x86_64-unknown-freebsd",
+              "x86_64-pc-windows-msvc"
             ]
           }
         ],
@@ -54604,7 +55332,7 @@
       "bencher": "0.1.5",
       "cgmath": "0.18.0",
       "chrono": "0.4.19",
-      "clap": "3.1.3",
+      "clap": "3.1.5",
       "derive_more": "0.99.17",
       "druid": "0.7.0",
       "enum_dispatch": "0.3.8",
@@ -54614,6 +55342,9 @@
       "jni": "0.19.0",
       "lazy_static": "1.4.0",
       "log": "0.4.14",
+      "ndk": "0.6.0",
+      "ndk-context": "0.1.0",
+      "ndk-glue": "0.5.1",
       "petgraph": "0.6.0",
       "plotters": "0.3.1",
       "plotters-bitmap": "0.3.1",
@@ -54646,6 +55377,9 @@
       "jni",
       "lazy_static",
       "log",
+      "ndk",
+      "ndk-context",
+      "ndk-glue",
       "petgraph",
       "plotters",
       "plotters-bitmap",

@@ -16,11 +16,22 @@ cc_import(
     shared_library = ":engine",
 )
 
+JAVA_SRCS = glob(["src/**/*.java"])
+
 java_library(
     name = "java",
-    srcs = glob(["src/**/*.java"]),
+    srcs = JAVA_SRCS,
     visibility = ["//visibility:public"],
     deps = [":engine_cc"],
+)
+
+# Generate headers from Java source files.
+# TODO: clean this up.
+genrule(
+    name = "java_headers",
+    srcs = JAVA_SRCS,
+    outs = ["{}.h".format(src[4:][:-5].replace("/", "_")) for src in JAVA_SRCS],
+    cmd = "javac -h $(RULEDIR) $(SRCS) || true",
 )
 
 # for some reason this indirection is necessary for the shared library to appear in the runfiles of the test

@@ -15,14 +15,19 @@
       android:label="@string/app_title">
 
     <activity
-        android:name=".MainActivity"
+        android:name="android.app.NativeActivity"
         android:label="@string/app_title"
+        android:configChanges="orientation|keyboardHidden"
         android:exported="true">
 
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
+
+      <meta-data
+          android:name="android.app.lib_name"
+          android:value="metro_simulator_android" />
 
     </activity>
 

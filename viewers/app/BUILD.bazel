@@ -1,0 +1,28 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@crates//:defs.bzl", "crate")
+
+rust_library(
+    name = "app",
+    srcs = [
+        "lib.rs",
+    ],
+    compile_data = ["shader.wgsl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        crate("env_logger"),
+        crate("log"),
+        crate("pollster"),
+        crate("wgpu"),
+        crate("winit"),
+        "//engine",
+    ],
+)
+
+rust_binary(
+    name = "desktop",
+    srcs = ["desktop.rs"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":app",
+    ],
+)
