@@ -1,3 +1,5 @@
+load(":transitions.bzl", "reset_configuration")
+
 EngineConfigProvider = provider(fields = ["data"])
 
 def _engine_config_impl(ctx):
@@ -19,7 +21,9 @@ engine_config = rule(
 )
 
 def _generate_map_impl(ctx):
-    output_name = "{}.json".format(ctx.label.name)
+    real_name = ctx.attr.real_name
+
+    output_name = "{}.json".format(real_name)
     output_file = ctx.actions.declare_file(output_name)
 
     engine_config = ctx.attr.engine_config[EngineConfigProvider].data
@@ -37,10 +41,10 @@ def _generate_map_impl(ctx):
             datasets[key].tiles.append(dataset_file.path)
             dataset_deps.append(dataset_file)
 
-    map_file = ctx.actions.declare_file("{}.in.json".format(ctx.label.name))
+    map_file = ctx.actions.declare_file("{}.in.json".format(real_name))
     ctx.actions.write(map_file, json.encode(
         struct(
-            name = ctx.label.name,
+            name = real_name,
             latitude = ctx.attr.latitude,
             longitude = ctx.attr.longitude,
             engine_config = engine_config,
@@ -48,8 +52,8 @@ def _generate_map_impl(ctx):
         ),
     ))
 
-    plot_dir = ctx.actions.declare_directory("{}/plots".format(ctx.label.name))
-    profile_file = ctx.actions.declare_file("{}/profile".format(ctx.label.name))
+    plot_dir = ctx.actions.declare_directory("{}/plots".format(real_name))
+    profile_file = ctx.actions.declare_file("{}/profile".format(real_name))
 
     save_args = ctx.actions.args()
     save_args.add(map_file)
@@ -60,7 +64,7 @@ def _generate_map_impl(ctx):
         inputs = [map_file] + dataset_deps,
         executable = ctx.executable._generate,
         arguments = [save_args],
-        progress_message = "Generating map '{}'".format(ctx.label.name),
+        progress_message = "Generating map '{}'".format(real_name),
     )
 
     plot_args = ctx.actions.args()
@@ -73,7 +77,7 @@ def _generate_map_impl(ctx):
         inputs = [map_file] + dataset_deps,
         executable = ctx.executable._generate,
         arguments = [plot_args],
-        progress_message = "Generating plots for map '{}'".format(ctx.label.name),
+        progress_message = "Generating plots for map '{}'".format(real_name),
     )
 
     profile_args = ctx.actions.args()
@@ -85,7 +89,7 @@ def _generate_map_impl(ctx):
         inputs = [map_file] + dataset_deps,
         executable = ctx.executable._generate,
         arguments = [profile_args],
-        progress_message = "Profiling generation of map '{}'".format(ctx.label.name),
+        progress_message = "Profiling generation of map '{}'".format(real_name),
     )
 
     return [
@@ -118,6 +122,7 @@ _generate_map = rule(
             mandatory = True,
             providers = [EngineConfigProvider],
         ),
+        "real_name": attr.string(mandatory = True),
     },
 )
 
@@ -152,12 +157,19 @@ def map(name, latitude, longitude, engine_config, datasets, visibility = ["//vis
             dataset_map[dep] = key
         dataset_data_map[key] = json.encode(dataset.data)
 
+    inner_name = "_{}__inner".format(name)
     _generate_map(
-        name = name,
+        name = inner_name,
+        real_name = name,
         latitude = latitude,
         longitude = longitude,
         datasets = dataset_map,
         dataset_data = dataset_data_map,
         engine_config = engine_config,
+    )
+
+    reset_configuration(
+        name = name,
+        actual = inner_name,
         visibility = visibility,
     )
