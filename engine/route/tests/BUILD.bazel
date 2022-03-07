@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_test")
 load("@crates//:defs.bzl", "crate")
 
 rust_library(
@@ -24,5 +24,18 @@ rust_binary(
     deps = [
         ":sf_routes",
         crate("bencher"),
+    ],
+)
+
+# NOTE: only compiles for Android
+rust_shared_library(
+    name = "sf_routes_android_benchmark",
+    srcs = ["sf_routes_android_benchmark.rs"],
+    tags = ["manual"],
+    deps = [
+        "//engine",
+        crate("ndk"),
+        crate("ndk-glue"),
+        "//util:benchmark_util",
     ],
 )

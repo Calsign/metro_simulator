@@ -2,9 +2,11 @@ load("@rules_rust//rust:defs.bzl", "rust_shared_library")
 load("@crates//:defs.bzl", "crate")
 load("@rules_android//android:rules.bzl", "android_binary")
 
+# NOTE: only compiles for Android
 rust_shared_library(
     name = "metro_simulator_android",
     srcs = ["main.rs"],
+    tags = ["manual"],
     deps = [
         "//viewers/app",
         crate("ndk"),

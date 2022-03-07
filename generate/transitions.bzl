@@ -11,6 +11,7 @@
 # transition" to be updated correctly.
 ALL_CONFIG_SETTINGS = {
     "//command_line_option:cpu": ("INVALID", "k8"),
+    "//command_line_option:compilation_mode": ("opt", "fastbuild"),
     "//command_line_option:fat_apk_cpu": (["INVALID"], []),
     "//command_line_option:crosstool_top": ("INVALID", "@bazel_tools//tools/cpp:toolchain"),
     "//command_line_option:dynamic_mode": ("off", "default"),

@@ -1,8 +1,16 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "test_util",
     testonly = True,
     srcs = ["test_util.rs"],
     visibility = ["//visibility:public"],
+)
+
+rust_library(
+    name = "benchmark_util",
+    srcs = ["benchmark_util.rs"],
+    visibility = ["//visibility:public"],
+    deps = [crate("bencher")],
 )
