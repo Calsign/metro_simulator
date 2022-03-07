@@ -12,44 +12,28 @@ from generate.data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
 
 
 @dataclass
-class Subway:
+class Way:
     id: int
     tags: T.Dict[str, str]
     shape: T.Any
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Subway:
-        return Subway(data["id"], data["tags"], shapely.geometry.shape(data["shape"]))
+    def parse(data: T.Dict[str, T.Any]) -> Way:
+        return Way(data["id"], data["tags"], shapely.geometry.shape(data["shape"]))
 
     def transform(self, matrix: T.List[float]):
         self.shape = affine_transform(self.shape, matrix)
 
 
 @dataclass
-class Station:
+class Node:
     id: int
     tags: T.Dict[str, str]
     location: T.Tuple[float, float]
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Station:
-        return Station(**data)
-
-    def transform(self, matrix: T.List[float]):
-        p = shapely.geometry.Point(self.location)
-        t = affine_transform(p, matrix)
-        self.location = (t.x, t.y)
-
-
-@dataclass
-class Stop:
-    id: int
-    tags: T.Dict[str, str]
-    location: T.Tuple[float, float]
-
-    @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Stop:
-        return Stop(**data)
+    def parse(data: T.Dict[str, T.Any]) -> Node:
+        return Node(**data)
 
     def transform(self, matrix: T.List[float]):
         p = shapely.geometry.Point(self.location)
@@ -72,31 +56,14 @@ class RelMember:
 
 
 @dataclass
-class RouteMaster:
+class Relation:
     id: int
     tags: T.Dict[str, str]
     members: T.List[RelMember]
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> RouteMaster:
-        return RouteMaster(
-            data["id"], data["tags"], list(map(RelMember.parse, data["members"]))
-        )
-
-    def transform(self, matrix: T.List[float]):
-        for member in self.members:
-            member.transform(matrix)
-
-
-@dataclass
-class Route:
-    id: int
-    tags: T.Dict[str, str]
-    members: T.List[RelMember]
-
-    @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Route:
-        return Route(
+    def parse(data: T.Dict[str, T.Any]) -> Relation:
+        return Relation(
             data["id"], data["tags"], list(map(RelMember.parse, data["members"]))
         )
 
@@ -107,30 +74,30 @@ class Route:
 
 @dataclass
 class OsmData:
-    subways: T.List[Subway]
-    stations: T.List[Station]
-    stops: T.List[Stop]
-    route_masters: T.List[RouteMaster]
-    routes: T.List[Route]
+    subways: T.List[Way]
+    stations: T.List[Node]
+    stops: T.List[Node]
+    route_masters: T.List[Relation]
+    routes: T.List[Relation]
 
     @staticmethod
     def create() -> OsmData:
         return OsmData([], [], [], [], [])
 
     @functools.cached_property
-    def subway_map(self) -> T.Dict[int, Subway]:
+    def subway_map(self) -> T.Dict[int, Way]:
         return {subway.id: subway for subway in self.subways}
 
     @functools.cached_property
-    def station_map(self) -> T.Dict[int, Station]:
+    def station_map(self) -> T.Dict[int, Node]:
         return {station.id: station for station in self.stations}
 
     @functools.cached_property
-    def stop_map(self) -> T.Dict[int, Stop]:
+    def stop_map(self) -> T.Dict[int, Node]:
         return {stop.id: stop for stop in self.stops}
 
     @functools.cached_property
-    def route_map(self) -> T.Dict[int, Route]:
+    def route_map(self) -> T.Dict[int, Relation]:
         return {route.id: route for route in self.routes}
 
     def transform(self, matrix: T.List[float]):
@@ -191,11 +158,11 @@ def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any
         with open(path, "r") as f:
             data = json.load(f)
 
-        osm.subways.extend(map(Subway.parse, data["subways"]))
-        osm.stations.extend(map(Station.parse, data["stations"]))
-        osm.stops.extend(map(Stop.parse, data["stops"]))
-        osm.route_masters.extend(map(RouteMaster.parse, data["route_masters"]))
-        osm.routes.extend(map(Route.parse, data["routes"]))
+        osm.subways.extend(map(Way.parse, data["subways"]))
+        osm.stations.extend(map(Node.parse, data["stations"]))
+        osm.stops.extend(map(Node.parse, data["stops"]))
+        osm.route_masters.extend(map(Relation.parse, data["route_masters"]))
+        osm.routes.extend(map(Relation.parse, data["routes"]))
 
     # sort to ensure hermeticity
     osm.subways.sort(key=lambda s: s.id)
