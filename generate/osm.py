@@ -72,45 +72,33 @@ class Relation:
             member.transform(matrix)
 
 
-@dataclass
-class OsmData:
-    subways: T.List[Way]
-    stations: T.List[Node]
-    stops: T.List[Node]
-    route_masters: T.List[Relation]
-    routes: T.List[Relation]
+FIELDS = {
+    "subways": Way,
+    "stations": Node,
+    "stops": Node,
+    "subway_route_masters": Relation,
+    "subway_routes": Relation,
+    "highways": Way,
+}
 
-    @staticmethod
-    def create() -> OsmData:
-        return OsmData([], [], [], [], [])
+
+class OsmData:
+    def __init__(self):
+        for field in FIELDS:
+            setattr(self, field, [])
 
     @functools.cached_property
     def subway_map(self) -> T.Dict[int, Way]:
         return {subway.id: subway for subway in self.subways}
 
     @functools.cached_property
-    def station_map(self) -> T.Dict[int, Node]:
-        return {station.id: station for station in self.stations}
-
-    @functools.cached_property
     def stop_map(self) -> T.Dict[int, Node]:
         return {stop.id: stop for stop in self.stops}
 
-    @functools.cached_property
-    def route_map(self) -> T.Dict[int, Relation]:
-        return {route.id: route for route in self.routes}
-
     def transform(self, matrix: T.List[float]):
-        for subway in self.subways:
-            subway.transform(matrix)
-        for station in self.stations:
-            station.transform(matrix)
-        for stop in self.stops:
-            stop.transform(matrix)
-        for route_master in self.route_masters:
-            route_master.transform(matrix)
-        for route in self.routes:
-            route.transform(matrix)
+        for field in FIELDS:
+            for item in getattr(self, field):
+                item.transform(matrix)
 
     def plot_route(self, plt, route):
         color = route.tags.get("colour")
@@ -123,17 +111,27 @@ class OsmData:
                 subway = self.subway_map[member.ref]
                 plt.plot(*subway.shape.xy, color=color)
 
+    def plot_highway(self, plt, highway):
+        plt.plot(*highway.shape.xy, color="black")
+
     def plot(self, plt):
+        reserved = ["all", "highways"]
+
         fig, axs = plt.subplots(
-            len(self.routes) + 1, figsize=(8, 8 * (len(self.routes) + 1))
+            len(self.subway_routes) + len(reserved),
+            figsize=(8, 8 * (len(self.subway_routes) + len(reserved))),
         )
 
         axs[0].set_title("all")
+        axs[1].set_title("highways")
 
-        for i, route in enumerate(self.routes):
+        for i, route in enumerate(self.subway_routes):
             self.plot_route(axs[0], route)
-            self.plot_route(axs[i + 1], route)
-            axs[i + 1].set_title(route.tags.get("name", "<unnamed>"))
+            self.plot_route(axs[i + len(reserved)], route)
+            axs[i + len(reserved)].set_title(route.tags.get("name", "<unnamed>"))
+
+        for highway in self.highways:
+            self.plot_highway(axs[1], highway)
 
 
 def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any:
@@ -152,24 +150,18 @@ def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any
     yscale = max_dim / (max_lat - min_lat)
     matrix = [xscale, 0, 0, yscale, -min_lon * xscale, -min_lat * yscale]
 
-    osm = OsmData.create()
+    osm = OsmData()
 
     for path in sorted(dataset["tiles"]):
         with open(path, "r") as f:
             data = json.load(f)
 
-        osm.subways.extend(map(Way.parse, data["subways"]))
-        osm.stations.extend(map(Node.parse, data["stations"]))
-        osm.stops.extend(map(Node.parse, data["stops"]))
-        osm.route_masters.extend(map(Relation.parse, data["route_masters"]))
-        osm.routes.extend(map(Relation.parse, data["routes"]))
+        for field, cls in FIELDS.items():
+            getattr(osm, field).extend([cls.parse(d) for d in data[field]])
 
     # sort to ensure hermeticity
-    osm.subways.sort(key=lambda s: s.id)
-    osm.stations.sort(key=lambda s: s.id)
-    osm.stops.sort(key=lambda s: s.id)
-    osm.route_masters.sort(key=lambda m: m.id)
-    osm.routes.sort(key=lambda r: r.id)
+    for field in FIELDS:
+        getattr(osm, field).sort(key=lambda x: x.id)
 
     osm.transform(matrix)
 

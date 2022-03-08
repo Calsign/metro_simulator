@@ -125,7 +125,7 @@ class Metros(Layer):
             stations.append(st)
             stations_coord_map[(rx, ry)] = st
 
-        for route in self.osm.routes:
+        for route in self.osm.subway_routes:
             # if we are crossing state boundaries, we have multiple copies of each route
             if route.id in seen_routes:
                 continue
