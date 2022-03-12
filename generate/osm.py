@@ -118,8 +118,8 @@ class OsmData:
         reserved = ["all", "highways"]
 
         fig, axs = plt.subplots(
-            len(self.subway_routes) + len(reserved),
-            figsize=(8, 8 * (len(self.subway_routes) + len(reserved))),
+            len(reserved),
+            figsize=(24, 24 * (len(reserved))),
         )
 
         axs[0].set_title("all")
@@ -127,8 +127,8 @@ class OsmData:
 
         for i, route in enumerate(self.subway_routes):
             self.plot_route(axs[0], route)
-            self.plot_route(axs[i + len(reserved)], route)
-            axs[i + len(reserved)].set_title(route.tags.get("name", "<unnamed>"))
+            # self.plot_route(axs[i + len(reserved)], route)
+            # axs[i + len(reserved)].set_title(route.tags.get("name", "<unnamed>"))
 
         for highway in self.highways:
             self.plot_highway(axs[1], highway)

@@ -26,10 +26,16 @@ from generate.gdal import read_gdal
 from generate.lodes import read_lodes
 from generate.osm import read_osm
 
-from generate import terrain, housing, workplaces, metros
+from generate import terrain, housing, workplaces, metros, highways
 
 
-LAYERS = [terrain.Terrain, housing.Housing, workplaces.Workplaces, metros.Metros]
+LAYERS = [
+    terrain.Terrain,
+    housing.Housing,
+    workplaces.Workplaces,
+    metros.Metros,
+    highways.Highways,
+]
 
 
 @functools.lru_cache

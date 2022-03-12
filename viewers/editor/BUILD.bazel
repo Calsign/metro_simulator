@@ -18,6 +18,7 @@ rust_binary(
         crate("itertools"),
         "//engine",
         "//engine/fields",
+        "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",
         "//engine/tiles",

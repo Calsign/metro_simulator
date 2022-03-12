@@ -17,6 +17,7 @@ rust_library(
         crate("splines"),
         crate("thiserror"),
         "//engine/quadtree",
+        "//util:spline_util",
     ],
 )
 

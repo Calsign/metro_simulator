@@ -36,6 +36,7 @@ fn main() {
         current_leaf: None,
         current_field: FieldType::None,
         show_metro_keys: false,
+        show_highway_keys: false,
     };
 
     druid::AppLauncher::with_window(window)
@@ -51,6 +52,7 @@ struct State {
     current_leaf: Option<CurrentLeafState>,
     current_field: FieldType,
     show_metro_keys: bool,
+    show_highway_keys: bool,
 }
 
 fn build_root_widget() -> impl druid::Widget<State> {
@@ -261,6 +263,10 @@ fn build_menu_panel() -> impl druid::Widget<State> {
         )
         .with_default_spacer()
         .with_child(druid::widget::Checkbox::new("Show metro keys").lens(State::show_metro_keys))
+        .with_default_spacer()
+        .with_child(
+            druid::widget::Checkbox::new("Show highway keys").lens(State::show_highway_keys),
+        )
 }
 
 fn build_empty_panel() -> impl druid::Widget<()> {
@@ -618,10 +624,10 @@ impl druid::Widget<State> for Content {
             .unwrap();
 
         // 5 pixel resolution
-        let metro_scale = f64::max(5.0 / state.content.scale, 0.2);
+        let spline_scale = f64::max(5.0 / state.content.scale, 0.2);
 
         let qtree_visited = qtree_visitor.visited;
-        let mut spline_total_visited = 0;
+        let mut metro_total_visited = 0;
 
         for (id, metro_line) in engine.metro_lines.iter().sorted() {
             if state.metro_lines.states[id].visible {
@@ -633,12 +639,12 @@ impl druid::Widget<State> for Content {
                     visited: 0,
                 };
                 metro_line
-                    .visit_spline(&mut spline_visitor, metro_scale, &bounding_box)
+                    .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
                     .unwrap();
-                spline_total_visited += &spline_visitor.visited;
+                metro_total_visited += &spline_visitor.visited;
 
                 if state.show_metro_keys {
-                    let mut key_visitor = PaintKeysVisitor { ctx, env, state };
+                    let mut key_visitor = PaintMetroKeysVisitor { ctx, env, state };
 
                     metro_line
                         .visit_keys(&mut key_visitor, &bounding_box)
@@ -647,7 +653,34 @@ impl druid::Widget<State> for Content {
             }
         }
 
-        println!("qtree: {}, metros: {}", qtree_visited, spline_total_visited);
+        let mut highway_total_visited = 0;
+
+        for (id, highway_segment) in engine.highway_segments.iter().sorted() {
+            let mut spline_visitor = PaintSplineVisitor {
+                ctx,
+                env,
+                state,
+                last_point: None,
+                visited: 0,
+            };
+            highway_segment
+                .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
+                .unwrap();
+            highway_total_visited += &spline_visitor.visited;
+
+            if state.show_highway_keys {
+                let mut key_visitor = PaintHighwayKeysVisitor { ctx, env, state };
+
+                highway_segment
+                    .visit_keys(&mut key_visitor, &bounding_box)
+                    .unwrap();
+            }
+        }
+
+        println!(
+            "qtree: {}, metros: {}, highways: {}",
+            qtree_visited, metro_total_visited, highway_total_visited
+        );
     }
 }
 
@@ -808,12 +841,11 @@ struct PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     visited: u64,
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
-    for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
-{
+impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     fn visit(
         &mut self,
-        line: &metro::MetroLine,
+        color: &druid::Color,
+        line_width: f64,
         vertex: cgmath::Vector2<f64>,
         t: f64,
     ) -> Result<(), anyhow::Error> {
@@ -827,8 +859,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
         if let Some(last_point) = self.last_point {
             self.ctx.stroke(
                 druid::kurbo::Line::new(last_point, point),
-                &druid::Color::rgb8(line.color.red, line.color.green, line.color.blue),
-                2.0,
+                color,
+                line_width,
             );
         };
 
@@ -839,14 +871,41 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<anyhow::Error>
     }
 }
 
-struct PaintKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
+impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<metro::MetroLine, anyhow::Error>
+    for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+{
+    fn visit(
+        &mut self,
+        line: &metro::MetroLine,
+        vertex: cgmath::Vector2<f64>,
+        t: f64,
+    ) -> Result<(), anyhow::Error> {
+        let color = druid::Color::rgb8(line.color.red, line.color.green, line.color.blue);
+        self.visit(&color, 2.0, vertex, t)
+    }
+}
+
+impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<highway::HighwaySegment, anyhow::Error>
+    for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+{
+    fn visit(
+        &mut self,
+        segment: &highway::HighwaySegment,
+        vertex: cgmath::Vector2<f64>,
+        t: f64,
+    ) -> Result<(), anyhow::Error> {
+        self.visit(&druid::Color::grey8(204), 1.0, vertex, t)
+    }
+}
+
+struct PaintMetroKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
     env: &'b druid::Env,
     state: &'f State,
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f> metro::KeyVisitor<anyhow::Error>
-    for PaintKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+    for PaintMetroKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(
         &mut self,
@@ -869,6 +928,35 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::KeyVisitor<anyhow::Error>
             }
             metro::MetroKey::Stop(loc, _) => {}
         }
+
+        Ok(())
+    }
+}
+
+struct PaintHighwayKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
+    ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+    env: &'b druid::Env,
+    state: &'f State,
+}
+
+impl<'a, 'b, 'c, 'd, 'e, 'f> highway::KeyVisitor<anyhow::Error>
+    for PaintHighwayKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+{
+    fn visit(
+        &mut self,
+        segment: &highway::HighwaySegment,
+        key: &highway::HighwayKey,
+    ) -> Result<(), anyhow::Error> {
+        use druid::RenderContext;
+
+        let point = (
+            key.x * self.state.content.scale + self.state.content.tx,
+            key.y * self.state.content.scale + self.state.content.ty,
+        );
+        self.ctx.fill(
+            druid::kurbo::Circle::new(point, 3.0),
+            &druid::Color::grey8(255),
+        );
 
         Ok(())
     }

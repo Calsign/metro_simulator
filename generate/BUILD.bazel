@@ -6,6 +6,7 @@ py_binary(
     srcs = [
         "data.py",
         "gdal.py",
+        "highways.py",
         "housing.py",
         "layer.py",
         "lodes.py",

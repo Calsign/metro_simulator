@@ -203,6 +203,25 @@ impl State {
         )
     }
 
+    fn add_highway_segment(
+        &mut self,
+        data: &HighwayData,
+        pred: Vec<u64>,
+        succ: Vec<u64>,
+        keys: Option<Vec<(f64, f64)>>,
+    ) -> u64 {
+        self.state.add_highway_segment(
+            data.data.clone(),
+            pred,
+            succ,
+            keys.map(|ks| {
+                ks.iter()
+                    .map(|(x, y)| cgmath::Vector2 { x: *x, y: *y })
+                    .collect()
+            }),
+        )
+    }
+
     fn get_metro_line(&self, id: u64) -> Option<MetroLine> {
         self.state
             .metro_lines
@@ -446,7 +465,7 @@ struct PySplineVisitor {
     visitor: PyObject,
 }
 
-impl metro::SplineVisitor<PyErr> for PySplineVisitor {
+impl metro::SplineVisitor<metro::MetroLine, PyErr> for PySplineVisitor {
     fn visit(
         &mut self,
         line: &metro::MetroLine,
@@ -462,6 +481,36 @@ impl metro::SplineVisitor<PyErr> for PySplineVisitor {
     }
 }
 
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwayData {
+    data: highway::HighwayData,
+}
+
+#[pymethods]
+impl HighwayData {
+    #[new]
+    fn new(
+        name: Option<String>,
+        refs: Vec<String>,
+        lanes: Option<u32>,
+        speed_limit: Option<u32>,
+    ) -> Self {
+        HighwayData {
+            data: highway::HighwayData::new(name, refs, lanes, speed_limit),
+        }
+    }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwaySegment {
+    segment: highway::HighwaySegment,
+}
+
+#[pymethods]
+impl HighwaySegment {}
+
 #[pymodule]
 fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Config>()?;
@@ -474,6 +523,9 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MetroStation>()?;
     m.add_class::<MetroLine>()?;
     m.add_class::<MetroKey>()?;
+
+    m.add_class::<HighwayData>()?;
+    m.add_class::<HighwaySegment>()?;
 
     return Ok(());
 }

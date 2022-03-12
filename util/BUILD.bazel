@@ -14,3 +14,14 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [crate("bencher")],
 )
+
+rust_library(
+    name = "spline_util",
+    srcs = ["spline_util.rs"],
+    visibility = ["//visibility:public"],
+    deps = [
+        crate("splines"),
+        crate("cgmath"),
+        "//engine/quadtree",
+    ],
+)

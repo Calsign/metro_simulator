@@ -10,10 +10,10 @@
 # but it must be different fron the second value in order for "affected by starlark
 # transition" to be updated correctly.
 ALL_CONFIG_SETTINGS = {
-    "//command_line_option:cpu": ("INVALID", "k8"),
+    "//command_line_option:cpu": ("aach64", "k8"),
     "//command_line_option:compilation_mode": ("opt", "fastbuild"),
-    "//command_line_option:fat_apk_cpu": (["INVALID"], []),
-    "//command_line_option:crosstool_top": ("INVALID", "@bazel_tools//tools/cpp:toolchain"),
+    "//command_line_option:fat_apk_cpu": (["aarch64"], []),
+    "//command_line_option:crosstool_top": ("@androidndk//:arm-linux-androideabi-clang9.0.8-v7a-libcpp", "@bazel_tools//tools/cpp:toolchain"),
     "//command_line_option:dynamic_mode": ("off", "default"),
     "//command_line_option:Android configuration distinguisher": ("android", "main"),
     "//command_line_option:affected by starlark transition": (["INVALID"], []),

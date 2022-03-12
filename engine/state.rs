@@ -61,6 +61,8 @@ pub struct State {
     pub qtree: Quadtree<BranchState, LeafState>,
     pub metro_lines: HashMap<u64, metro::MetroLine>,
     metro_line_counter: u64,
+    pub highway_segments: HashMap<u64, highway::HighwaySegment>,
+    highway_segment_counter: u64,
 }
 
 impl State {
@@ -71,6 +73,8 @@ impl State {
             qtree,
             metro_lines: HashMap::new(),
             metro_line_counter: 0,
+            highway_segments: HashMap::new(),
+            highway_segment_counter: 0,
         }
     }
 
@@ -139,14 +143,32 @@ impl State {
 
         let mut metro_line = metro::MetroLine::new(id, color, name);
 
-        match keys {
-            Some(keys) => {
-                metro_line.set_keys(keys);
-            }
-            None => (),
+        if let Some(keys) = keys {
+            metro_line.set_keys(keys);
         }
 
         self.metro_lines.insert(id, metro_line);
+
+        id
+    }
+
+    pub fn add_highway_segment(
+        &mut self,
+        data: highway::HighwayData,
+        pred: Vec<u64>,
+        succ: Vec<u64>,
+        keys: Option<Vec<highway::HighwayKey>>,
+    ) -> u64 {
+        let id = self.highway_segment_counter;
+        self.highway_segment_counter += 1;
+
+        let mut highway_segment = highway::HighwaySegment::new(id, data, pred, succ);
+
+        if let Some(keys) = keys {
+            highway_segment.set_keys(keys);
+        }
+
+        self.highway_segments.insert(id, highway_segment);
 
         id
     }

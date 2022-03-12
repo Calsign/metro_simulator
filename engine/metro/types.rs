@@ -2,6 +2,7 @@ use cgmath as cg;
 use serde::{Deserialize, Serialize};
 
 use crate::color;
+pub use spline_util::SplineVisitor;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Station {
@@ -106,44 +107,9 @@ impl MetroLine {
         rect: &quadtree::Rect,
     ) -> Result<(), E>
     where
-        V: SplineVisitor<E>,
+        V: SplineVisitor<Self, E>,
     {
-        if self.spline.len() == 0 {
-            return Ok(());
-        }
-
-        let (min_x, max_x, min_y, max_y) = (
-            rect.min_x as f64,
-            rect.max_x as f64,
-            rect.min_y as f64,
-            rect.max_y as f64,
-        );
-
-        let cx = (max_x + min_x) / 2.0;
-        let cy = (max_y + min_y) / 2.0;
-        let rx = (max_x - min_x) / 2.0;
-        let ry = (max_y - min_y) / 2.0;
-
-        let total = (self.length / step).ceil() as u64;
-        let mut i = 0;
-        while i <= total {
-            // probe for points in the rectangle
-            let (point, t) = loop {
-                let t = (i as f64) * step;
-                let point = self.spline.clamped_sample(t).unwrap();
-                // compute Manhatten distance between point and rectangle
-                let dist = f64::min(f64::abs(point.x - cx) - rx, f64::abs(point.y - cy) - ry);
-                if dist <= step || i > total {
-                    i += 1;
-                    break (point, t);
-                } else {
-                    i += f64::max(f64::floor(dist / step), 1.0) as u64;
-                }
-            };
-
-            visitor.visit(self, point, t)?;
-        }
-        Ok(())
+        spline_util::visit_spline(self, &self.spline, self.length, visitor, step, rect)
     }
 
     pub fn visit_keys<V, E>(&self, visitor: &mut V, rect: &quadtree::Rect) -> Result<(), E>
@@ -171,10 +137,6 @@ impl MetroLine {
 
         Ok(())
     }
-}
-
-pub trait SplineVisitor<E> {
-    fn visit(&mut self, line: &MetroLine, vertex: cg::Vector2<f64>, t: f64) -> Result<(), E>;
 }
 
 pub trait KeyVisitor<E> {

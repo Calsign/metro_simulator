@@ -152,7 +152,7 @@ class Metros(Layer):
                     if color is None:
                         color = subway.tags.get("colour")
 
-                    first, last = subway.shape.boundary
+                    first, last = subway.shape.boundary.geoms
                     if last_point is not None and last.distance(
                         last_point
                     ) < first.distance(last_point):
