@@ -121,9 +121,10 @@ class Metros(Layer):
 
             stations_all_coords.append(station.location)
             rx, ry = round_station_location(station.location)
-            st = Station(station.id, name, station.location, rx, ry, [])
-            stations.append(st)
-            stations_coord_map[(rx, ry)] = st
+            if 0 <= rx <= self.max_dim and 0 <= ry <= self.max_dim:
+                st = Station(station.id, name, station.location, rx, ry, [])
+                stations.append(st)
+                stations_coord_map[(rx, ry)] = st
 
         for route in self.osm.subway_routes:
             # if we are crossing state boundaries, we have multiple copies of each route

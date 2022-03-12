@@ -32,6 +32,7 @@ genrule(
     srcs = JAVA_SRCS,
     outs = ["{}.h".format(src[4:][:-5].replace("/", "_")) for src in JAVA_SRCS],
     cmd = "javac -h $(RULEDIR) $(SRCS) || true",
+    tags = ["manual"],
 )
 
 # for some reason this indirection is necessary for the shared library to appear in the runfiles of the test

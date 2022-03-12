@@ -30,7 +30,16 @@ def parse_lanes(lanes: T.Optional[str]) -> int:
     """
     if lanes is None:
         return None
-    return int(lanes)
+
+    try:
+        total = sum([int(s.strip()) for s in lanes.split(";")])
+        if total > 0:
+            return total
+        else:
+            raise ValueError()
+    except ValueError:
+        print("Warning: failed to parse lanes: '{}'".format(lanes))
+        return None
 
 
 def parse_speed_limit(maxspeed: T.Optional[str]) -> int:
@@ -40,12 +49,19 @@ def parse_speed_limit(maxspeed: T.Optional[str]) -> int:
     if maxspeed is None:
         return None
 
-    if maxspeed.endswith(" mph"):
-        kph = float(maxspeed[:-4]) * 1.61
-    else:
-        kph = float(maxspeed)
+    try:
+        if maxspeed.endswith(" mph"):
+            kph = float(maxspeed[:-4]) * 1.61
+        else:
+            kph = float(maxspeed)
 
-    return round(kph / 3.6)
+        if kph > 0:
+            return round(kph / 3.6)
+        else:
+            raise ValueError()
+    except ValueError:
+        print("Warning: failed to parse maxspeed '{}'".format(maxspeed))
+        return None
 
 
 @dataclass

@@ -166,6 +166,8 @@ def map(name, latitude, longitude, engine_config, datasets, visibility = ["//vis
         datasets = dataset_map,
         dataset_data = dataset_data_map,
         engine_config = engine_config,
+        # don't build this automatically since it will be in the wrong configuration
+        tags = ["manual"],
     )
 
     reset_configuration(

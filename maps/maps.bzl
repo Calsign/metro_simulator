@@ -16,7 +16,7 @@ maps["nyc"] = struct(
             "ct",
             "pa",
         ]),
-        "osm": open_street_map.regions(["ny", "nj"]),
+        "osm": open_street_map.regions(["ny", "nj", "ct", "pa"]),
     },
     engine_config = ":config",
     latitude = "40.7128N",

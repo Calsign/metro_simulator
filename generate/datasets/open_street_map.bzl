@@ -31,6 +31,14 @@ REGIONS = {
         path = "north-america/us/virginia-220101",
         hash = "a255af233ff9a1ce8146ec2c52a54b5fa757a58d601a77a1ff964bc783e6e1b2",
     ),
+    "ct": struct(
+        path = "north-america/us/connecticut-220101",
+        hash = "98f5cad18343b6f96d6d75214d7366ee862c4e2dc2e3ea2d5cc73d67bca10c74",
+    ),
+    "pa": struct(
+        path = "north-america/us/pennsylvania-220101",
+        hash = "2787d6e9da048326e0e3d043a9d810d807930ba622f580d9f5e5ed186bb108ee",
+    ),
 }
 
 def _build_name(region):
