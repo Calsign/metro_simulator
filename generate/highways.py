@@ -15,21 +15,31 @@ from generate.quadtree import Quadtree, ConvolveData
 from generate import osm
 
 
-def parse_ref(ref: T.Optional[str]) -> T.List[str]:
+def parse_ref(tags: T.Dict[str, str]) -> T.List[str]:
     """
     Parses OSM's "ref" tag; splits into separate refs.
     """
+    ref = tags.get("ref")
+
     if ref is None:
         return None
     return ref.split(";")
 
 
-def parse_lanes(lanes: T.Optional[str]) -> int:
+def parse_lanes(tags: T.Dict[str, str]) -> int:
     """
     Parse OSM's "lanes" tag; returns number of lanes.
     """
+    lanes = tags.get("lanes")
+
     if lanes is None:
-        return None
+        forward = tags.get("lanes:forward")
+        backward = tags.get("lanes:backward")
+        if forward is not None and backward is not None:
+            # slightly hacky, but does the trick
+            lanes = "{};{}".format(forward, backward)
+        else:
+            return None
 
     try:
         total = sum([int(s.strip()) for s in lanes.split(";")])
@@ -42,10 +52,12 @@ def parse_lanes(lanes: T.Optional[str]) -> int:
         return None
 
 
-def parse_speed_limit(maxspeed: T.Optional[str]) -> int:
+def parse_speed_limit(tags: T.Dict[str, str]) -> int:
     """
     Parse OSM's "maxspeed" tag; returns speed limit in m/s.
     """
+    maxspeed = tags.get("maxspeed")
+
     if maxspeed is None:
         return None
 
@@ -62,6 +74,18 @@ def parse_speed_limit(maxspeed: T.Optional[str]) -> int:
     except ValueError:
         print("Warning: failed to parse maxspeed '{}'".format(maxspeed))
         return None
+
+
+def is_oneway(tags: T.Dict[str, str]):
+    highway = tags["highway"]
+    if highway == "motorway":
+        # motorway implies oneway
+        return tags.get("oneway", "yes").lower() not in ["no", "false", "0"] and not (
+            "lanes:forward" in tags and "lanes:backward" in tags
+        )
+    else:
+        # other highway tags default to bidirectional
+        return tags.get("oneway", "no").lower() in ["yes", "true", "1"]
 
 
 @dataclass
@@ -119,13 +143,20 @@ class Highways(Layer):
         for highway in self.osm.highways:
             # NOTE: saw one case of a self-loop, which has no boundary
             if len(highway.shape.boundary.geoms) == 2:
-                first, last = highway.shape.boundary.geoms
-                coord_map[self.round_coords(first)][1].append(highway)
-                coord_map[self.round_coords(last)][0].append(highway)
+                first, last = (
+                    self.round_coords(c) for c in highway.shape.boundary.geoms
+                )
+                coord_map[first][1].append(highway)
+                coord_map[last][0].append(highway)
+                if not is_oneway(highway.tags):
+                    # also add a segment in the opposite direction
+                    coord_map[first][0].append(highway)
+                    coord_map[last][1].append(highway)
 
         junctions = []
         for (point, (in_ways, out_ways)) in coord_map.items():
-            if len(in_ways) + len(out_ways) > 2:
+            if len(in_ways) + len(out_ways) != 2:
+                # 3+ is a junction, 1 is a dead-end
                 junctions.append((point, in_ways, out_ways))
 
         # NOTE: This approach will fail to detect closed loops. For
@@ -163,14 +194,30 @@ class Highways(Layer):
             for highway in out_ways:
                 points = []
                 way = highway
+                border_point = point
                 prev_segment_data = None
+
                 while True:
                     cur_segment_data = SegmentData(
-                        name=way.tags.get("name", None),
-                        ref=parse_ref(way.tags.get("ref", None)),
-                        lanes=parse_lanes(way.tags.get("lanes", None)),
-                        speed_limit=parse_speed_limit(way.tags.get("maxspeed", None)),
+                        name=way.tags.get("name"),
+                        ref=parse_ref(way.tags),
+                        lanes=parse_lanes(way.tags),
+                        speed_limit=parse_speed_limit(way.tags),
                     )
+
+                    first, last = (
+                        self.round_coords(c) for c in way.shape.boundary.geoms
+                    )
+                    if first == border_point:
+                        # normal orientation
+                        border_point = last
+                        coords = way.shape.coords
+                    elif last == border_point:
+                        # flipped
+                        border_point = first
+                        coords = reversed(way.shape.coords)
+                    else:
+                        assert False, (border_point, first, last)
 
                     # cut off segments that extend out of the region of interest
                     # TODO: split into two segments if this happens
@@ -187,12 +234,11 @@ class Highways(Layer):
                             # if the properties of the segment have changed, create a new one
                             add_segment_tuple(highway, way, points, prev_segment_data)
                             points = []
-                        points.extend(way.shape.coords)
 
+                        points.extend(coords)
                         prev_segment_data = cur_segment_data
 
-                    _, last = way.shape.boundary.geoms
-                    next_in_ways, next_out_ways = coord_map.get(self.round_coords(last))
+                    next_in_ways, next_out_ways = coord_map.get(border_point)
 
                     if len(next_in_ways) != 1 or len(next_out_ways) != 1:
                         break

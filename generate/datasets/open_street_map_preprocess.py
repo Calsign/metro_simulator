@@ -67,8 +67,9 @@ class Handler(osmium.SimpleHandler):
         if self.matches(w.tags, railway="subway"):
             # https://wiki.openstreetmap.org/wiki/Tag:railway%3Dsubway
             self.subways.append(self.make_way(w))
-        if self.matches(w.tags, highway="motorway") or self.matches(
-            w.tags, highway="trunk"
+        if any(
+            self.matches(w.tags, highway=x)
+            for x in ("motorway", "trunk", "motorway_link", "trunk_link")
         ):
             # https://wiki.openstreetmap.org/wiki/Tag:highway%3Dmotorway
             # https://wiki.openstreetmap.org/wiki/Tag:highway%3Dtrunk

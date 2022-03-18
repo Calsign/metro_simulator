@@ -37,6 +37,7 @@ fn main() {
         current_field: FieldType::None,
         show_metro_keys: false,
         show_highway_keys: false,
+        show_highway_directions: false,
     };
 
     druid::AppLauncher::with_window(window)
@@ -53,6 +54,7 @@ struct State {
     current_field: FieldType,
     show_metro_keys: bool,
     show_highway_keys: bool,
+    show_highway_directions: bool,
 }
 
 fn build_root_widget() -> impl druid::Widget<State> {
@@ -267,6 +269,11 @@ fn build_menu_panel() -> impl druid::Widget<State> {
         .with_child(
             druid::widget::Checkbox::new("Show highway keys").lens(State::show_highway_keys),
         )
+        .with_default_spacer()
+        .with_child(
+            druid::widget::Checkbox::new("Show highway directions")
+                .lens(State::show_highway_directions),
+        )
 }
 
 fn build_empty_panel() -> impl druid::Widget<()> {
@@ -459,10 +466,11 @@ impl ContentState {
     }
 
     pub fn to_screen(&self, (x, y): (u64, u64)) -> (f64, f64) {
-        (
-            x as f64 * self.scale + self.tx,
-            y as f64 * self.scale + self.ty,
-        )
+        self.to_screenf((x as f64, y as f64))
+    }
+
+    pub fn to_screenf(&self, (x, y): (f64, f64)) -> (f64, f64) {
+        (x * self.scale + self.tx, y * self.scale + self.ty)
     }
 
     pub fn to_model(&self, (x, y): (f64, f64)) -> (u64, u64) {
@@ -631,13 +639,7 @@ impl druid::Widget<State> for Content {
 
         for (id, metro_line) in engine.metro_lines.iter().sorted() {
             if state.metro_lines.states[id].visible {
-                let mut spline_visitor = PaintSplineVisitor {
-                    ctx,
-                    env,
-                    state,
-                    last_point: None,
-                    visited: 0,
-                };
+                let mut spline_visitor = PaintSplineVisitor::new(ctx, env, state, false);
                 metro_line
                     .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
                     .unwrap();
@@ -656,13 +658,8 @@ impl druid::Widget<State> for Content {
         let mut highway_total_visited = 0;
 
         for (id, highway_segment) in engine.highway_segments.iter().sorted() {
-            let mut spline_visitor = PaintSplineVisitor {
-                ctx,
-                env,
-                state,
-                last_point: None,
-                visited: 0,
-            };
+            let mut spline_visitor =
+                PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
             highway_segment
                 .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
                 .unwrap();
@@ -674,6 +671,24 @@ impl druid::Widget<State> for Content {
                 highway_segment
                     .visit_keys(&mut key_visitor, &bounding_box)
                     .unwrap();
+
+                // draw start and end
+                let keys = highway_segment.get_keys();
+                if let (Some(first), Some(last)) = (keys.first(), keys.last()) {
+                    use druid::RenderContext;
+
+                    ctx.fill(
+                        druid::kurbo::Circle::new(
+                            state.content.to_screenf((first.x, first.y)),
+                            4.0,
+                        ),
+                        &druid::Color::grey8(255),
+                    );
+                    ctx.fill(
+                        druid::kurbo::Circle::new(state.content.to_screenf((last.x, last.y)), 4.0),
+                        &druid::Color::grey8(255),
+                    );
+                }
             }
         }
 
@@ -837,11 +852,30 @@ struct PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     state: &'f State,
 
     last_point: Option<(f64, f64)>,
-
     visited: u64,
+
+    draw_arrows: bool,
+    last_arrow: Option<(f64, f64)>,
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
+    fn new(
+        ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+        env: &'b druid::Env,
+        state: &'f State,
+        draw_arrows: bool,
+    ) -> Self {
+        Self {
+            ctx,
+            env,
+            state,
+            last_point: None,
+            visited: 0,
+            draw_arrows,
+            last_arrow: None,
+        }
+    }
+
     fn visit(
         &mut self,
         color: &druid::Color,
@@ -862,6 +896,26 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
                 color,
                 line_width,
             );
+
+            if self.draw_arrows && last_point != point {
+                let (x1, y1) = last_point;
+                let (x2, y2) = point;
+                let center = ((x2 + x1) / 2.0, (y2 + y1) / 2.0);
+
+                if match self.last_arrow {
+                    Some(last) => {
+                        let dist_sq = (center.0 - last.0).powi(2) + (center.1 - last.1).powi(2);
+                        // space arrows at least 30 pixels apart
+                        dist_sq >= 30.0_f64.powi(2)
+                    }
+                    None => true,
+                } {
+                    let theta = (y2 - y1).atan2(x2 - x1);
+                    self.ctx
+                        .fill(&triangle(center, 5.0, theta)[..], &druid::Color::grey8(255));
+                    self.last_arrow = Some(center);
+                }
+            }
         };
 
         self.visited += 1;
@@ -954,7 +1008,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> highway::KeyVisitor<anyhow::Error>
             key.y * self.state.content.scale + self.state.content.ty,
         );
         self.ctx.fill(
-            druid::kurbo::Circle::new(point, 3.0),
+            druid::kurbo::Circle::new(point, 2.0),
             &druid::Color::grey8(255),
         );
 
