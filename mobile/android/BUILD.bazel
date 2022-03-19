@@ -23,6 +23,8 @@ android_binary(
     name = "app",
     # NOTE: currently no java code
     srcs = glob(["src/**/*.java"]),
+    assets = ["//maps:sf"],
+    assets_dir = "",
     custom_package = "com.calsignlabs.metro_simulator",
     manifest = "AndroidManifest.xml",
     resource_files = glob(["res/**"]),

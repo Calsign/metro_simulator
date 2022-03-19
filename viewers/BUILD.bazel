@@ -1,0 +1,4 @@
+exports_files(
+    srcs = ["map_wrapper.sh"],
+    visibility = ["__subpackages__"],
+)

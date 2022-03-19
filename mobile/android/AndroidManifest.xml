@@ -18,6 +18,7 @@
         android:name="android.app.NativeActivity"
         android:label="@string/app_title"
         android:configChanges="orientation|keyboardHidden"
+        android:screenOrientation="userLandscape"
         android:exported="true">
 
       <intent-filter>

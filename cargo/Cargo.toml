@@ -45,6 +45,11 @@ env_logger = "0.9.0"
 log = "0.4.14"
 pollster = "0.2.5"
 
+# egui
+egui = "0.17.0"
+egui_wgpu_backend = "0.17.0"
+egui_winit_platform = "0.14.0"
+
 # plotting
 plotters = "0.3.1"
 plotters-bitmap = "0.3.1"

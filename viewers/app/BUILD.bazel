@@ -1,12 +1,14 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 load("@crates//:defs.bzl", "crate")
+load("//viewers:util.bzl", "all_maps")
 
 rust_library(
     name = "app",
     srcs = [
+        "app.rs",
+        "bootstrap.rs",
         "lib.rs",
     ],
-    compile_data = ["shader.wgsl"],
     visibility = ["//visibility:public"],
     deps = [
         crate("env_logger"),
@@ -14,6 +16,9 @@ rust_library(
         crate("pollster"),
         crate("wgpu"),
         crate("winit"),
+        crate("egui"),
+        crate("egui_wgpu_backend"),
+        crate("egui_winit_platform"),
         "//engine",
     ],
 )
@@ -24,5 +29,11 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":app",
+        crate("clap"),
     ],
+)
+
+all_maps(
+    "desktop",
+    name_prefix = "desktop.",
 )
