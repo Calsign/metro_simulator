@@ -1,14 +1,18 @@
 pub struct App {
     pub(crate) engine: engine::state::State,
+    pub(crate) field: Option<FieldType>,
     pub(crate) options: Options,
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
 }
 
 impl App {
-    fn new(engine: engine::state::State) -> Self {
+    fn new(mut engine: engine::state::State) -> Self {
+        // TODO: re-run this when the qtree updates
+        engine.update_fields().unwrap();
         Self {
             pan: PanState::new(&engine),
+            field: None,
             engine,
             options: Options::new(),
             diagnostics: Diagnostics::default(),
@@ -31,8 +35,18 @@ impl App {
         egui::SidePanel::left("controls")
             .resizable(false)
             .show(ctx, |ui| {
-                self.options.draw(ui);
-                self.diagnostics.draw(ui);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.label("Field:");
+                    ui.radio_value(&mut self.field, None, "None");
+                    ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
+                    ui.radio_value(&mut self.field, Some(FieldType::Employment), "Employment");
+                    ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
+
+                    ui.add_space(10.0);
+                    self.options.draw(ui);
+                    ui.add_space(10.0);
+                    self.diagnostics.draw(ui);
+                });
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -41,10 +55,18 @@ impl App {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum FieldType {
+    Population,
+    Employment,
+    LandValue,
+}
+
 #[derive(Debug)]
 pub(crate) struct Options {
     pub min_tile_size: u32,
     pub spline_resolution: u32,
+    pub field_resolution: u32,
 }
 
 impl Options {
@@ -52,6 +74,7 @@ impl Options {
         Self {
             min_tile_size: 5,
             spline_resolution: 5,
+            field_resolution: 10,
         }
     }
 
@@ -60,6 +83,8 @@ impl Options {
         ui.add(egui::Slider::new(&mut self.min_tile_size, 1..=100));
         ui.label("Spline resolution:");
         ui.add(egui::Slider::new(&mut self.spline_resolution, 1..=100));
+        ui.label("Field resolution:");
+        ui.add(egui::Slider::new(&mut self.field_resolution, 3..=100));
     }
 }
 

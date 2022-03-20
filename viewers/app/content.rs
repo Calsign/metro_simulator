@@ -1,4 +1,4 @@
-use crate::App;
+use crate::app::{App, FieldType};
 use anyhow::Result;
 use engine::state::{BranchState, LeafState};
 
@@ -112,20 +112,54 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
         }
     }
 
-    fn get_width_rect(&self, data: &quadtree::VisitData, width: f32) -> egui::Rect {
+    fn get_rect(&self, data: &quadtree::VisitData) -> egui::Rect {
+        let width = data.width as f32 * self.app.pan.scale;
         let origin = egui::Pos2::from(self.app.pan.to_screen_uf((data.x, data.y)));
         egui::Rect::from_two_pos(origin, (origin.x + width, origin.y + width).into())
     }
 
-    fn get_rect(&self, data: &quadtree::VisitData) -> egui::Rect {
-        self.get_width_rect(data, data.width as f32 * self.app.pan.scale)
+    fn get_full_rect(&self, data: &quadtree::VisitData) -> egui::Rect {
+        // TODO: this doesn't seem to be working? so using the +0.5 for now
+        let origin = egui::Pos2::from(self.app.pan.to_screen_uf((data.x, data.y)));
+        let corner = egui::Pos2::from(
+            self.app
+                .pan
+                .to_screen_uf((data.x + data.width, data.y + data.width)),
+        );
+        let extra = egui::Vec2::new(0.5, 0.5);
+        egui::Rect::from_two_pos(
+            self.painter.round_pos_to_pixels(origin - extra),
+            self.painter.round_pos_to_pixels(corner + extra),
+        )
     }
 
-    fn get_full_rect(&self, data: &quadtree::VisitData) -> egui::Rect {
-        // TODO: use painter.round_to_pixel
-
-        // adding one makes sure we cover the space between pixels
-        self.get_width_rect(data, data.width as f32 * self.app.pan.scale + 1.0)
+    fn maybe_draw_field(
+        &mut self,
+        fields: &fields::FieldsState,
+        data: &quadtree::VisitData,
+        is_leaf: bool,
+    ) {
+        let width = data.width as f32 * self.app.pan.scale;
+        let threshold = self.app.options.field_resolution as f32;
+        if is_leaf || width >= threshold && width < threshold * 2.0 {
+            if let Some(field) = self.app.field {
+                let hue = match field {
+                    FieldType::Population => {
+                        let peak = 0.15;
+                        f32::min(fields.population.density as f32, peak) / peak * 0.3
+                    }
+                    FieldType::Employment => {
+                        let peak = 0.3;
+                        f32::min(fields.employment.density as f32, peak) / peak * 0.6
+                    }
+                    FieldType::LandValue => 0.0,
+                };
+                let color = egui::color::Hsva::new(hue, 0.8, 0.8, 0.5);
+                let rect = self.get_full_rect(data);
+                self.painter
+                    .rect_filled(rect, egui::Rounding::none(), color);
+            }
+        }
     }
 }
 
@@ -138,7 +172,7 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
         let should_descend =
             data.width as f32 * self.app.pan.scale >= self.app.options.min_tile_size as f32;
 
-        if !should_descend {
+        if !should_descend && self.app.field.is_none() {
             let full_rect = self.get_full_rect(data);
             self.painter.rect_filled(
                 full_rect,
@@ -193,6 +227,8 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
         }
         self.visited += 1;
 
+        self.maybe_draw_field(&leaf.fields, data, true);
+
         Ok(())
     }
 
@@ -201,6 +237,7 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
         branch: &BranchState,
         data: &quadtree::VisitData,
     ) -> Result<()> {
+        self.maybe_draw_field(&branch.fields, data, false);
         Ok(())
     }
 }
