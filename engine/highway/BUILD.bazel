@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "highway",
@@ -9,10 +8,10 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        crate("serde"),
-        crate("cgmath"),
-        crate("splines"),
         "//engine/quadtree",
         "//util:spline_util",
+        "@crates//:cgmath",
+        "@crates//:serde",
+        "@crates//:splines",
     ],
 )

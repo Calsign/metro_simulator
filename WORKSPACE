@@ -4,10 +4,10 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # RUST
 
-# `main` branch as of 2022-02-17
-RULES_RUST_REF = "adf2790f3ff063d909acd70aacdd2832756113a5"
+# 0.1.0, 2022-03-18
+RULES_RUST_REF = "635da93206c2761d9db58ed82e194d2af053faf6"
 
-RUST_VERSION = "1.57.0"
+RUST_VERSION = "1.59.0"
 
 http_archive(
     name = "rules_rust",
@@ -15,9 +15,9 @@ http_archive(
     patches = [
         "//patches:rules_rust__compile_one_dependency.patch",
         "//patches:rules_rust__android_armeabi-v7a.patch",
-        "//patches:rules_rust__crate_universe_deduplicate.patch",
+        "//patches:rules_rust__alias_deduplicate.patch",
     ],
-    sha256 = "8e55060b70991ae9d36cb6501365b30bb6c7a08f886c882a0222f446e0091900",
+    sha256 = "aeaa5b98891c646c5292d36f1ce84682f353395aacddafd6c3d6e0db3026eb85",
     strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),
     urls = ["https://github.com/bazelbuild/rules_rust/archive/{}.tar.gz".format(RULES_RUST_REF)],
 )
@@ -57,44 +57,66 @@ rust_repository_set(
 
 # CRATE UNIVERSE
 
-load("@rules_rust//crate_universe:bootstrap.bzl", "crate_universe_bootstrap")
-load("@rules_rust//crate_universe:defs.bzl", "crate", "crate_universe")
+load("@rules_rust//crate_universe:deps_bootstrap.bzl", "cargo_bazel_bootstrap")
+load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository", "splicing_config")
+load("//cargo:crates.bzl", "all_crates")
 
-# we're on a bleeding edge version of rules_rust, so we need to bootstrap our own resolver
-crate_universe_bootstrap()
+cargo_bazel_bootstrap(name = "cargo_bazel_bootstrap")
 
-crate_universe(
+crates_repository(
     name = "crates",
-    cargo_toml_files = ["//cargo:Cargo.toml"],
-    lockfile = "//cargo:crate_universe.lock",
-    overrides = {
-        "wgpu-hal": crate.override(
-            # crate_universe doesn't correctly handle resolver v2
-            features_to_remove = [
-                "dx12",
-                "metal",
-            ],
-        ),
+    annotations = {
+        "wgpu-hal": [
+            crate.annotation(
+                patches = ["@//patches:wgpu_hal.patch"],
+            ),
+        ],
+        "egui": [
+            crate.annotation(
+                patch_args = ["-p2"],
+                patches = ["@//patches:egui__multitouch_average_pos.patch"],
+            ),
+        ],
+        "egui_winit_platform": [
+            crate.annotation(
+                patch_args = ["-p1"],
+                patches = ["@//patches:egui_winit_platform__touch.patch"],
+            ),
+        ],
     },
-    resolver = "@rules_rust_crate_universe_bootstrap//:crate_universe_resolver",
-    supported_targets = [
-        # default platforms
-        "x86_64-unknown-linux-gnu",
-        "aarch64-unknown-linux-gnu",
-        "x86_64-unknown-freebsd",
+    generator = "@cargo_bazel_bootstrap//:cargo-bazel",
+    lockfile = "//cargo:crate_universe.lock",
+    packages = all_crates(),
+    quiet = False,
+    splicing_config = splicing_config(resolver_version = "2"),
+    supported_platform_triples = [
+        "i686-apple-darwin",
+        "i686-pc-windows-msvc",
+        "i686-unknown-linux-gnu",
         "x86_64-apple-darwin",
-        "aarch64-apple-darwin",
         "x86_64-pc-windows-msvc",
-        # android
+        "x86_64-unknown-linux-gnu",
+        "aarch64-apple-darwin",
+        "aarch64-apple-ios",
         "aarch64-linux-android",
-        "armv7-linux-androideabi",
+        "aarch64-unknown-linux-gnu",
+        "arm-unknown-linux-gnueabi",
+        "armv7-unknown-linux-gnueabi",
         "i686-linux-android",
+        "i686-unknown-freebsd",
+        "powerpc-unknown-linux-gnu",
+        "s390x-unknown-linux-gnu",
+        "wasm32-unknown-unknown",
+        "wasm32-wasi",
+        "x86_64-apple-ios",
+        "x86_64-linux-android",
+        "x86_64-unknown-freebsd",
     ],
 )
 
-load("@crates//:defs.bzl", "pinned_rust_install")
+load("@crates//:defs.bzl", "crate_repositories")
 
-pinned_rust_install()
+crate_repositories()
 
 # RUST ANALYZER (rust-project.json)
 

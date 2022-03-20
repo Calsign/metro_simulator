@@ -1,0 +1,20 @@
+--- BUILD.bazel	2022-03-19 19:57:40.688721763 -0700
++++ BUILD.bazel	2022-03-19 19:57:28.675390913 -0700
+@@ -268,7 +268,7 @@
+         "bit-set",
+         "block",
+         "default",
+-        "dx12",
++        # "dx12",
+         "egl",
+         "foreign-types",
+         "gles",
+@@ -277,7 +277,7 @@
+         "gpu-descriptor",
+         "inplace_it",
+         "libloading",
+-        "metal",
++        # "metal",
+         "native",
+         "range-alloc",
+         "renderdoc",

@@ -1,17 +1,22 @@
 pub struct App {
-    state: State,
+    pub(crate) engine: engine::state::State,
+    pub(crate) pan: PanState,
 }
 
 impl App {
     pub fn load_file(map: std::path::PathBuf) -> Self {
+        let engine = engine::state::State::load_file(&map).unwrap();
         Self {
-            state: State::new(engine::state::State::load_file(&map).unwrap()),
+            pan: PanState::new(&engine),
+            engine,
         }
     }
 
     pub fn load_str(map: &str) -> Self {
+        let engine = engine::state::State::load(&map).unwrap();
         Self {
-            state: State::new(engine::state::State::load(&map).unwrap()),
+            pan: PanState::new(&engine),
+            engine,
         }
     }
 
@@ -21,33 +26,18 @@ impl App {
 
     pub fn draw(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("Hello, world!");
-            if ui.button("add one").clicked() {}
+            self.draw_content(ui).unwrap();
         });
     }
 }
 
-struct State {
-    engine: engine::state::State,
-    pan: PanState,
-}
+pub(crate) struct PanState {
+    pub scale: f32,
+    pub tx: f32,
+    pub ty: f32,
 
-impl State {
-    fn new(engine: engine::state::State) -> Self {
-        Self {
-            pan: PanState::new(&engine),
-            engine,
-        }
-    }
-}
-
-struct PanState {
-    scale: f64,
-    tx: f64,
-    ty: f64,
-
-    min_scale: f64,
-    max_scale: f64,
+    pub min_scale: f32,
+    pub max_scale: f32,
 }
 
 impl PanState {
@@ -55,8 +45,8 @@ impl PanState {
         // TODO: pass through actual screen dimensions?
         let (width, height) = (1920.0, 1080.0);
 
-        let min_dim = f64::min(width, height);
-        let model_width = engine.qtree.width() as f64;
+        let min_dim = f32::min(width, height);
+        let model_width = engine.qtree.width() as f32;
 
         // TODO: this logic is duplicated in //viewers/editor
         let scale = min_dim / model_width / 2.0;
@@ -75,20 +65,20 @@ impl PanState {
         }
     }
 
-    fn to_screen_uf(&self, (x, y): (u64, u64)) -> (f64, f64) {
-        self.to_screen_ff((x as f64, y as f64))
+    pub fn to_screen_uf(&self, (x, y): (u64, u64)) -> (f32, f32) {
+        self.to_screen_ff((x as f32, y as f32))
     }
 
-    fn to_screen_ff(&self, (x, y): (f64, f64)) -> (f64, f64) {
+    pub fn to_screen_ff(&self, (x, y): (f32, f32)) -> (f32, f32) {
         (x * self.scale + self.tx, y * self.scale + self.ty)
     }
 
-    fn to_model_fu(&self, (x, y): (f64, f64)) -> (u64, u64) {
-        let (mx, my) = self.to_model_fu((x, y));
+    pub fn to_model_fu(&self, (x, y): (f32, f32)) -> (u64, u64) {
+        let (mx, my) = self.to_model_ff((x, y));
         (mx as u64, my as u64)
     }
 
-    fn to_model_ff(&self, (x, y): (f64, f64)) -> (f64, f64) {
+    pub fn to_model_ff(&self, (x, y): (f32, f32)) -> (f32, f32) {
         ((x - self.tx) / self.scale, (y - self.ty) / self.scale)
     }
 }

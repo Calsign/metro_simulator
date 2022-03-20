@@ -1,14 +1,13 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_test")
-load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "sf_routes",
     srcs = ["sf_routes.rs"],
     data = ["//maps:sf"],
     deps = [
-        crate("lazy_static"),
         "//engine",
         "//engine/route",
+        "@crates//:lazy_static",
     ],
 )
 
@@ -23,7 +22,7 @@ rust_binary(
     srcs = ["sf_routes_benchmark.rs"],
     deps = [
         ":sf_routes",
-        crate("bencher"),
+        "@crates//:bencher",
     ],
 )
 
@@ -34,8 +33,8 @@ rust_shared_library(
     tags = ["manual"],
     deps = [
         "//engine",
-        crate("ndk"),
-        crate("ndk-glue"),
         "//util:benchmark_util",
+        "@crates//:ndk",
+        "@crates//:ndk-glue",
     ],
 )

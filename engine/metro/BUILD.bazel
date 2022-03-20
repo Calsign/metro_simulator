@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "metro",
@@ -11,13 +10,13 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        crate("cgmath"),
-        crate("itertools"),
-        crate("serde"),
-        crate("splines"),
-        crate("thiserror"),
         "//engine/quadtree",
         "//util:spline_util",
+        "@crates//:cgmath",
+        "@crates//:itertools",
+        "@crates//:serde",
+        "@crates//:splines",
+        "@crates//:thiserror",
     ],
 )
 
@@ -26,7 +25,7 @@ rust_test(
     crate = ":metro",
     deps = [
         ":metro",
-        crate("float-cmp"),
+        "@crates//:float-cmp",
     ],
 )
 
@@ -36,9 +35,9 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":metro",
-        crate("clap"),
-        crate("plotters"),
-        crate("plotters-bitmap"),
         "//engine",
+        "@crates//:clap",
+        "@crates//:plotters",
+        "@crates//:plotters-bitmap",
     ],
 )

@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "test_util",
@@ -12,7 +11,7 @@ rust_library(
     name = "benchmark_util",
     srcs = ["benchmark_util.rs"],
     visibility = ["//visibility:public"],
-    deps = [crate("bencher")],
+    deps = ["@crates//:bencher"],
 )
 
 rust_library(
@@ -20,8 +19,8 @@ rust_library(
     srcs = ["spline_util.rs"],
     visibility = ["//visibility:public"],
     deps = [
-        crate("splines"),
-        crate("cgmath"),
         "//engine/quadtree",
+        "@crates//:cgmath",
+        "@crates//:splines",
     ],
 )

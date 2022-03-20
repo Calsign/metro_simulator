@@ -1,0 +1,21 @@
+diff --git a/egui/src/input_state/touch_state.rs b/egui/src/input_state/touch_state.rs
+index 82df96b5..23e1c0de 100644
+--- a/egui/src/input_state/touch_state.rs
++++ b/egui/src/input_state/touch_state.rs
+@@ -60,6 +60,8 @@ pub struct MultiTouchInfo {
+     /// Note 2: Just increasing the physical pressure without actually moving the finger may not
+     /// necessarily lead to a change of this value.
+     pub force: f32,
++
++    pub average_pos: Pos2,
+ }
+ 
+ /// The current state (for a specific touch device) of touch events and gestures.
+@@ -199,6 +201,7 @@ impl TouchState {
+                 rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
+                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
+                 force: state.current.avg_force,
++                average_pos: state.current.avg_pos,
+             }
+         })
+     }

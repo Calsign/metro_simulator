@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
-load("@crates//:defs.bzl", "crate")
 load("//viewers:util.bzl", "all_maps")
 
 rust_library(
@@ -7,19 +6,23 @@ rust_library(
     srcs = [
         "app.rs",
         "bootstrap.rs",
+        "content.rs",
         "lib.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
-        crate("env_logger"),
-        crate("log"),
-        crate("pollster"),
-        crate("wgpu"),
-        crate("winit"),
-        crate("egui"),
-        crate("egui_wgpu_backend"),
-        crate("egui_winit_platform"),
         "//engine",
+        "//engine/quadtree",
+        "//engine/tiles",
+        "@crates//:anyhow",
+        "@crates//:egui",
+        "@crates//:egui_wgpu_backend",
+        "@crates//:egui_winit_platform",
+        "@crates//:env_logger",
+        "@crates//:log",
+        "@crates//:pollster",
+        "@crates//:wgpu",
+        "@crates//:winit",
     ],
 )
 
@@ -29,7 +32,7 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":app",
-        crate("clap"),
+        "@crates//:clap",
     ],
 )
 

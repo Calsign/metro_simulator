@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_shared_library")
-load("@crates//:defs.bzl", "crate")
 load("@rules_java//java:defs.bzl", "java_library", "java_test")
 load("@rules_cc//cc:defs.bzl", "cc_import")
 
@@ -7,7 +6,7 @@ rust_shared_library(
     name = "engine",
     srcs = ["engine.rs"],
     deps = [
-        crate("jni"),
+        "@crates//:jni",
     ],
 )
 

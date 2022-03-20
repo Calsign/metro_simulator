@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("@crates//:defs.bzl", "crate")
 
 rust_library(
     name = "fields",
@@ -8,8 +7,8 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        crate("serde"),
         "//engine/quadtree",
         "//engine/tiles",
+        "@crates//:serde",
     ],
 )

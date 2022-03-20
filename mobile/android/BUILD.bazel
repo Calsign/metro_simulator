@@ -1,5 +1,4 @@
 load("@rules_rust//rust:defs.bzl", "rust_shared_library")
-load("@crates//:defs.bzl", "crate")
 load("@rules_android//android:rules.bzl", "android_binary")
 
 # NOTE: only compiles for Android
@@ -9,8 +8,8 @@ rust_shared_library(
     tags = ["manual"],
     deps = [
         "//viewers/app",
-        crate("ndk"),
-        crate("ndk-glue"),
+        "@crates//:ndk",
+        "@crates//:ndk-glue",
     ],
 )
 
