@@ -1,23 +1,26 @@
 pub struct App {
     pub(crate) engine: engine::state::State,
+    pub(crate) options: Options,
+    pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
 }
 
 impl App {
-    pub fn load_file(map: std::path::PathBuf) -> Self {
-        let engine = engine::state::State::load_file(&map).unwrap();
+    fn new(engine: engine::state::State) -> Self {
         Self {
             pan: PanState::new(&engine),
             engine,
+            options: Options::new(),
+            diagnostics: Diagnostics::default(),
         }
     }
 
+    pub fn load_file(map: std::path::PathBuf) -> Self {
+        Self::new(engine::state::State::load_file(&map).unwrap())
+    }
+
     pub fn load_str(map: &str) -> Self {
-        let engine = engine::state::State::load(&map).unwrap();
-        Self {
-            pan: PanState::new(&engine),
-            engine,
-        }
+        Self::new(engine::state::State::load(&map).unwrap())
     }
 
     pub fn update(&mut self) {
@@ -25,9 +28,55 @@ impl App {
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
+        egui::SidePanel::left("controls")
+            .resizable(false)
+            .show(ctx, |ui| {
+                self.options.draw(ui);
+                self.diagnostics.draw(ui);
+            });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             self.draw_content(ui).unwrap();
         });
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Options {
+    pub min_tile_size: u32,
+    pub spline_resolution: u32,
+}
+
+impl Options {
+    fn new() -> Self {
+        Self {
+            min_tile_size: 5,
+            spline_resolution: 5,
+        }
+    }
+
+    fn draw(&mut self, ui: &mut egui::Ui) {
+        ui.label("Min tile size:");
+        ui.add(egui::Slider::new(&mut self.min_tile_size, 1..=100));
+        ui.label("Spline resolution:");
+        ui.add(egui::Slider::new(&mut self.spline_resolution, 1..=100));
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct Diagnostics {
+    pub frame_rate: f64,
+    pub tiles: u64,
+    pub metro_vertices: u64,
+    pub highway_vertices: u64,
+}
+
+impl Diagnostics {
+    fn draw(&self, ui: &mut egui::Ui) {
+        ui.label(format!("Frame rate: {:.1}", self.frame_rate));
+        ui.label(format!("Tiles: {}", self.tiles));
+        ui.label(format!("Metro vertices: {}", self.metro_vertices));
+        ui.label(format!("Highway vertices: {}", self.highway_vertices));
     }
 }
 

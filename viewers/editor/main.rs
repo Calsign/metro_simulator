@@ -939,7 +939,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<metro::MetroLine, anyhow::Erro
     }
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<highway::HighwaySegment, anyhow::Error>
+impl<'a, 'b, 'c, 'd, 'e, 'f> highway::SplineVisitor<highway::HighwaySegment, anyhow::Error>
     for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(

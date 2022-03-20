@@ -4,12 +4,15 @@ use engine::state::{BranchState, LeafState};
 
 impl App {
     pub(crate) fn draw_content(&mut self, ui: &mut egui::Ui) -> Result<()> {
-        let size = ui.available_size();
-        let (response, painter) = ui.allocate_painter(size, egui::Sense::click_and_drag());
+        use itertools::Itertools;
+
+        let (response, painter) =
+            ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
         self.handle_input(response);
 
-        let (x1, y1) = self.pan.to_model_fu((0.0, 0.0));
-        let (x2, y2) = self.pan.to_model_fu((size.x.into(), size.y.into()));
+        let max_rect = ui.max_rect();
+        let (x1, y1) = self.pan.to_model_fu(max_rect.min.into());
+        let (x2, y2) = self.pan.to_model_fu(max_rect.max.into());
 
         let bounding_box = quadtree::Rect::corners(x1, y1, x2, y2);
 
@@ -17,6 +20,29 @@ impl App {
         self.engine
             .qtree
             .visit_rect(&mut qtree_visitor, &bounding_box)?;
+
+        self.diagnostics.tiles = qtree_visitor.visited;
+
+        // 5 pixel resolution
+        let spline_scale = f64::max(
+            self.options.spline_resolution as f64 / self.pan.scale as f64,
+            0.2,
+        );
+
+        self.diagnostics.metro_vertices = 0;
+        self.diagnostics.highway_vertices = 0;
+
+        for (id, metro_line) in self.engine.metro_lines.iter().sorted() {
+            let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
+            metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
+            self.diagnostics.metro_vertices += spline_visitor.visited;
+        }
+
+        for (id, highway_segment) in self.engine.highway_segments.iter().sorted() {
+            let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
+            highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
+            self.diagnostics.highway_vertices += spline_visitor.visited;
+        }
 
         Ok(())
     }
@@ -72,13 +98,13 @@ impl App {
 }
 
 struct DrawQtreeVisitor<'a, 'b> {
-    app: &'b App,
-    painter: &'a egui::Painter,
+    app: &'a App,
+    painter: &'b egui::Painter,
     visited: u64,
 }
 
 impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
-    fn new(app: &'b App, painter: &'a egui::Painter) -> Self {
+    fn new(app: &'a App, painter: &'b egui::Painter) -> Self {
         Self {
             app,
             painter,
@@ -109,7 +135,8 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
         branch: &BranchState,
         data: &quadtree::VisitData,
     ) -> Result<bool> {
-        let should_descend = data.width as f32 * self.app.pan.scale >= 5.0;
+        let should_descend =
+            data.width as f32 * self.app.pan.scale >= self.app.options.min_tile_size as f32;
 
         if !should_descend {
             let full_rect = self.get_full_rect(data);
@@ -118,6 +145,7 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
                 egui::Rounding::none(),
                 egui::Color32::from_gray(100),
             );
+            self.visited += 1;
         }
 
         Ok(should_descend)
@@ -163,6 +191,7 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
             }
             _ => (),
         }
+        self.visited += 1;
 
         Ok(())
     }
@@ -198,4 +227,70 @@ fn regular_poly<const N: usize>(
         fill,
         stroke,
     })
+}
+
+struct DrawSplineVisitor<'a, 'b> {
+    app: &'a App,
+    painter: &'b egui::Painter,
+
+    last_point: Option<(f32, f32)>,
+    visited: u64,
+}
+
+impl<'a, 'b> DrawSplineVisitor<'a, 'b> {
+    fn new(app: &'a App, painter: &'b egui::Painter) -> Self {
+        Self {
+            app,
+            painter,
+            last_point: None,
+            visited: 0,
+        }
+    }
+
+    fn visit(
+        &mut self,
+        color: &egui::Color32,
+        line_width: f32,
+        vertex: cgmath::Vector2<f64>,
+        t: f64,
+    ) -> Result<()> {
+        let point = self
+            .app
+            .pan
+            .to_screen_ff((vertex.x as f32, vertex.y as f32));
+
+        if let Some(last_point) = self.last_point {
+            self.painter
+                .line_segment([last_point.into(), point.into()], (line_width, *color));
+        }
+        self.visited += 1;
+        self.last_point = Some(point);
+
+        Ok(())
+    }
+}
+
+impl<'a, 'b> metro::SplineVisitor<metro::MetroLine, anyhow::Error> for DrawSplineVisitor<'a, 'b> {
+    fn visit(
+        &mut self,
+        line: &metro::MetroLine,
+        vertex: cgmath::Vector2<f64>,
+        t: f64,
+    ) -> Result<()> {
+        let color = egui::Color32::from_rgb(line.color.red, line.color.green, line.color.blue);
+        self.visit(&color, 2.0, vertex, t)
+    }
+}
+
+impl<'a, 'b> highway::SplineVisitor<highway::HighwaySegment, anyhow::Error>
+    for DrawSplineVisitor<'a, 'b>
+{
+    fn visit(
+        &mut self,
+        segment: &highway::HighwaySegment,
+        vertex: cgmath::Vector2<f64>,
+        t: f64,
+    ) -> Result<()> {
+        self.visit(&egui::Color32::from_gray(204), 1.0, vertex, t)
+    }
 }

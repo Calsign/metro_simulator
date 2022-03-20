@@ -109,7 +109,7 @@ impl State {
         let paint_jobs = self.platform.context().tessellate(full_output.shapes);
 
         // TODO: display frame time somewhere
-        let frame_time = (Instant::now() - egui_start).as_secs_f64() as f32;
+        app.diagnostics.frame_rate = 1.0 / (Instant::now() - egui_start).as_secs_f64();
 
         let mut encoder = self
             .device
