@@ -173,7 +173,8 @@ pub fn bootstrap(mut app: App, wait_for_resume: bool) {
                 Event::Resumed => match &initialized {
                     None => {
                         println!("received resume; transitioning to initialized");
-                        initialized = Some(create_state(&event_loop))
+                        initialized = Some(create_state(&event_loop));
+                        *control_flow = ControlFlow::Poll;
                     }
                     Some(event) => (),
                 },
@@ -185,7 +186,8 @@ pub fn bootstrap(mut app: App, wait_for_resume: bool) {
                 match event {
                     Event::Suspended => {
                         println!("received suspend; transitioning to uninitialized");
-                        initialized = None
+                        initialized = None;
+                        *control_flow = ControlFlow::Wait;
                     }
                     Event::WindowEvent {
                         ref event,
