@@ -141,7 +141,7 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
     ) {
         let width = data.width as f32 * self.app.pan.scale;
         let threshold = self.app.options.field_resolution as f32;
-        if is_leaf || width >= threshold && width < threshold * 2.0 {
+        if is_leaf || (width >= threshold && width < threshold * 2.0) {
             if let Some(field) = self.app.field {
                 let hue = match field {
                     FieldType::Population => {

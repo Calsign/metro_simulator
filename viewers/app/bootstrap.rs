@@ -16,6 +16,7 @@ pub struct State {
     size: winit::dpi::PhysicalSize<u32>,
     platform: Platform,
     render_pass: RenderPass,
+    last_frame_start: Instant,
 }
 
 impl State {
@@ -76,6 +77,7 @@ impl State {
             size,
             platform,
             render_pass,
+            last_frame_start: Instant::now(),
         }
     }
 
@@ -95,21 +97,21 @@ impl State {
     fn update(&mut self) {}
 
     fn render(&mut self, window: &Window, app: &mut App) -> Result<(), wgpu::SurfaceError> {
+        let frame_start = Instant::now();
+        app.diagnostics.frame_rate = 1.0 / (frame_start - self.last_frame_start).as_secs_f64();
+        self.last_frame_start = frame_start;
+
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let egui_start = Instant::now();
         self.platform.begin_frame();
 
         app.draw(&self.platform.context());
 
         let full_output = self.platform.end_frame(Some(&window));
         let paint_jobs = self.platform.context().tessellate(full_output.shapes);
-
-        // TODO: display frame time somewhere
-        app.diagnostics.frame_rate = 1.0 / (Instant::now() - egui_start).as_secs_f64();
 
         let mut encoder = self
             .device
