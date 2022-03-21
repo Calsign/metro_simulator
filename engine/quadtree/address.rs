@@ -1,14 +1,20 @@
 use crate::quadrant::Quadrant;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+const MAX_ADDRESS_DEPTH: usize = 16;
+
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Address {
-    data: Vec<Quadrant>,
+    /// the contents of the address; everything indexed to the right of `depth` is garbage
+    data: [Quadrant; MAX_ADDRESS_DEPTH],
+    /// the number of elements in this address
+    depth: u32,
+    /// the maximum depth of this address (imposed by the parent quadtree)
     max_depth: u32,
 }
 
 impl Address {
     pub fn depth(&self) -> usize {
-        self.data.len()
+        self.depth as usize
     }
 
     pub fn max_depth(&self) -> u32 {
@@ -16,21 +22,34 @@ impl Address {
     }
 
     pub fn at(&self, index: usize) -> Quadrant {
+        assert!(index < self.depth());
         self.data[index]
     }
 
     pub fn has(&self, index: usize) -> bool {
-        index > 0 && index < self.depth()
+        index >= 0 && index < self.depth()
     }
 
     pub fn from_vec(data: Vec<Quadrant>, max_depth: u32) -> Self {
+        assert!(
+            max_depth < MAX_ADDRESS_DEPTH as u32,
+            "{}, {}",
+            max_depth,
+            MAX_ADDRESS_DEPTH
+        );
         assert!(
             data.len() < max_depth as usize + 1,
             "{}, {}",
             data.len(),
             max_depth
         );
-        Self { data, max_depth }
+        let mut array = [Quadrant::NW; MAX_ADDRESS_DEPTH];
+        array[0..data.len()].copy_from_slice(&data[..]);
+        Self {
+            data: array,
+            depth: data.len() as u32,
+            max_depth,
+        }
     }
 
     pub fn try_from(address: &Vec<u8>, max_depth: u32) -> Option<Self> {
@@ -43,16 +62,26 @@ impl Address {
 
     pub fn to_vec(self) -> Vec<u8> {
         let mut vec = Vec::new();
-        for quad in self.data.iter() {
+        for quad in &self.data[..self.depth()] {
             vec.push(u8::from(quad));
         }
         vec
     }
 
     pub fn child(&self, quadrant: Quadrant) -> Self {
-        let mut address = self.data.clone();
-        address.push(quadrant);
-        return Self::from_vec(address, self.max_depth);
+        assert!(
+            self.depth() < self.max_depth as usize,
+            "{}, {}",
+            self.depth(),
+            self.max_depth,
+        );
+        let mut data = self.data.clone();
+        data[self.depth()] = quadrant;
+        return Self {
+            data,
+            depth: self.depth() as u32 + 1,
+            max_depth: self.max_depth,
+        };
     }
 
     /**
@@ -63,7 +92,7 @@ impl Address {
         let mut x = 0;
         let mut y = 0;
         let mut w = 2_u64.pow(self.max_depth());
-        for quadrant in self.data.iter() {
+        for quadrant in &self.data[..self.depth()] {
             let (right, bottom) = match quadrant {
                 Quadrant::NW => (false, false),
                 Quadrant::NE => (true, false),
@@ -81,7 +110,7 @@ impl Address {
 
 impl From<Address> for Vec<Quadrant> {
     fn from(address: Address) -> Self {
-        address.data
+        address.data[..address.depth()].to_vec()
     }
 }
 
@@ -101,6 +130,41 @@ impl From<(Vec<Quadrant>, u32)> for Address {
 mod tests {
     use quadtree::*;
     use Quadrant::*;
+
+    #[test]
+    fn empty() {
+        let address = Address::from_vec(vec![], 3);
+        assert_eq!(address.depth(), 0);
+        assert_eq!(address.max_depth(), 3);
+        assert_eq!(address.has(0), false);
+        let vec: Vec<Quadrant> = address.into();
+        assert_eq!(vec, vec![]);
+    }
+
+    #[test]
+    fn simple() {
+        let address = Address::from_vec(vec![NW, NE], 3);
+        assert_eq!(address.depth(), 2);
+        assert_eq!(address.max_depth(), 3);
+        assert_eq!(address.has(0), true);
+        assert_eq!(address.has(1), true);
+        assert_eq!(address.has(2), false);
+        let vec: Vec<Quadrant> = address.into();
+        assert_eq!(vec, vec![NW, NE]);
+    }
+
+    #[test]
+    fn child() {
+        let zero = Address::from_vec(vec![], 3);
+
+        let one = zero.child(NE);
+        let one_vec: Vec<Quadrant> = one.clone().into();
+        assert_eq!(one_vec, vec![NE]);
+
+        let two = one.child(SW);
+        let two_vec: Vec<Quadrant> = two.into();
+        assert_eq!(two_vec, vec![NE, SW]);
+    }
 
     #[test]
     fn to_xy() {
