@@ -72,10 +72,6 @@ impl<'a> quadtree::NeighborsVisitor<petgraph::graph::NodeIndex, Error> for AddEd
             petgraph::Direction::Outgoing => (self.base, *entry),
             petgraph::Direction::Incoming => (*entry, self.base),
         };
-        eprintln!(
-            "augmenting with {} edge, distance {:.2}, from {:?} to {:?}",
-            self.mode, distance, first, second,
-        );
         let edge_id = self.graph.add_edge(
             first,
             second,
