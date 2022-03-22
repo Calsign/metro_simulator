@@ -38,6 +38,8 @@ struct Args {
     load: std::path::PathBuf,
     #[clap(short)]
     metro_lines: Option<Vec<u64>>,
+    #[clap(short)]
+    highway_segments: Option<Vec<u64>>,
 }
 
 fn dump_graph(graph: &route::Graph, output: &Option<std::path::PathBuf>) {
@@ -53,18 +55,19 @@ fn main() {
     use clap::Parser;
     let args = Args::parse();
     let metro_lines = args.metro_lines.map(HashSet::from_iter);
+    let highway_segments = args.highway_segments.map(HashSet::from_iter);
 
     let state = engine::state::State::load_file(&args.load).unwrap();
 
     match args.operation {
         Operation::Construct => {
             let graph = state
-                .construct_base_route_graph_filter(metro_lines)
+                .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
         }
         Operation::Dump { output } => {
             let graph = state
-                .construct_base_route_graph_filter(metro_lines)
+                .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
             dump_graph(&graph, &output);
         }
@@ -76,7 +79,7 @@ fn main() {
             let end = state.qtree.get_address(coords.end_x, coords.end_y).unwrap();
 
             let mut graph = state
-                .construct_base_route_graph_filter(metro_lines)
+                .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
 
             let world_state = route::WorldState::new();
@@ -87,7 +90,10 @@ fn main() {
                 Some(route) => {
                     println!("Route found with cost: {}", route.cost);
                     println!("Nodes:");
-                    for node in route.nodes {
+                    println!("  {}", route.nodes.first().expect("empty route"));
+                    assert!(route.nodes.len() == route.edges.len() + 1);
+                    for (node, edge) in route.nodes[1..].iter().zip(route.edges.iter()) {
+                        println!("    {}", edge);
                         println!("  {}", node);
                     }
                 }
@@ -104,7 +110,7 @@ fn main() {
             let end = state.qtree.get_address(coords.end_x, coords.end_y).unwrap();
 
             let mut graph = state
-                .construct_base_route_graph_filter(metro_lines)
+                .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
 
             let (augmented, _, _) = route::augment_base_graph(&mut graph, start, end).unwrap();

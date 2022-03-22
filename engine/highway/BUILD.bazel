@@ -4,13 +4,16 @@ rust_library(
     name = "highway",
     srcs = [
         "lib.rs",
+        "timing.rs",
         "types.rs",
+        "validate.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
         "//engine/quadtree",
         "//util:spline_util",
         "@crates//:cgmath",
+        "@crates//:itertools",
         "@crates//:serde",
         "@crates//:splines",
     ],

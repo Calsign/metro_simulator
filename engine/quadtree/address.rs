@@ -2,7 +2,7 @@ use crate::quadrant::Quadrant;
 
 const MAX_ADDRESS_DEPTH: usize = 16;
 
-#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Address {
     /// the contents of the address; everything indexed to the right of `depth` is garbage
     data: [Quadrant; MAX_ADDRESS_DEPTH],
@@ -22,7 +22,12 @@ impl Address {
     }
 
     pub fn at(&self, index: usize) -> Quadrant {
-        assert!(index < self.depth());
+        assert!(
+            index < self.depth(),
+            "index >= depth; index: {}, depth: {}",
+            index,
+            self.depth()
+        );
         self.data[index]
     }
 
@@ -33,13 +38,13 @@ impl Address {
     pub fn from_vec(data: Vec<Quadrant>, max_depth: u32) -> Self {
         assert!(
             max_depth < MAX_ADDRESS_DEPTH as u32,
-            "{}, {}",
+            "max_depth >= MAX_ADDRESS_DEPTH; max_depth: {}, MAX_ADDRESS_DEPTH: {}",
             max_depth,
             MAX_ADDRESS_DEPTH
         );
         assert!(
             data.len() < max_depth as usize + 1,
-            "{}, {}",
+            "data.len() >= max_depth; data.len(): {}, max_depth: {}",
             data.len(),
             max_depth
         );
@@ -71,7 +76,7 @@ impl Address {
     pub fn child(&self, quadrant: Quadrant) -> Self {
         assert!(
             self.depth() < self.max_depth as usize,
-            "{}, {}",
+            "depth >= max_depth; depth: {}, max_depth: {}",
             self.depth(),
             self.max_depth,
         );
@@ -106,6 +111,39 @@ impl Address {
         // center of tile
         (x + w / 2, y + w / 2)
     }
+
+    pub fn from_xy(x: u64, y: u64, max_depth: u32) -> Self {
+        assert!(
+            max_depth < MAX_ADDRESS_DEPTH as u32,
+            "max_depth >= MAX_ADDRESS_DEPTH; max_depth: {}, MAX_ADDRESS_DEPTH: {}",
+            max_depth,
+            MAX_ADDRESS_DEPTH
+        );
+        let w = 2_u64.pow(max_depth);
+        assert!(x < w && y < w, "width: {}, x: {}, y: {}", w, x, y);
+        let mut data = [Quadrant::NW; MAX_ADDRESS_DEPTH];
+        let (mut min_x, mut max_x, mut min_y, mut max_y) = (0, w, 0, w);
+        for i in 0..max_depth {
+            let (mid_x, mid_y) = ((max_x + min_x) / 2, (max_y + min_y) / 2);
+            let (right, bottom) = (x >= mid_x, y >= mid_y);
+            data[i as usize] = Quadrant::from_sides(right, bottom);
+            if right {
+                min_x = mid_x;
+            } else {
+                max_x = mid_y;
+            }
+            if bottom {
+                min_y = mid_y;
+            } else {
+                max_y = mid_y;
+            }
+        }
+        Self {
+            data,
+            depth: max_depth,
+            max_depth,
+        }
+    }
 }
 
 impl From<Address> for Vec<Quadrant> {
@@ -123,6 +161,16 @@ impl From<Address> for Vec<u8> {
 impl From<(Vec<Quadrant>, u32)> for Address {
     fn from((data, max_depth): (Vec<Quadrant>, u32)) -> Self {
         Self::from_vec(data, max_depth)
+    }
+}
+
+impl std::fmt::Debug for Address {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // don't show the garbage data
+        f.debug_struct("Address")
+            .field("data", &self.data[0..(self.depth as usize)].iter())
+            .field("max_depth", &self.max_depth)
+            .finish()
     }
 }
 
@@ -176,6 +224,30 @@ mod tests {
         assert_eq!(
             Address::from_vec(vec![NE, SE, NW, SW, NW, SW, NW, SE, SW, SW, NW, NW], 12).to_xy(),
             (3088, 1372)
+        );
+    }
+
+    #[test]
+    fn from_xy() {
+        assert_eq!(
+            Address::from_xy(0, 0, 3),
+            Address::from_vec(vec![NW, NW, NW], 3),
+        );
+        assert_eq!(
+            Address::from_xy(4, 4, 3),
+            Address::from_vec(vec![SE, NW, NW], 3),
+        );
+        assert_eq!(
+            Address::from_xy(7, 7, 3),
+            Address::from_vec(vec![SE, SE, SE], 3),
+        );
+        assert_eq!(
+            Address::from_xy(2, 6, 3),
+            Address::from_vec(vec![SW, SE, NW], 3),
+        );
+        assert_eq!(
+            Address::from_xy(6, 2, 3),
+            Address::from_vec(vec![NE, SE, NW], 3),
         );
     }
 }

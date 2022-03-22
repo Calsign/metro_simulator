@@ -4,6 +4,7 @@ use crate::common::{Edge, Error, Mode, Node, WorldState};
 #[derive(Debug)]
 pub struct Route {
     pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
     pub cost: f64,
 }
 
@@ -71,6 +72,10 @@ impl<'a> quadtree::NeighborsVisitor<petgraph::graph::NodeIndex, Error> for AddEd
             petgraph::Direction::Outgoing => (self.base, *entry),
             petgraph::Direction::Incoming => (*entry, self.base),
         };
+        eprintln!(
+            "augmenting with {} edge, distance {:.2}, from {:?} to {:?}",
+            self.mode, distance, first, second,
+        );
         let edge_id = self.graph.add_edge(
             first,
             second,
@@ -87,32 +92,32 @@ impl<'a> quadtree::NeighborsVisitor<petgraph::graph::NodeIndex, Error> for AddEd
 fn augment_node(
     graph: &mut AugmentedGraph,
     node: Node,
-    address: quadtree::Address,
     direction: petgraph::Direction,
+    modes: Vec<Mode>,
 ) -> Result<petgraph::graph::NodeIndex, Error> {
     let inner = &mut graph.graph.graph;
+
+    let (x, y) = node.location();
 
     // add node
     let node_id = inner.add_node(node);
     graph.new_nodes.push(node_id);
 
-    let walking_radius = Mode::Walking.max_radius() / graph.graph.tile_size;
-    let (x, y) = address.to_xy();
+    for mode in modes {
+        let radius = mode.max_radius() / graph.graph.tile_size;
 
-    // add edges
-    let mut visitor = AddEdgesVisitor {
-        graph: inner,
-        base: node_id,
-        tile_size: graph.graph.tile_size,
-        mode: Mode::Walking,
-        new_edges: Vec::new(),
-        direction,
-    };
-    graph
-        .graph
-        .walking_neighbors
-        .visit_radius(&mut visitor, x as f64, y as f64, walking_radius)?;
-    graph.new_edges.append(&mut visitor.new_edges);
+        // add edges
+        let mut visitor = AddEdgesVisitor {
+            graph: inner,
+            base: node_id,
+            tile_size: graph.graph.tile_size,
+            mode,
+            new_edges: Vec::new(),
+            direction,
+        };
+        graph.graph.neighbors[&mode].visit_radius(&mut visitor, x, y, radius)?;
+        graph.new_edges.append(&mut visitor.new_edges);
+    }
 
     Ok(node_id)
 }
@@ -139,19 +144,15 @@ pub fn augment_base_graph(
     // add start and end nodes, and edges connecting them
     let start_node = augment_node(
         &mut graph,
-        Node::StartNode {
-            address: start.clone(),
-        },
-        start,
+        Node::StartNode { address: start },
         petgraph::Direction::Outgoing,
+        vec![Mode::Walking, Mode::Driving],
     )?;
     let end_node = augment_node(
         &mut graph,
-        Node::EndNode {
-            address: end.clone(),
-        },
-        end,
+        Node::EndNode { address: end },
         petgraph::Direction::Incoming,
+        vec![Mode::Walking, Mode::Driving],
     )?;
 
     Ok((graph, start_node, end_node))
@@ -172,6 +173,7 @@ pub fn best_route(
 ) -> Result<Option<Route>, Error> {
     use cgmath::MetricSpace;
     use cgmath::Vector2;
+    use itertools::Itertools;
 
     let (mut graph, start_index, end_index) = augment_base_graph(base_graph, start, end)?;
     let inner = &graph.graph.graph;
@@ -196,6 +198,16 @@ pub fn best_route(
                 nodes: path
                     .iter()
                     .map(|n| inner.node_weight(*n).unwrap().clone())
+                    .collect(),
+                edges: path
+                    .iter()
+                    .tuple_windows()
+                    .map(|(a, b)| {
+                        inner
+                            .edge_weight(inner.find_edge(*a, *b).unwrap())
+                            .unwrap()
+                            .clone()
+                    })
                     .collect(),
                 cost,
             }),

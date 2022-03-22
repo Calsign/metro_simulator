@@ -176,18 +176,23 @@ impl State {
     pub fn construct_base_route_graph_filter(
         &self,
         metro_lines: Option<HashSet<u64>>,
+        highway_segments: Option<HashSet<u64>>,
     ) -> Result<route::Graph, Error> {
         let graph = route::construct_base_graph(route::BaseGraphInput {
             metro_lines: self.metro_lines.values(),
+            highway_segments: self.highway_segments.values(),
             tile_size: self.config.min_tile_size as f64,
             max_depth: self.qtree.max_depth(),
             filter_metro_lines: metro_lines,
+            filter_highway_segments: highway_segments,
+            add_inferred_edges: true,
+            validate_highways: false,
         })?;
         Ok(graph)
     }
 
     pub fn construct_base_route_graph(&self) -> Result<route::Graph, Error> {
-        self.construct_base_route_graph_filter(None)
+        self.construct_base_route_graph_filter(None, None)
     }
 }
 

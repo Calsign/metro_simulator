@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 rust_library(
     name = "route",
@@ -11,6 +11,7 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//engine/fields",
+        "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",
         "@crates//:cgmath",
@@ -29,4 +30,10 @@ rust_binary(
         "//engine",
         "@crates//:clap",
     ],
+)
+
+rust_test(
+    name = "route_tests",
+    crate = ":route",
+    proc_macro_deps = ["@crates//:derive_more"],
 )

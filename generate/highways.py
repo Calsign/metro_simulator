@@ -255,7 +255,7 @@ class Highways(Layer):
                 Segment(
                     id,
                     points,
-                    segment_start_map[start],
+                    segment_end_map[start],
                     segment_start_map[end],
                     segment_data,
                 )

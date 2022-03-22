@@ -1,3 +1,7 @@
+// time it takes to wait for a train, on average
+// TODO: replace this with correct accounting for train schedules
+pub const EMBARK_TIME: f64 = 480.0;
+
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("Quadtree error: {0}")]
@@ -14,7 +18,7 @@ impl WorldState {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 #[non_exhaustive]
 pub enum Mode {
     Walking,
@@ -22,7 +26,7 @@ pub enum Mode {
     Driving,
 }
 
-static MODES: &'static [Mode] = &[Mode::Walking, Mode::Biking, Mode::Driving];
+pub static MODES: &'static [Mode] = &[Mode::Walking, Mode::Biking, Mode::Driving];
 
 impl Mode {
     /**
@@ -39,14 +43,19 @@ impl Mode {
 
     /**
      * Max distance it is reasonable to travel for the first or last
-     * segment of a trip, in meters.
+     * segment of a trip, in meters. This is used for adding inferred
+     * edges in the base graph and the augmented graph.
      */
     pub fn max_radius(&self) -> f64 {
         use Mode::*;
         match self {
-            Walking => 3000.0,  // about 2 miles
-            Biking => 16000.0,  // about 10 miles
-            Driving => 80000.0, // about 50 miles
+            Walking => 3000.0, // about 2 miles
+            Biking => 16000.0, // about 10 miles
+            // TODO: Currently need to keep this small to make the problem tractable.
+            // We need to simplify the highways and only add neighbor nodes for
+            // on/off-ramps.
+            // Driving => 80000.0, // about 50 miles
+            Driving => 1000.0,
         }
     }
 }
@@ -65,6 +74,12 @@ impl std::fmt::Display for Mode {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum Node {
+    StartNode {
+        address: quadtree::Address,
+    },
+    EndNode {
+        address: quadtree::Address,
+    },
     MetroStation {
         station: metro::Station,
     },
@@ -72,10 +87,8 @@ pub enum Node {
         station: metro::Station,
         metro_line: u64,
     },
-    StartNode {
-        address: quadtree::Address,
-    },
-    EndNode {
+    HighwayJunction {
+        position: (f64, f64),
         address: quadtree::Address,
     },
 }
@@ -84,30 +97,35 @@ impl Node {
     pub fn address(&self) -> &quadtree::Address {
         use Node::*;
         match self {
-            MetroStation { station } => &station.address,
-            MetroStop {
-                station,
-                metro_line,
-            } => &station.address,
-            StartNode { address } | EndNode { address } => address,
-        }
-    }
-
-    pub fn location(&self) -> (f64, f64) {
-        use Node::*;
-        match self {
-            MetroStation {
+            StartNode { address }
+            | EndNode { address }
+            | MetroStation {
                 station: metro::Station { address, .. },
             }
             | MetroStop {
                 station: metro::Station { address, .. },
                 ..
             }
-            | StartNode { address }
-            | EndNode { address } => {
+            | HighwayJunction { address, .. } => address,
+        }
+    }
+
+    pub fn location(&self) -> (f64, f64) {
+        use Node::*;
+        match self {
+            StartNode { address }
+            | EndNode { address }
+            | MetroStation {
+                station: metro::Station { address, .. },
+            }
+            | MetroStop {
+                station: metro::Station { address, .. },
+                ..
+            } => {
                 let (x, y) = address.to_xy();
                 (x as f64, y as f64)
             }
+            HighwayJunction { position, .. } => *position,
         }
     }
 }
@@ -117,13 +135,18 @@ impl std::fmt::Display for Node {
         use Node::*;
 
         match self {
+            StartNode { .. } => write!(f, "start"),
+            EndNode { .. } => write!(f, "end"),
             MetroStation { station } => write!(f, "station:{}", station.name),
             MetroStop {
                 station,
                 metro_line,
             } => write!(f, "stop:{}:{}", metro_line, station.name),
-            StartNode { .. } => write!(f, "start"),
-            EndNode { .. } => write!(f, "end"),
+            HighwayJunction {
+                position: (x, y), ..
+            } => {
+                write!(f, "junction:({:.1}, {:.1})", x, y)
+            }
         }
     }
 }
@@ -142,9 +165,17 @@ pub enum Edge {
         metro_line: u64,
         station: metro::Station,
     },
+    Highway {
+        segment: u64,
+        time: f64,
+    },
     ModeSegment {
         mode: Mode,
         distance: f64,
+    },
+    ModeTransition {
+        from: Mode,
+        to: Mode,
     },
 }
 
@@ -156,12 +187,17 @@ impl Edge {
             MetroEmbark {
                 metro_line,
                 station,
-            } => 0.0,
+            } => {
+                // TODO: properly account for train schedules
+                EMBARK_TIME
+            }
             MetroDisembark {
                 metro_line,
                 station,
             } => 0.0,
+            Highway { time, .. } => *time,
             ModeSegment { mode, distance } => mode.linear_speed() * distance,
+            ModeTransition { .. } => 0.0,
         }
     }
 }
@@ -179,7 +215,17 @@ impl std::fmt::Display for Edge {
                 metro_line,
                 station,
             } => write!(f, "disembark:{}:{}", metro_line, station.name),
-            ModeSegment { mode, distance } => write!(f, "{}:{:.2}", mode, distance),
+            Highway { segment, time } => write!(f, "highway:{}:{:.2}", segment, time),
+            ModeSegment { mode, distance } => {
+                write!(
+                    f,
+                    "{}:{:.2}m:{:.2}s",
+                    mode,
+                    distance,
+                    distance / mode.linear_speed(),
+                )
+            }
+            ModeTransition { from, to } => write!(f, "{}->{}", from, to),
         }
     }
 }

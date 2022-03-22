@@ -5,10 +5,10 @@ pub use spline_util::SplineVisitor;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct HighwayData {
-    name: Option<String>,
-    refs: Vec<String>,
-    lanes: Option<u32>,
-    speed_limit: Option<u32>,
+    pub name: Option<String>,
+    pub refs: Vec<String>,
+    pub lanes: Option<u32>,
+    pub speed_limit: Option<u32>,
 }
 
 impl HighwayData {
@@ -96,6 +96,14 @@ impl HighwaySegment {
 
     pub fn length(&self) -> f64 {
         self.length
+    }
+
+    pub fn pred(&self) -> &Vec<u64> {
+        &self.pred
+    }
+
+    pub fn succ(&self) -> &Vec<u64> {
+        &self.succ
     }
 
     pub fn visit_spline<V, E>(
