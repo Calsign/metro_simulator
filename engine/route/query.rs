@@ -1,4 +1,6 @@
-use crate::base_graph::{Graph, InnerGraph};
+use std::collections::HashMap;
+
+use crate::base_graph::{Graph, InnerGraph, Neighbors};
 use crate::common::{Edge, Error, Mode, Node, WorldState};
 
 #[derive(Debug)]
@@ -9,11 +11,30 @@ pub struct Route {
 }
 
 /**
+ * The querying agent has a car available.
+ */
+#[derive(Debug, Clone)]
+pub enum CarConfig {
+    /// departure: user has car available and can park it anywhere, including the destination
+    StartWithCar,
+    /// return home: user must arrive home with car, and parked it somewhere on the departing trip
+    CollectParkedCar { address: quadtree::Address },
+}
+
+pub struct QueryInput<'a, 'b> {
+    pub base_graph: &'a mut Graph,
+    pub start: quadtree::Address,
+    pub end: quadtree::Address,
+    pub state: &'b WorldState,
+    pub car_config: Option<CarConfig>,
+}
+
+/**
  * A wrapper around graph that removes added nodes and edges when dropped.
  * Tracking added nodes and edges must be performed by the user.
  */
 pub struct AugmentedGraph<'a> {
-    pub graph: &'a mut Graph,
+    pub graph: &'a mut InnerGraph,
     new_nodes: Vec<petgraph::graph::NodeIndex>,
     new_edges: Vec<petgraph::graph::EdgeIndex>,
     base_nodes: usize,
@@ -21,11 +42,11 @@ pub struct AugmentedGraph<'a> {
 }
 
 impl<'a> AugmentedGraph<'a> {
-    fn new(base_graph: &'a mut Graph) -> Self {
+    fn new(graph: &'a mut InnerGraph) -> Self {
         Self {
-            base_nodes: base_graph.graph.node_count(),
-            base_edges: base_graph.graph.edge_count(),
-            graph: base_graph,
+            base_nodes: graph.node_count(),
+            base_edges: graph.edge_count(),
+            graph,
             new_nodes: Vec::new(),
             new_edges: Vec::new(),
         }
@@ -39,15 +60,15 @@ impl<'a> Drop for AugmentedGraph<'a> {
 
         // NOTE: remove edges first, since removing the nodes causes the edges to be removed.
         for edge in self.new_edges.iter().rev() {
-            self.graph.graph.remove_edge(*edge).unwrap();
+            self.graph.remove_edge(*edge).unwrap();
         }
         for node in self.new_nodes.iter().rev() {
-            self.graph.graph.remove_node(*node).unwrap();
+            self.graph.remove_node(*node).unwrap();
         }
 
         // make sure we have removed all of the nodes and edges
-        assert_eq!(self.graph.graph.node_count(), self.base_nodes);
-        assert_eq!(self.graph.graph.edge_count(), self.base_edges);
+        assert_eq!(self.graph.node_count(), self.base_nodes);
+        assert_eq!(self.graph.edge_count(), self.base_edges);
     }
 }
 
@@ -87,11 +108,12 @@ impl<'a> quadtree::NeighborsVisitor<petgraph::graph::NodeIndex, Error> for AddEd
 
 fn augment_node(
     graph: &mut AugmentedGraph,
+    tile_size: f64,
+    neighbors: &Neighbors,
     node: Node,
-    direction: petgraph::Direction,
-    modes: Vec<Mode>,
+    directions: HashMap<petgraph::Direction, Vec<Mode>>,
 ) -> Result<petgraph::graph::NodeIndex, Error> {
-    let inner = &mut graph.graph.graph;
+    let inner = &mut graph.graph;
 
     let (x, y) = node.location();
 
@@ -99,20 +121,22 @@ fn augment_node(
     let node_id = inner.add_node(node);
     graph.new_nodes.push(node_id);
 
-    for mode in modes {
-        let radius = mode.max_radius() / graph.graph.tile_size;
+    for (direction, modes) in directions.iter() {
+        for mode in modes {
+            let radius = mode.max_radius() / tile_size;
 
-        // add edges
-        let mut visitor = AddEdgesVisitor {
-            graph: inner,
-            base: node_id,
-            tile_size: graph.graph.tile_size,
-            mode,
-            new_edges: Vec::new(),
-            direction,
-        };
-        graph.graph.neighbors[&mode].visit_radius(&mut visitor, x, y, radius)?;
-        graph.new_edges.append(&mut visitor.new_edges);
+            // add edges
+            let mut visitor = AddEdgesVisitor {
+                graph: inner,
+                base: node_id,
+                tile_size,
+                mode: *mode,
+                new_edges: Vec::new(),
+                direction: *direction,
+            };
+            neighbors[&mode].visit_radius(&mut visitor, x, y, radius)?;
+            graph.new_edges.append(&mut visitor.new_edges);
+        }
     }
 
     Ok(node_id)
@@ -126,6 +150,7 @@ pub fn augment_base_graph(
     base_graph: &mut Graph,
     start: quadtree::Address,
     end: quadtree::Address,
+    car_config: Option<CarConfig>,
 ) -> Result<
     (
         AugmentedGraph,
@@ -134,22 +159,71 @@ pub fn augment_base_graph(
     ),
     Error,
 > {
-    let mut graph = AugmentedGraph::new(base_graph);
-    let inner = &mut graph.graph.graph;
+    let mut graph = AugmentedGraph::new(&mut base_graph.graph);
 
     // add start and end nodes, and edges connecting them
     let start_node = augment_node(
         &mut graph,
+        base_graph.tile_size,
+        &base_graph.neighbors,
         Node::StartNode { address: start },
-        petgraph::Direction::Outgoing,
-        vec![Mode::Walking, Mode::Driving],
+        HashMap::from([(
+            petgraph::Direction::Outgoing,
+            match car_config {
+                Some(CarConfig::StartWithCar) => vec![Mode::Walking, Mode::Driving],
+                _ => vec![Mode::Walking],
+            },
+        )]),
     )?;
     let end_node = augment_node(
         &mut graph,
+        base_graph.tile_size,
+        &base_graph.neighbors,
         Node::EndNode { address: end },
-        petgraph::Direction::Incoming,
-        vec![Mode::Walking, Mode::Driving],
+        HashMap::from([(
+            petgraph::Direction::Incoming,
+            match car_config {
+                Some(CarConfig::StartWithCar) => vec![Mode::Walking, Mode::Driving],
+                Some(CarConfig::CollectParkedCar { .. }) => vec![Mode::Driving],
+                None => vec![Mode::Walking],
+            },
+        )]),
     )?;
+
+    match car_config {
+        Some(CarConfig::StartWithCar) => {
+            // add driving->walking edges at all of the known parking locations
+            for parking in base_graph.parking.values() {
+                let edge_id = graph.graph.add_edge(
+                    parking.driving_node,
+                    parking.walking_node,
+                    Edge::ModeTransition {
+                        from: Mode::Driving,
+                        to: Mode::Walking,
+                    },
+                );
+                graph.new_edges.push(edge_id);
+            }
+        }
+        Some(CarConfig::CollectParkedCar { address }) => {
+            // add walking->driving edge where the car was parked
+            match base_graph.parking.get(&address) {
+                Some(parking) => {
+                    let edge_id = graph.graph.add_edge(
+                        parking.walking_node,
+                        parking.driving_node,
+                        Edge::ModeTransition {
+                            from: Mode::Walking,
+                            to: Mode::Driving,
+                        },
+                    );
+                    graph.new_edges.push(edge_id);
+                }
+                None => return Err(Error::ParkingNotFound(address)),
+            }
+        }
+        None => (),
+    }
 
     Ok((graph, start_node, end_node))
 }
@@ -161,18 +235,14 @@ pub fn augment_base_graph(
  * TODO: adjust the construction of the problem so that we can always
  * find a route.
  */
-pub fn best_route(
-    base_graph: &mut Graph,
-    start: quadtree::Address,
-    end: quadtree::Address,
-    state: &WorldState,
-) -> Result<Option<Route>, Error> {
+pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Error> {
     use cgmath::MetricSpace;
     use cgmath::Vector2;
     use itertools::Itertools;
 
-    let (mut graph, start_index, end_index) = augment_base_graph(base_graph, start, end)?;
-    let inner = &graph.graph.graph;
+    let (graph, start_index, end_index) =
+        augment_base_graph(input.base_graph, input.start, input.end, input.car_config)?;
+    let inner = &graph.graph;
 
     let goal_vec = Vector2::from(inner.node_weight(end_index).unwrap().location());
 
@@ -180,7 +250,7 @@ pub fn best_route(
         Node::EndNode { .. } => true,
         _ => false,
     };
-    let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| e.weight().cost(state);
+    let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| e.weight().cost(input.state);
 
     // This should be the fastest possible speed by any mode of transportation.
     // TODO: There is probably a more principled way to approach this.
@@ -189,7 +259,7 @@ pub fn best_route(
         |n| goal_vec.distance(inner.node_weight(n).unwrap().location().into()) / top_speed;
 
     Ok(
-        match petgraph::algo::astar(inner, start_index, is_goal, edge_cost, estimate_cost) {
+        match petgraph::algo::astar(&**inner, start_index, is_goal, edge_cost, estimate_cost) {
             Some((cost, path)) => Some(Route {
                 nodes: path
                     .iter()

@@ -46,6 +46,16 @@ impl App {
                     self.options.draw(ui);
                     ui.add_space(10.0);
                     self.diagnostics.draw(ui);
+
+                    let mouse = ui
+                        .input()
+                        .pointer
+                        .hover_pos()
+                        .map(|pos| self.pan.to_model_fu((pos.x, pos.y)));
+                    if let Some((x, y)) = mouse {
+                        ui.add_space(10.0);
+                        ui.label(format!("Coords: {}, {}", x, y));
+                    }
                 });
             });
 

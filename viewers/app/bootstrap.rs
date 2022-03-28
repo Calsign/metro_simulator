@@ -98,7 +98,10 @@ impl State {
 
     fn render(&mut self, window: &Window, app: &mut App) -> Result<(), wgpu::SurfaceError> {
         let frame_start = Instant::now();
-        app.diagnostics.frame_rate = 1.0 / (frame_start - self.last_frame_start).as_secs_f64();
+        let new_frame_rate = 1.0 / (frame_start - self.last_frame_start).as_secs_f64();
+        // smooth so you can read it
+        // TODO: this might not actually be correct?
+        app.diagnostics.frame_rate = app.diagnostics.frame_rate * 0.5 + new_frame_rate * 0.5;
         self.last_frame_start = frame_start;
 
         let output = self.surface.get_current_texture()?;

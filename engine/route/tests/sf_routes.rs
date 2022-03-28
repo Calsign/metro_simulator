@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 
 use engine::state::State;
-use route::{best_route, Graph, Node, Route, WorldState};
+use route::{best_route, CarConfig, Graph, Node, QueryInput, Route, WorldState};
 
 #[derive(Debug, Clone)]
 pub enum StringPredicate {
@@ -78,16 +78,24 @@ pub struct RouteTest {
     pub end: Coord,
     pub predicates: Vec<RoutePredicate>,
     pub world_state: WorldState,
+    pub car_config: Option<CarConfig>,
 }
 
 impl RouteTest {
-    pub fn new(name: &str, start: Coord, end: Coord, predicates: Vec<RoutePredicate>) -> Self {
+    pub fn new(
+        name: &str,
+        start: Coord,
+        end: Coord,
+        predicates: Vec<RoutePredicate>,
+        car_config: Option<CarConfig>,
+    ) -> Self {
         Self {
             name: String::from(name),
             start,
             end,
             predicates,
             world_state: WorldState::new(),
+            car_config,
         }
     }
 }
@@ -101,6 +109,10 @@ lazy_static! {
     static ref OAKLAND_DOWNTOWN: Coord = (2370, 1965);
     static ref PITTSBURG: Coord = (3084, 1364);
     static ref PLEASANTON: Coord = (3186, 2246);
+    static ref SAN_MATEO: Coord = (2318, 2662);
+    static ref STANFORD: Coord = (2590, 2994);
+    static ref SUNNYBALUE: Coord = (2893, 3079);
+
     pub static ref TESTS: Box<[RouteTest]> = Box::new([
         RouteTest::new(
             "sfo -> downtown",
@@ -120,16 +132,18 @@ lazy_static! {
                     HasMetroLine(12)
                 ]),
                 Not(Or(vec![HasMetroLine(3), HasMetroLine(4)]).into()),
-            ]
+            ],
+            None,
         ),
         // TODO: add predicates for these additional tests
         RouteTest::new(
             "daly city -> oakland",
             *DALY_CITY,
             *OAKLAND_DOWNTOWN,
-            vec![]
+            vec![],
+            None,
         ),
-        RouteTest::new("pittsburg -> pleasanton", *PITTSBURG, *PLEASANTON, vec![],),
+        RouteTest::new("pittsburg -> pleasanton", *PITTSBURG, *PLEASANTON, vec![], None),
     ]);
 }
 
@@ -143,7 +157,13 @@ pub fn perform_query(state: &State, graph: &mut Graph, test: &RouteTest) -> Rout
     let start = state.qtree.get_address(test.start.0, test.start.1).unwrap();
     let end = state.qtree.get_address(test.end.0, test.end.1).unwrap();
 
-    best_route(graph, start, end, &test.world_state)
-        .unwrap()
-        .unwrap()
+    best_route(QueryInput {
+        base_graph: graph,
+        start,
+        end,
+        state: &test.world_state,
+        car_config: test.car_config.clone(),
+    })
+    .unwrap()
+    .unwrap()
 }

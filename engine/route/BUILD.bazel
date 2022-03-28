@@ -29,6 +29,7 @@ rust_binary(
         ":route",
         "//engine",
         "@crates//:clap",
+        "@crates//:petgraph",
     ],
 )
 

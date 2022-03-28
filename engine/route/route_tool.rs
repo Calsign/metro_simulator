@@ -40,14 +40,17 @@ struct Args {
     metro_lines: Option<Vec<u64>>,
     #[clap(short)]
     highway_segments: Option<Vec<u64>>,
+    #[clap(long)]
+    has_car: bool,
 }
 
-fn dump_graph(graph: &route::Graph, output: &Option<std::path::PathBuf>) {
+fn dump_graph(
+    graph: &petgraph::Graph<route::Node, route::Edge>,
+    output: &Option<std::path::PathBuf>,
+) {
     match output {
-        Some(path) => graph
-            .dump(&mut std::fs::File::create(path).unwrap())
-            .unwrap(),
-        None => graph.dump(&mut std::io::stdout()).unwrap(),
+        Some(path) => route::dump_graph(graph, &mut std::fs::File::create(path).unwrap()).unwrap(),
+        None => route::dump_graph(graph, &mut std::io::stdout()).unwrap(),
     }
 }
 
@@ -56,6 +59,12 @@ fn main() {
     let args = Args::parse();
     let metro_lines = args.metro_lines.map(HashSet::from_iter);
     let highway_segments = args.highway_segments.map(HashSet::from_iter);
+    let car_config = if args.has_car {
+        // TODO: support CarConfig::CollectParkedCar
+        Some(route::CarConfig::StartWithCar)
+    } else {
+        None
+    };
 
     let state = engine::state::State::load_file(&args.load).unwrap();
 
@@ -69,7 +78,7 @@ fn main() {
             let graph = state
                 .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
-            dump_graph(&graph, &output);
+            dump_graph(&graph.graph, &output);
         }
         Operation::Query { coords } => {
             let start = state
@@ -84,7 +93,14 @@ fn main() {
 
             let world_state = route::WorldState::new();
 
-            let best = route::best_route(&mut graph, start, end, &world_state).unwrap();
+            let best = route::best_route(route::QueryInput {
+                base_graph: &mut graph,
+                start,
+                end,
+                state: &world_state,
+                car_config,
+            })
+            .unwrap();
 
             match best {
                 Some(route) => {
@@ -113,7 +129,8 @@ fn main() {
                 .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
 
-            let (augmented, _, _) = route::augment_base_graph(&mut graph, start, end).unwrap();
+            let (augmented, _, _) =
+                route::augment_base_graph(&mut graph, start, end, car_config).unwrap();
 
             dump_graph(&augmented.graph, &output);
         }

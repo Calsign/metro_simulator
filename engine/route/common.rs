@@ -6,6 +6,8 @@ pub const EMBARK_TIME: f64 = 480.0;
 pub enum Error {
     #[error("Quadtree error: {0}")]
     QuadtreeError(#[from] quadtree::Error),
+    #[error("Parking not found: {0:?}")]
+    ParkingNotFound(quadtree::Address),
 }
 
 #[derive(Debug)]
@@ -91,6 +93,9 @@ pub enum Node {
         position: (f64, f64),
         address: quadtree::Address,
     },
+    Parking {
+        address: quadtree::Address,
+    },
 }
 
 impl Node {
@@ -106,7 +111,8 @@ impl Node {
                 station: metro::Station { address, .. },
                 ..
             }
-            | HighwayJunction { address, .. } => address,
+            | HighwayJunction { address, .. }
+            | Parking { address } => address,
         }
     }
 
@@ -121,7 +127,8 @@ impl Node {
             | MetroStop {
                 station: metro::Station { address, .. },
                 ..
-            } => {
+            }
+            | Parking { address } => {
                 let (x, y) = address.to_xy();
                 (x as f64, y as f64)
             }
@@ -147,6 +154,7 @@ impl std::fmt::Display for Node {
             } => {
                 write!(f, "junction:({:.1}, {:.1})", x, y)
             }
+            Parking { .. } => write!(f, "parking"),
         }
     }
 }
@@ -196,7 +204,7 @@ impl Edge {
                 station,
             } => 0.0,
             Highway { time, .. } => *time,
-            ModeSegment { mode, distance } => mode.linear_speed() * distance,
+            ModeSegment { mode, distance } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
         }
     }

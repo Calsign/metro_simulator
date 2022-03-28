@@ -21,22 +21,42 @@ where
 
 pub type InnerGraph = petgraph::Graph<Node, Edge>;
 
+/**
+ * We construct a pair of nodes for each parking area in the base
+ * graph. The nodes are not connected in the base graph. Edges are
+ * added as needed during graph augmentation.
+ *
+ * It is not correct in general to add edges between the parking and
+ * driving modes; for example, if we added a bidirectional edge
+ * between the pair of nodes for each parking area, then the route
+ * planner would allow creating new cars out of thin air.
+ */
+pub struct Parking {
+    pub address: quadtree::Address,
+    pub walking_node: petgraph::graph::NodeIndex,
+    pub driving_node: petgraph::graph::NodeIndex,
+}
+
+pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<petgraph::graph::NodeIndex>>;
+
 pub struct Graph {
     pub graph: InnerGraph,
-    pub neighbors: HashMap<Mode, quadtree::NeighborsStore<petgraph::graph::NodeIndex>>,
+    pub neighbors: Neighbors,
+    pub parking: HashMap<quadtree::Address, Parking>,
     pub tile_size: f64,
     pub max_depth: u32,
 }
 
-impl Graph {
-    pub fn dump<W>(&self, write: &mut W) -> Result<(), std::io::Error>
-    where
-        W: std::io::Write,
-    {
-        let dot = petgraph::dot::Dot::new(&self.graph);
-        write!(write, "{}", dot)?;
-        Ok(())
-    }
+pub fn dump_graph<W>(
+    graph: &petgraph::Graph<Node, Edge>,
+    write: &mut W,
+) -> Result<(), std::io::Error>
+where
+    W: std::io::Write,
+{
+    let dot = petgraph::dot::Dot::new(graph);
+    write!(write, "{}", dot)?;
+    Ok(())
 }
 
 pub fn construct_base_graph<'a, 'b, M, H>(
@@ -57,6 +77,32 @@ where
     for mode in MODES {
         neighbors.insert(*mode, quadtree::NeighborsStore::new(4, input.max_depth));
     }
+    let mut parking = HashMap::new();
+
+    let mut add_parking = |address, graph: &mut InnerGraph, neighbors: &mut Neighbors| {
+        let walking_node = graph.add_node(Node::Parking { address });
+        let driving_node = graph.add_node(Node::Parking { address });
+        let (x, y) = address.to_xy();
+        let (x, y) = (x as f64, y as f64);
+        neighbors
+            .get_mut(&Mode::Walking)
+            .unwrap()
+            .insert(walking_node, x, y)
+            .unwrap();
+        neighbors
+            .get_mut(&Mode::Driving)
+            .unwrap()
+            .insert(driving_node, x, y)
+            .unwrap();
+        parking.insert(
+            address,
+            Parking {
+                address,
+                walking_node,
+                driving_node,
+            },
+        );
+    };
 
     let mut station_map = HashMap::new();
     for metro_line in input.metro_lines {
@@ -89,6 +135,9 @@ where
                         .unwrap()
                         .insert(station_id, x as f64, y as f64)
                         .unwrap();
+
+                    // for now, we assume that every station offers parking
+                    add_parking(station.address, &mut graph, &mut neighbors);
 
                     station_id
                 });
@@ -234,6 +283,7 @@ where
     Ok(Graph {
         graph,
         neighbors,
+        parking,
         tile_size: input.tile_size,
         max_depth: input.max_depth,
     })
@@ -371,8 +421,8 @@ mod highway_tests {
             SegmentData::new(0, (0.0, 0.0), (1.0, 0.0), vec![], vec![1, 3]),
             SegmentData::new(1, (1.0, 0.0), (2.0, 1.0), vec![0], vec![2]),
             SegmentData::new(2, (2.0, 1.0), (3.0, 0.0), vec![1], vec![5]),
-            SegmentData::new(3, (1.0, 0.0), (2.0, -1.0), vec![0], vec![4]),
-            SegmentData::new(4, (2.0, -1.0), (3.0, 0.0), vec![3], vec![5]),
+            SegmentData::new(3, (1.0, 0.0), (2.0, 2.0), vec![0], vec![4]),
+            SegmentData::new(4, (2.0, 2.0), (3.0, 0.0), vec![3], vec![5]),
             SegmentData::new(5, (3.0, 0.0), (4.0, 0.0), vec![2, 4], vec![]),
         ])
         .graph;
