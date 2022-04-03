@@ -2,13 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use crate::common::{Edge, Error, Mode, Node, MODES};
 
-pub struct BaseGraphInput<'a, 'b, M, H>
+pub struct BaseGraphInput<'a, 'b, M>
 where
     M: Iterator<Item = &'a metro::MetroLine>,
-    H: Clone + Iterator<Item = &'b highway::HighwaySegment>,
 {
     pub metro_lines: M,
-    pub highway_segments: H,
+    pub highways: &'b highway::Highways,
     pub tile_size: f64,
     pub max_depth: u32,
 
@@ -59,17 +58,14 @@ where
     Ok(())
 }
 
-pub fn construct_base_graph<'a, 'b, M, H>(
-    input: BaseGraphInput<'a, 'b, M, H>,
-) -> Result<Graph, Error>
+pub fn construct_base_graph<'a, 'b, M>(input: BaseGraphInput<'a, 'b, M>) -> Result<Graph, Error>
 where
     M: Iterator<Item = &'a metro::MetroLine>,
-    H: Clone + Iterator<Item = &'b highway::HighwaySegment>,
 {
     use itertools::Itertools;
 
     if input.validate_highways {
-        highway::validate::validate_highway_segments(input.highway_segments.clone());
+        input.highways.validate();
     }
 
     let mut graph = InnerGraph::new();
@@ -177,89 +173,68 @@ where
         }
     }
 
-    let mut segment_in_map = HashMap::new();
-    let mut segment_out_map = HashMap::new();
-    for highway_segment in input.highway_segments {
+    let mut junction_map = HashMap::new();
+    let mut segment_map = HashMap::new();
+
+    for junction in input.highways.get_junctions().values() {
         if let Some(ref filter) = input.filter_highway_segments {
-            if !filter.contains(&highway_segment.id) {
+            // TODO: filter on junctions
+            // NOTE: print to stderr so that we can pipe dump output to xdot
+            eprintln!(
+                "Filtering highway segments selected junction {}",
+                &junction.id
+            );
+        }
+
+        let (x, y) = junction.location;
+        let address = quadtree::Address::from_xy(x as u64, y as u64, input.max_depth);
+        let node_id = if junction.ramp {
+            let id = graph.add_node(Node::HighwayRamp {
+                position: (x, y),
+                address,
+            });
+            neighbors
+                .get_mut(&Mode::Driving)
+                .unwrap()
+                .insert(id, x, y)
+                .unwrap();
+            id
+        } else {
+            graph.add_node(Node::HighwayJunction {
+                position: (x, y),
+                address,
+            })
+        };
+
+        junction_map.insert(junction.id, node_id);
+    }
+
+    for segment in input.highways.get_segments().values() {
+        if let Some(ref filter) = input.filter_highway_segments {
+            if !filter.contains(&segment.id) {
                 continue;
             }
             // NOTE: print to stderr so that we can pipe dump output to xdot
             eprintln!(
-                "Filtering highway segments selected {}: {:?}",
-                &highway_segment.id, &highway_segment.data
+                "Filtering highway segments selected segment {}: {:?}",
+                &segment.id, &segment.data
             );
         }
 
-        // find the existing end node, or create one if needed
-        let end_id = highway_segment
-            .succ()
-            .iter()
-            .find_map(|succ| segment_in_map.get(succ).map(|node_id| *node_id))
-            .unwrap_or_else(|| {
-                let vec = highway_segment
-                    .get_keys()
-                    .last()
-                    .expect("empty highway segment");
-                let address =
-                    quadtree::Address::from_xy(vec.x as u64, vec.y as u64, input.max_depth);
-                let node_id = graph.add_node(Node::HighwayJunction {
-                    position: (vec.x, vec.y),
-                    address,
-                });
-                neighbors
-                    .get_mut(&Mode::Driving)
-                    .unwrap()
-                    .insert(node_id, vec.x, vec.y)
-                    .unwrap();
-                // update the successors so that other segments with the same
-                // successors can find the same node
-                for succ in highway_segment.succ() {
-                    segment_in_map.insert(succ, node_id);
-                }
-                // update this segment so that other segments that have this
-                // segment as a predecessor can find the same node
-                segment_out_map.insert(highway_segment.id, node_id);
-                node_id
-            });
-
-        // find the existing start node, or create one if needed
-        let start_id = highway_segment
-            .pred()
-            .iter()
-            .find_map(|pred| segment_out_map.get(pred).map(|node_id| *node_id))
-            .unwrap_or_else(|| {
-                let vec = highway_segment
-                    .get_keys()
-                    .first()
-                    .expect("empty highway segment");
-                let address =
-                    quadtree::Address::from_xy(vec.x as u64, vec.y as u64, input.max_depth);
-                let node_id = graph.add_node(Node::HighwayJunction {
-                    position: (vec.x, vec.y),
-                    address,
-                });
-                neighbors
-                    .get_mut(&Mode::Driving)
-                    .unwrap()
-                    .insert(node_id, vec.x, vec.y)
-                    .unwrap();
-                // see above
-                for pred in highway_segment.pred() {
-                    segment_out_map.insert(*pred, node_id);
-                }
-                segment_in_map.insert(&highway_segment.id, node_id);
-                node_id
-            });
-
-        graph.add_edge(
-            start_id,
-            end_id,
+        let edge_id = graph.add_edge(
+            *junction_map
+                .get(&segment.start_junction())
+                .expect("missing start junction"),
+            *junction_map
+                .get(&segment.end_junction())
+                .expect("missing end junction"),
             Edge::Highway {
-                segment: highway_segment.id,
-                time: highway::timing::travel_time(highway_segment, input.tile_size),
+                segment: segment.id,
+                time: highway::timing::travel_time(segment, input.tile_size),
             },
         );
+
+        segment_map.insert(segment.id, edge_id);
     }
 
     if input.add_inferred_edges {
@@ -318,20 +293,22 @@ impl<'a> quadtree::AllNeighborsVisitor<petgraph::graph::NodeIndex, Error> for Ad
 
 #[cfg(test)]
 mod highway_tests {
-    use crate::{base_graph::*, common::*};
+    use crate::base_graph::*;
     use highway::*;
+
+    #[derive(derive_more::Constructor)]
+    struct JunctionData {
+        location: (f64, f64),
+    }
 
     // used only for tests
     #[derive(derive_more::Constructor)]
     struct SegmentData {
-        id: u64,
-        start: (f64, f64),
-        end: (f64, f64),
-        pred: Vec<u64>,
-        succ: Vec<u64>,
+        start: u64,
+        end: u64,
     }
 
-    fn setup_problem(segments: Vec<SegmentData>) -> Graph {
+    fn setup_problem(junctions: Vec<JunctionData>, segments: Vec<SegmentData>) -> Graph {
         let data = HighwayData {
             name: None,
             refs: vec![],
@@ -340,23 +317,25 @@ mod highway_tests {
         };
 
         let metro_lines = vec![];
-        let highway_segments: Vec<HighwaySegment> = segments
-            .iter()
-            .map(|segment_data| {
-                let mut segment = HighwaySegment::new(
-                    segment_data.id,
-                    data.clone(),
-                    segment_data.pred.clone(),
-                    segment_data.succ.clone(),
-                );
-                segment.set_keys(vec![segment_data.start.into(), segment_data.end.into()]);
-                segment
-            })
-            .collect();
+        let mut highways = Highways::new();
+        for junction in &junctions {
+            highways.add_junction(junction.location, false);
+        }
+        for segment in &segments {
+            highways.add_segment(
+                data.clone(),
+                segment.start,
+                segment.end,
+                Some(vec![
+                    junctions[segment.start as usize].location.into(),
+                    junctions[segment.end as usize].location.into(),
+                ]),
+            );
+        }
 
         let input = BaseGraphInput {
             metro_lines: metro_lines.iter(),
-            highway_segments: highway_segments.iter(),
+            highways: &highways,
             tile_size: 1.0, // easy math
             max_depth: 5,
             filter_metro_lines: None,
@@ -370,20 +349,17 @@ mod highway_tests {
 
     #[test]
     fn empty() {
-        let graph = setup_problem(vec![]).graph;
+        let graph = setup_problem(vec![], vec![]).graph;
         assert_eq!(graph.node_count(), 0);
         assert_eq!(graph.edge_count(), 0);
     }
 
     #[test]
     fn one() {
-        let graph = setup_problem(vec![SegmentData::new(
-            0,
-            (0.0, 0.0),
-            (1.0, 0.0),
-            vec![],
-            vec![],
-        )])
+        let graph = setup_problem(
+            vec![JunctionData::new((0.0, 0.0)), JunctionData::new((1.0, 0.0))],
+            vec![SegmentData::new(0, 1)],
+        )
         .graph;
         assert_eq!(graph.node_count(), 2);
         assert_eq!(graph.edge_count(), 1);
@@ -391,10 +367,14 @@ mod highway_tests {
 
     #[test]
     fn simple() {
-        let graph = setup_problem(vec![
-            SegmentData::new(0, (0.0, 0.0), (1.0, 0.0), vec![], vec![1]),
-            SegmentData::new(1, (1.0, 0.0), (2.0, 0.0), vec![0], vec![]),
-        ])
+        let graph = setup_problem(
+            vec![
+                JunctionData::new((0.0, 0.0)),
+                JunctionData::new((1.0, 0.0)),
+                JunctionData::new((2.0, 0.0)),
+            ],
+            vec![SegmentData::new(0, 1), SegmentData::new(1, 2)],
+        )
         .graph;
         assert_eq!(graph.node_count(), 3);
         assert_eq!(graph.edge_count(), 2);
@@ -402,14 +382,25 @@ mod highway_tests {
 
     #[test]
     fn chain() {
-        let graph = setup_problem(vec![
-            SegmentData::new(0, (0.0, 0.0), (1.0, 0.0), vec![], vec![1]),
-            SegmentData::new(1, (1.0, 0.0), (2.0, 0.0), vec![0], vec![2]),
-            SegmentData::new(2, (2.0, 0.0), (3.0, 0.0), vec![1], vec![3]),
-            SegmentData::new(3, (3.0, 0.0), (4.0, 0.0), vec![2], vec![4]),
-            SegmentData::new(4, (4.0, 0.0), (5.0, 0.0), vec![3], vec![5]),
-            SegmentData::new(5, (5.0, 0.0), (6.0, 0.0), vec![4], vec![]),
-        ])
+        let graph = setup_problem(
+            vec![
+                JunctionData::new((0.0, 0.0)),
+                JunctionData::new((1.0, 0.0)),
+                JunctionData::new((2.0, 0.0)),
+                JunctionData::new((3.0, 0.0)),
+                JunctionData::new((4.0, 0.0)),
+                JunctionData::new((5.0, 0.0)),
+                JunctionData::new((6.0, 0.0)),
+            ],
+            vec![
+                SegmentData::new(0, 1),
+                SegmentData::new(1, 2),
+                SegmentData::new(2, 3),
+                SegmentData::new(3, 4),
+                SegmentData::new(4, 5),
+                SegmentData::new(5, 6),
+            ],
+        )
         .graph;
         assert_eq!(graph.node_count(), 7);
         assert_eq!(graph.edge_count(), 6);
@@ -417,14 +408,24 @@ mod highway_tests {
 
     #[test]
     fn branching() {
-        let graph = setup_problem(vec![
-            SegmentData::new(0, (0.0, 0.0), (1.0, 0.0), vec![], vec![1, 3]),
-            SegmentData::new(1, (1.0, 0.0), (2.0, 1.0), vec![0], vec![2]),
-            SegmentData::new(2, (2.0, 1.0), (3.0, 0.0), vec![1], vec![5]),
-            SegmentData::new(3, (1.0, 0.0), (2.0, 2.0), vec![0], vec![4]),
-            SegmentData::new(4, (2.0, 2.0), (3.0, 0.0), vec![3], vec![5]),
-            SegmentData::new(5, (3.0, 0.0), (4.0, 0.0), vec![2, 4], vec![]),
-        ])
+        let graph = setup_problem(
+            vec![
+                JunctionData::new((0.0, 0.0)),
+                JunctionData::new((1.0, 0.0)),
+                JunctionData::new((2.0, 1.0)),
+                JunctionData::new((2.0, 2.0)),
+                JunctionData::new((3.0, 0.0)),
+                JunctionData::new((4.0, 0.0)),
+            ],
+            vec![
+                SegmentData::new(0, 1),
+                SegmentData::new(1, 2),
+                SegmentData::new(1, 3),
+                SegmentData::new(2, 4),
+                SegmentData::new(3, 4),
+                SegmentData::new(4, 5),
+            ],
+        )
         .graph;
         assert_eq!(graph.node_count(), 6);
         assert_eq!(graph.edge_count(), 6);

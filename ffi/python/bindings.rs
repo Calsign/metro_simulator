@@ -203,23 +203,31 @@ impl State {
         )
     }
 
+    fn add_highway_junction(&mut self, x: f64, y: f64, ramp: bool) -> u64 {
+        self.state.highways.add_junction((x, y), ramp)
+    }
+
     fn add_highway_segment(
         &mut self,
         data: &HighwayData,
-        pred: Vec<u64>,
-        succ: Vec<u64>,
+        start: u64,
+        end: u64,
         keys: Option<Vec<(f64, f64)>>,
     ) -> u64 {
-        self.state.add_highway_segment(
+        self.state.highways.add_segment(
             data.data.clone(),
-            pred,
-            succ,
+            start,
+            end,
             keys.map(|ks| {
                 ks.iter()
                     .map(|(x, y)| cgmath::Vector2 { x: *x, y: *y })
                     .collect()
             }),
         )
+    }
+
+    fn validate_highways(&self) {
+        self.state.highways.validate();
     }
 
     fn get_metro_line(&self, id: u64) -> Option<MetroLine> {

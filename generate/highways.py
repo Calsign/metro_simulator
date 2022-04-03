@@ -15,6 +15,11 @@ from generate.quadtree import Quadtree, ConvolveData
 from generate import osm
 
 
+# Whether or not to validate the constructed highways data structure.
+# Best to leave disabled unless changing the logic here since it takes extra time.
+VALIDATE = False
+
+
 def parse_ref(tags: T.Dict[str, str]) -> T.List[str]:
     """
     Parses OSM's "ref" tag; splits into separate refs.
@@ -96,15 +101,6 @@ class SegmentData:
     speed_limit: T.Optional[int]
 
 
-@dataclass
-class Segment:
-    id: int
-    points: T.List[T.Tuple[float, float]]
-    in_segments: T.List[int]  # list of ids of other Segments
-    out_segments: T.List[int]  # list of ids of other Segments
-    data: SegmentData
-
-
 class Highways(Layer):
     def get_dataset(self) -> T.Dict[str, T.Any]:
         return self.map_config.datasets["osm"]
@@ -120,7 +116,7 @@ class Highways(Layer):
     def initialize(self, data: int, node: Quadtree, convolve: ConvolveData) -> None:
         assert False
 
-    def round_coords(self, point):
+    def round_coords(self, point) -> T.Tuple[float, float]:
         """
         Allows us to use a (float, float) pair as a key in a dictionary.
         Basically, rounding floats before comparing them allows for small
@@ -166,28 +162,17 @@ class Highways(Layer):
         # because for segments, the starting point matters; but for
         # closed loops, it doesn't matter which point we start at.
 
-        id_counter = 0
         segment_tuples = []
-        segment_start_map = defaultdict(list)
-        segment_end_map = defaultdict(list)
 
-        def add_segment_tuple(start_way, end_way, points, segment_data):
-            nonlocal id_counter
-
+        def add_segment_tuple(points, segment_data):
             if len(points) == 0:
                 # this can happen if all of the points are outside the region of interest
                 return
 
-            start_pt, _ = start_way.shape.boundary.geoms
-            _, end_pt = end_way.shape.boundary.geoms
-            start = self.round_coords(start_pt)
-            end = self.round_coords(end_pt)
+            start = self.round_coords(points[0])
+            end = self.round_coords(points[-1])
 
-            segment_tuples.append((id_counter, points, start, end, segment_data))
-            segment_start_map[start].append(id_counter)
-            segment_end_map[end].append(id_counter)
-
-            id_counter += 1
+            segment_tuples.append((points, start, end, segment_data))
 
         for (point, in_ways, out_ways) in junctions:
             # NOTE: only use diverging edges to avoid double-counting
@@ -215,15 +200,15 @@ class Highways(Layer):
                     elif last == border_point:
                         # flipped
                         border_point = first
-                        coords = reversed(way.shape.coords)
+                        coords = list(reversed(way.shape.coords))
                     else:
                         assert False, (border_point, first, last)
 
                     # cut off segments that extend out of the region of interest
                     # TODO: split into two segments if this happens
-                    for (x, y) in way.shape.coords:
+                    for (x, y) in coords:
                         if not (0 <= x <= self.max_dim and 0 <= y <= self.max_dim):
-                            add_segment_tuple(highway, way, points, prev_segment_data)
+                            add_segment_tuple(points, prev_segment_data)
                             points = []
                             break
                     else:
@@ -232,7 +217,7 @@ class Highways(Layer):
                             and prev_segment_data != cur_segment_data
                         ):
                             # if the properties of the segment have changed, create a new one
-                            add_segment_tuple(highway, way, points, prev_segment_data)
+                            add_segment_tuple(points, prev_segment_data)
                             points = []
 
                         points.extend(coords)
@@ -247,34 +232,37 @@ class Highways(Layer):
                         way = next_out_ways[0]
 
                 if prev_segment_data is not None:
-                    add_segment_tuple(highway, way, points, prev_segment_data)
+                    add_segment_tuple(points, prev_segment_data)
 
-        segments = []
-        for (id, points, start, end, segment_data) in segment_tuples:
-            segments.append(
-                Segment(
-                    id,
-                    points,
-                    segment_end_map[start],
-                    segment_start_map[end],
-                    segment_data,
-                )
-            )
+        # map from points to junction IDs
+        junction_map = {}
 
-        for segment in segments:
+        def get_junction_id(point: T.Tuple[float, float]) -> int:
+            if point in junction_map:
+                return junction_map[point]
+            else:
+                (x, y) = point
+                assert 0 <= x <= self.max_dim, (x, self.max_dim)
+                assert 0 <= y <= self.max_dim, (y, self.max_dim)
+                junction_id = state.add_highway_junction(x, y, True)
+                junction_map[point] = junction_id
+                return junction_id
+
+        for (points, start, end, segment_data) in segment_tuples:
+            # create junctions if needed
+            start_id = get_junction_id(start)
+            end_id = get_junction_id(end)
+
             data = engine.HighwayData(
-                segment.data.name,
-                segment.data.ref or [],
-                segment.data.lanes,
-                segment.data.speed_limit,
+                segment_data.name,
+                segment_data.ref or [],
+                segment_data.lanes,
+                segment_data.speed_limit,
             )
-            segment_id = state.add_highway_segment(
-                data, segment.in_segments, segment.out_segments, segment.points
-            )
-            # NOTE: need to make sure IDs are mapped correctly.
-            # this is gross, but as long as both this implementation and the Rust implementation
-            # increment the IDs from zero, the IDs will match up and we don't need to worry
-            assert segment_id == segment.id
+            segment_id = state.add_highway_segment(data, start_id, end_id, points)
+
+        if VALIDATE:
+            state.validate_highways()
 
     def merge(self, node: Quadtree, convolve: ConvolveData) -> None:
         pass

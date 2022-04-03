@@ -93,6 +93,10 @@ pub enum Node {
         position: (f64, f64),
         address: quadtree::Address,
     },
+    HighwayRamp {
+        position: (f64, f64),
+        address: quadtree::Address,
+    },
     Parking {
         address: quadtree::Address,
     },
@@ -112,6 +116,7 @@ impl Node {
                 ..
             }
             | HighwayJunction { address, .. }
+            | HighwayRamp { address, .. }
             | Parking { address } => address,
         }
     }
@@ -132,7 +137,7 @@ impl Node {
                 let (x, y) = address.to_xy();
                 (x as f64, y as f64)
             }
-            HighwayJunction { position, .. } => *position,
+            HighwayJunction { position, .. } | HighwayRamp { position, .. } => *position,
         }
     }
 }
@@ -151,9 +156,10 @@ impl std::fmt::Display for Node {
             } => write!(f, "stop:{}:{}", metro_line, station.name),
             HighwayJunction {
                 position: (x, y), ..
-            } => {
-                write!(f, "junction:({:.1}, {:.1})", x, y)
-            }
+            } => write!(f, "junction:({:.1}, {:.1})", x, y),
+            HighwayRamp {
+                position: (x, y), ..
+            } => write!(f, "ramp:({:.1}, {:.1})", x, y),
             Parking { .. } => write!(f, "parking"),
         }
     }

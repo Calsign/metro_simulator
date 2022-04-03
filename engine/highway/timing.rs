@@ -1,4 +1,4 @@
-use crate::types::HighwaySegment;
+use crate::segment::HighwaySegment;
 
 // if a highway doesn't have a known speed limit, we use an assumed speed
 const DEFAULT_SPEED: u32 = 11; // ~25 mph

@@ -657,7 +657,7 @@ impl druid::Widget<State> for Content {
 
         let mut highway_total_visited = 0;
 
-        for (id, highway_segment) in engine.highway_segments.iter().sorted() {
+        for (id, highway_segment) in engine.highways.get_segments().iter().sorted() {
             let mut spline_visitor =
                 PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
             highway_segment

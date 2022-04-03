@@ -1,5 +1,8 @@
+mod highways;
+mod junction;
+mod segment;
 pub mod timing;
-mod types;
-pub mod validate;
 
-pub use types::{HighwayData, HighwayKey, HighwaySegment, KeyVisitor, SplineVisitor};
+pub use highways::Highways;
+pub use junction::HighwayJunction;
+pub use segment::{HighwayData, HighwayKey, HighwaySegment, KeyVisitor, SplineVisitor};

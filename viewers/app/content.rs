@@ -38,7 +38,7 @@ impl App {
             self.diagnostics.metro_vertices += spline_visitor.visited;
         }
 
-        for (id, highway_segment) in self.engine.highway_segments.iter().sorted() {
+        for (id, highway_segment) in self.engine.highways.get_segments().iter().sorted() {
             let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
             highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
             self.diagnostics.highway_vertices += spline_visitor.visited;

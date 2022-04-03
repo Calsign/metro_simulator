@@ -3,10 +3,11 @@ load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 rust_library(
     name = "highway",
     srcs = [
+        "highways.rs",
+        "junction.rs",
         "lib.rs",
+        "segment.rs",
         "timing.rs",
-        "types.rs",
-        "validate.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [

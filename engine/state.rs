@@ -61,8 +61,7 @@ pub struct State {
     pub qtree: Quadtree<BranchState, LeafState>,
     pub metro_lines: HashMap<u64, metro::MetroLine>,
     metro_line_counter: u64,
-    pub highway_segments: HashMap<u64, highway::HighwaySegment>,
-    highway_segment_counter: u64,
+    pub highways: highway::Highways,
 }
 
 impl State {
@@ -73,8 +72,7 @@ impl State {
             qtree,
             metro_lines: HashMap::new(),
             metro_line_counter: 0,
-            highway_segments: HashMap::new(),
-            highway_segment_counter: 0,
+            highways: highway::Highways::new(),
         }
     }
 
@@ -152,27 +150,6 @@ impl State {
         id
     }
 
-    pub fn add_highway_segment(
-        &mut self,
-        data: highway::HighwayData,
-        pred: Vec<u64>,
-        succ: Vec<u64>,
-        keys: Option<Vec<highway::HighwayKey>>,
-    ) -> u64 {
-        let id = self.highway_segment_counter;
-        self.highway_segment_counter += 1;
-
-        let mut highway_segment = highway::HighwaySegment::new(id, data, pred, succ);
-
-        if let Some(keys) = keys {
-            highway_segment.set_keys(keys);
-        }
-
-        self.highway_segments.insert(id, highway_segment);
-
-        id
-    }
-
     pub fn construct_base_route_graph_filter(
         &self,
         metro_lines: Option<HashSet<u64>>,
@@ -180,7 +157,7 @@ impl State {
     ) -> Result<route::Graph, Error> {
         let graph = route::construct_base_graph(route::BaseGraphInput {
             metro_lines: self.metro_lines.values(),
-            highway_segments: self.highway_segments.values(),
+            highways: &self.highways,
             tile_size: self.config.min_tile_size as f64,
             max_depth: self.qtree.max_depth(),
             filter_metro_lines: metro_lines,

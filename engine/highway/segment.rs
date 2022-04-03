@@ -36,8 +36,8 @@ pub struct HighwaySegment {
     keys: Vec<HighwayKey>,
     spline: splines::Spline<f64, HighwayKey>,
     length: f64,
-    pred: Vec<u64>,
-    succ: Vec<u64>,
+    start_junction: u64,
+    end_junction: u64,
 }
 
 impl PartialEq for HighwaySegment {
@@ -61,15 +61,15 @@ impl PartialOrd for HighwaySegment {
 }
 
 impl HighwaySegment {
-    pub fn new(id: u64, data: HighwayData, pred: Vec<u64>, succ: Vec<u64>) -> Self {
+    pub(crate) fn new(id: u64, data: HighwayData, start_junction: u64, end_junction: u64) -> Self {
         Self {
             id,
             data,
             keys: vec![],
             spline: splines::Spline::from_vec(vec![]),
             length: 0.0,
-            pred,
-            succ,
+            start_junction,
+            end_junction,
         }
     }
 
@@ -98,12 +98,12 @@ impl HighwaySegment {
         self.length
     }
 
-    pub fn pred(&self) -> &Vec<u64> {
-        &self.pred
+    pub fn start_junction(&self) -> u64 {
+        self.start_junction
     }
 
-    pub fn succ(&self) -> &Vec<u64> {
-        &self.succ
+    pub fn end_junction(&self) -> u64 {
+        self.end_junction
     }
 
     pub fn visit_spline<V, E>(
