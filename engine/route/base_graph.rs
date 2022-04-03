@@ -230,6 +230,7 @@ where
                 .expect("missing end junction"),
             Edge::Highway {
                 segment: segment.id,
+                data: segment.data.clone(),
                 time: highway::timing::travel_time(segment, input.tile_size),
             },
         );

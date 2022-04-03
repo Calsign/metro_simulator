@@ -190,6 +190,7 @@ pub enum Edge {
     },
     Highway {
         segment: u64,
+        data: highway::HighwayData,
         time: f64,
     },
     ModeSegment {
@@ -238,7 +239,15 @@ impl std::fmt::Display for Edge {
                 metro_line,
                 station,
             } => write!(f, "disembark:{}:{}", metro_line, station.name),
-            Highway { segment, time } => write!(f, "highway:{}:{:.2}", segment, time),
+            Highway {
+                segment,
+                data,
+                time,
+            } => {
+                let name = data.name.clone().unwrap_or("unknown".to_string());
+                let refs = data.refs.join(";");
+                write!(f, "highway:{}:{}:{}:{:.2}", segment, name, refs, time)
+            }
             ModeSegment { mode, distance } => {
                 write!(
                     f,

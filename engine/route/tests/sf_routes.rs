@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 
 use engine::state::State;
-use route::{best_route, CarConfig, Graph, Node, QueryInput, Route, WorldState};
+use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route, WorldState};
 
 #[derive(Debug, Clone)]
 pub enum StringPredicate {
@@ -44,6 +44,8 @@ pub enum RoutePredicate {
     HasMetroStation(StringPredicate),
     HasMetroStop(StringPredicate),
     HasMetroLine(u64),
+    HasHighwaySegmentName(StringPredicate),
+    HasHighwaySegmentRef(StringPredicate),
     CostInRangeSeconds(f64, f64),
     CostInRangeMinutes(f64, f64),
 }
@@ -64,6 +66,15 @@ impl RoutePredicate {
                 .nodes
                 .iter()
                 .any(|n| matches!(n, Node::MetroStop { metro_line, .. } if metro_line == id)),
+            HasHighwaySegmentName(name) => route
+                .edges
+                .iter()
+                .any(|e| matches!(e, Edge::Highway { data, .. }
+                                  if data.name.clone().map_or(false, |n| name.matches(&n)))),
+            HasHighwaySegmentRef(ref_filter) => {
+                route.edges.iter().any(|e| matches!(e, Edge::Highway { data, .. }
+                                                    if data.refs.iter().any(|r| ref_filter.matches(&r))))
+            },
             CostInRangeSeconds(min, max) => route.cost >= *min && route.cost <= *max,
             CostInRangeMinutes(min, max) => route.cost >= *min * 60.0 && route.cost <= *max * 60.0,
         }
@@ -111,7 +122,7 @@ lazy_static! {
     static ref PLEASANTON: Coord = (3186, 2246);
     static ref SAN_MATEO: Coord = (2318, 2662);
     static ref STANFORD: Coord = (2590, 2994);
-    static ref SUNNYBALUE: Coord = (2893, 3079);
+    static ref SUNNYVALE: Coord = (2893, 3079);
 
     pub static ref TESTS: Box<[RouteTest]> = Box::new([
         RouteTest::new(
@@ -144,6 +155,24 @@ lazy_static! {
             None,
         ),
         RouteTest::new("pittsburg -> pleasanton", *PITTSBURG, *PLEASANTON, vec![], None),
+        RouteTest::new(
+            "sf -> oakland driving",
+            *SF_DOWNTOWN,
+            *OAKLAND_DOWNTOWN,
+            vec![
+                HasHighwaySegmentRef("I 80".into()),
+            ],
+            Some(CarConfig::StartWithCar),
+        ),
+        RouteTest::new(
+            "san mateo -> stanfrod",
+            *SAN_MATEO,
+            *STANFORD,
+            vec![
+                HasHighwaySegmentRef("US 101".into()),
+            ],
+            Some(CarConfig::StartWithCar),
+        ),
     ]);
 }
 
