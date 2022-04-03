@@ -250,7 +250,7 @@ where
                     tile_size: input.tile_size,
                     mode: *mode,
                 },
-                |_| mode.max_radius() / input.tile_size,
+                |_| mode.bridge_radius() / input.tile_size,
             )?;
         }
     }

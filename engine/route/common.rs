@@ -44,20 +44,29 @@ impl Mode {
     }
 
     /**
-     * Max distance it is reasonable to travel for the first or last
-     * segment of a trip, in meters. This is used for adding inferred
-     * edges in the base graph and the augmented graph.
+     * Max distance it is reasonable to travel on local routes, i.e. bridging the gap beteen
+     * existing nodes. This number should be relatively small to avoid making the problem
+     * intractable, as edges are added between all pairs of nodes within this radius.
+     */
+    pub fn bridge_radius(&self) -> f64 {
+        use Mode::*;
+        match self {
+            Walking => 800.0,  // about 0.5 miles
+            Biking => 3200.0,  // about 2 miles
+            Driving => 8000.0, // about 5 miles
+        }
+    }
+
+    /**
+     * Max distance it is reasonable to travel for the first or last segment of a trip, in meters.
+     * This is used for adding inferred edges in the base graph and the augmented graph.
      */
     pub fn max_radius(&self) -> f64 {
         use Mode::*;
         match self {
-            Walking => 3000.0, // about 2 miles
-            Biking => 16000.0, // about 10 miles
-            // TODO: Currently need to keep this small to make the problem tractable.
-            // We need to simplify the highways and only add neighbor nodes for
-            // on/off-ramps.
-            // Driving => 80000.0, // about 50 miles
-            Driving => 1000.0,
+            Walking => 3000.0,  // about 2 miles
+            Biking => 16000.0,  // about 10 miles
+            Driving => 80000.0, // about 50 miles
         }
     }
 }

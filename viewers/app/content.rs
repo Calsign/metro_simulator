@@ -32,6 +32,7 @@ impl App {
         self.diagnostics.metro_vertices = 0;
         self.diagnostics.highway_vertices = 0;
 
+        // TODO: don't sort every iteration!!
         for (id, metro_line) in self.engine.metro_lines.iter().sorted() {
             let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
             metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
@@ -42,6 +43,22 @@ impl App {
             let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
             highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
             self.diagnostics.highway_vertices += spline_visitor.visited;
+        }
+
+        let mut total_ramp = 0;
+        let mut total_nonramp = 0;
+
+        for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
+            let (x, y) = highway_junction.location;
+            let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+            if highway_junction.ramp {
+                painter.circle(
+                    pos,
+                    2.0,
+                    egui::Color32::from_gray(255),
+                    egui::Stroke::none(),
+                );
+            }
         }
 
         Ok(())

@@ -136,18 +136,29 @@ class Highways(Layer):
         # each item is a (incoming, outgoing) tuple
         coord_map = defaultdict(lambda: ([], []))
 
+        on_ramps = set()
+        off_ramps = set()
+
         for highway in self.osm.highways:
             # NOTE: saw one case of a self-loop, which has no boundary
             if len(highway.shape.boundary.geoms) == 2:
                 first, last = (
                     self.round_coords(c) for c in highway.shape.boundary.geoms
                 )
-                coord_map[first][1].append(highway)
-                coord_map[last][0].append(highway)
-                if not is_oneway(highway.tags):
-                    # also add a segment in the opposite direction
-                    coord_map[first][0].append(highway)
-                    coord_map[last][1].append(highway)
+                highway_tag = highway.tags.get("highway")
+                if highway_tag in ["motorway", "trunk"]:
+                    coord_map[first][1].append(highway)
+                    coord_map[last][0].append(highway)
+                    if not is_oneway(highway.tags):
+                        # also add a segment in the opposite direction
+                        coord_map[first][0].append(highway)
+                        coord_map[last][1].append(highway)
+                elif highway_tag in ["motorway_link", "trunk_link"]:
+                    # in general we might have an off-ramp at the start and an on-ramp at the end
+                    off_ramps.add(first)
+                    on_ramps.add(last)
+                else:
+                    raise Exception("Unrecognized highway tag: {}".format(highway_tag))
 
         junctions = []
         for (point, (in_ways, out_ways)) in coord_map.items():
@@ -244,7 +255,10 @@ class Highways(Layer):
                 (x, y) = point
                 assert 0 <= x <= self.max_dim, (x, self.max_dim)
                 assert 0 <= y <= self.max_dim, (y, self.max_dim)
-                junction_id = state.add_highway_junction(x, y, True)
+
+                # TODO: we don't currently support a distinction between on- and off-ramps
+                is_ramp = point in on_ramps or point in off_ramps
+                junction_id = state.add_highway_junction(x, y, is_ramp)
                 junction_map[point] = junction_id
                 return junction_id
 
