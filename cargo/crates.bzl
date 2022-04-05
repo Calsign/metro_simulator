@@ -5,6 +5,7 @@ CRATES = {
     "anyhow": "1.0",
     "thiserror": "1.0",
     "lazy_static": "1.4",
+    "once_cell": "1.10.0",
     "derive_more": "0.99",
     "enum_dispatch": "0.3",
     "chrono": "0.4",

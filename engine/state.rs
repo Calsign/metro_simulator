@@ -156,7 +156,7 @@ impl State {
         highway_segments: Option<HashSet<u64>>,
     ) -> Result<route::Graph, Error> {
         let graph = route::construct_base_graph(route::BaseGraphInput {
-            metro_lines: self.metro_lines.values(),
+            metro_lines: &self.metro_lines,
             highways: &self.highways,
             tile_size: self.config.min_tile_size as f64,
             max_depth: self.qtree.max_depth(),

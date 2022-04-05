@@ -45,9 +45,6 @@ impl App {
             self.diagnostics.highway_vertices += spline_visitor.visited;
         }
 
-        let mut total_ramp = 0;
-        let mut total_nonramp = 0;
-
         for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
             let (x, y) = highway_junction.location;
             let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
@@ -324,7 +321,9 @@ impl<'a, 'b> DrawSplineVisitor<'a, 'b> {
     }
 }
 
-impl<'a, 'b> metro::SplineVisitor<metro::MetroLine, anyhow::Error> for DrawSplineVisitor<'a, 'b> {
+impl<'a, 'b> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow::Error>
+    for DrawSplineVisitor<'a, 'b>
+{
     fn visit(
         &mut self,
         line: &metro::MetroLine,
@@ -336,7 +335,7 @@ impl<'a, 'b> metro::SplineVisitor<metro::MetroLine, anyhow::Error> for DrawSplin
     }
 }
 
-impl<'a, 'b> highway::SplineVisitor<highway::HighwaySegment, anyhow::Error>
+impl<'a, 'b> highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64>, anyhow::Error>
     for DrawSplineVisitor<'a, 'b>
 {
     fn visit(

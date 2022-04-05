@@ -1,19 +1,22 @@
 use cgmath as cg;
 
-pub trait SplineVisitor<T, E> {
-    fn visit(&mut self, line: &T, vertex: cg::Vector2<f64>, t: f64) -> Result<(), E>;
+pub trait SplineVisitor<T, P, E> {
+    fn visit(&mut self, line: &T, vertex: P, t: f64) -> Result<(), E>;
 }
 
-pub fn visit_spline<T, V, E>(
+pub fn visit_spline<T, V, E, P, F>(
     owner: &T,
-    spline: &splines::Spline<f64, cg::Vector2<f64>>,
+    spline: &splines::Spline<f64, P>,
     length: f64,
     visitor: &mut V,
     step: f64,
     rect: &quadtree::Rect,
+    get_pos: F,
 ) -> Result<(), E>
 where
-    V: SplineVisitor<T, E>,
+    V: SplineVisitor<T, P, E>,
+    P: splines::Interpolate<f64>,
+    F: Fn(P) -> cg::Vector2<f64>,
 {
     if spline.len() == 0 {
         return Ok(());
@@ -35,20 +38,21 @@ where
     let mut i = 0;
     while i <= total {
         // probe for points in the rectangle
-        let (point, t) = loop {
+        let (data, t) = loop {
             let t = (i as f64) * step;
-            let point = spline.clamped_sample(t).unwrap();
+            let data = spline.clamped_sample(t).unwrap();
+            let point = get_pos(data);
             // compute Manhatten distance between point and rectangle
             let dist = f64::min(f64::abs(point.x - cx) - rx, f64::abs(point.y - cy) - ry);
             if dist <= step || i > total {
                 i += 1;
-                break (point, t);
+                break (data, t);
             } else {
                 i += f64::max(f64::floor(dist / step), 1.0) as u64;
             }
         };
 
-        visitor.visit(owner, point, t)?;
+        visitor.visit(owner, data, t)?;
     }
     Ok(())
 }

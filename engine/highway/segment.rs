@@ -77,6 +77,10 @@ impl HighwaySegment {
         &self.keys
     }
 
+    pub fn get_spline_keys(&self) -> &[splines::Key<f64, HighwayKey>] {
+        &self.spline.keys()
+    }
+
     pub fn set_keys(&mut self, keys: Vec<HighwayKey>) {
         use cg::MetricSpace;
 
@@ -113,9 +117,17 @@ impl HighwaySegment {
         rect: &quadtree::Rect,
     ) -> Result<(), E>
     where
-        V: SplineVisitor<Self, E>,
+        V: SplineVisitor<Self, cgmath::Vector2<f64>, E>,
     {
-        spline_util::visit_spline(self, &self.spline, self.length, visitor, step, rect)
+        spline_util::visit_spline(
+            self,
+            &self.spline,
+            self.length,
+            visitor,
+            step,
+            rect,
+            |pos| pos,
+        )
     }
 
     pub fn visit_keys<V, E>(&self, visitor: &mut V, rect: &quadtree::Rect) -> Result<(), E>

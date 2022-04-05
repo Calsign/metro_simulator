@@ -2,11 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::common::{Edge, Error, Mode, Node, MODES};
 
-pub struct BaseGraphInput<'a, 'b, M>
-where
-    M: Iterator<Item = &'a metro::MetroLine>,
-{
-    pub metro_lines: M,
+pub struct BaseGraphInput<'a, 'b> {
+    pub metro_lines: &'a HashMap<u64, metro::MetroLine>,
     pub highways: &'b highway::Highways,
     pub tile_size: f64,
     pub max_depth: u32,
@@ -58,10 +55,7 @@ where
     Ok(())
 }
 
-pub fn construct_base_graph<'a, 'b, M>(input: BaseGraphInput<'a, 'b, M>) -> Result<Graph, Error>
-where
-    M: Iterator<Item = &'a metro::MetroLine>,
-{
+pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Graph, Error> {
     use itertools::Itertools;
 
     if input.validate_highways {
@@ -101,7 +95,7 @@ where
     };
 
     let mut station_map = HashMap::new();
-    for metro_line in input.metro_lines {
+    for metro_line in input.metro_lines.values() {
         if let Some(ref filter) = input.filter_metro_lines {
             if !filter.contains(&metro_line.id) {
                 continue;
@@ -167,6 +161,7 @@ where
                 stop_map[&left.address],
                 stop_map[&right.address],
                 Edge::MetroSegment {
+                    metro_line: metro_line.id,
                     time: right_t - left_t,
                 },
             );
@@ -317,7 +312,7 @@ mod highway_tests {
             speed_limit: Some(1), // easy math
         };
 
-        let metro_lines = vec![];
+        let metro_lines = HashMap::new();
         let mut highways = Highways::new();
         for junction in &junctions {
             highways.add_junction(junction.location, false);
@@ -335,7 +330,7 @@ mod highway_tests {
         }
 
         let input = BaseGraphInput {
-            metro_lines: metro_lines.iter(),
+            metro_lines: &metro_lines,
             highways: &highways,
             tile_size: 1.0, // easy math
             max_depth: 5,

@@ -925,7 +925,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     }
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<metro::MetroLine, anyhow::Error>
+impl<'a, 'b, 'c, 'd, 'e, 'f>
+    metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow::Error>
     for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(
@@ -939,7 +940,8 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::SplineVisitor<metro::MetroLine, anyhow::Erro
     }
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f> highway::SplineVisitor<highway::HighwaySegment, anyhow::Error>
+impl<'a, 'b, 'c, 'd, 'e, 'f>
+    highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64>, anyhow::Error>
     for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(

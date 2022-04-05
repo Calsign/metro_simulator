@@ -26,14 +26,7 @@ fn sf_routes_test() {
                 failed_predicates.len()
             );
             println!();
-            println!(
-                "Route with cost {:?} (minutes: {:?}):",
-                route.cost,
-                route.cost / 60.0,
-            );
-            for node in route.nodes {
-                println!("  {}", node);
-            }
+            route.print();
             println!();
             println!("Failed predicates:");
             for predicate in failed_predicates {

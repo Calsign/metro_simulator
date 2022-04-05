@@ -473,7 +473,7 @@ struct PySplineVisitor {
     visitor: PyObject,
 }
 
-impl metro::SplineVisitor<metro::MetroLine, PyErr> for PySplineVisitor {
+impl metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, PyErr> for PySplineVisitor {
     fn visit(
         &mut self,
         line: &metro::MetroLine,

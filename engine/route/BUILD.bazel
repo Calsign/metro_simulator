@@ -7,6 +7,10 @@ rust_library(
         "common.rs",
         "lib.rs",
         "query.rs",
+        "route.rs",
+    ],
+    proc_macro_deps = [
+        "@crates//:derive_more",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -14,9 +18,12 @@ rust_library(
         "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",
+        "//util:spline_util",
         "@crates//:cgmath",
         "@crates//:itertools",
+        "@crates//:once_cell",
         "@crates//:petgraph",
+        "@crates//:splines",
         "@crates//:thiserror",
     ],
 )

@@ -178,6 +178,7 @@ impl std::fmt::Display for Node {
 #[derive(Debug, Clone)]
 pub enum Edge {
     MetroSegment {
+        metro_line: u64,
         time: f64,
     },
     MetroEmbark {
@@ -207,7 +208,7 @@ impl Edge {
     pub fn cost(&self, state: &WorldState) -> f64 {
         use Edge::*;
         match self {
-            MetroSegment { time } => *time,
+            MetroSegment { time, .. } => *time,
             MetroEmbark {
                 metro_line,
                 station,
@@ -230,7 +231,7 @@ impl std::fmt::Display for Edge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Edge::*;
         match self {
-            MetroSegment { time } => write!(f, "metro:{:.2}", time),
+            MetroSegment { metro_line, time } => write!(f, "metro:{}:{:.2}", metro_line, time),
             MetroEmbark {
                 metro_line,
                 station,

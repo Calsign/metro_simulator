@@ -2,13 +2,7 @@ use std::collections::HashMap;
 
 use crate::base_graph::{Graph, InnerGraph, Neighbors};
 use crate::common::{Edge, Error, Mode, Node, WorldState};
-
-#[derive(Debug)]
-pub struct Route {
-    pub nodes: Vec<Node>,
-    pub edges: Vec<Edge>,
-    pub cost: f64,
-}
+use crate::route::Route;
 
 /**
  * The querying agent has a car available.
@@ -260,13 +254,11 @@ pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Er
 
     Ok(
         match petgraph::algo::astar(&**inner, start_index, is_goal, edge_cost, estimate_cost) {
-            Some((cost, path)) => Some(Route {
-                nodes: path
-                    .iter()
+            Some((cost, path)) => Some(Route::new(
+                path.iter()
                     .map(|n| inner.node_weight(*n).unwrap().clone())
                     .collect(),
-                edges: path
-                    .iter()
+                path.iter()
                     .tuple_windows()
                     .map(|(a, b)| {
                         inner
@@ -276,7 +268,7 @@ pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Er
                     })
                     .collect(),
                 cost,
-            }),
+            )),
             None => None,
         },
     )

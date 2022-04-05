@@ -104,14 +104,7 @@ fn main() {
 
             match best {
                 Some(route) => {
-                    println!("Route found with cost: {}", route.cost);
-                    println!("Nodes:");
-                    println!("  {}", route.nodes.first().expect("empty route"));
-                    assert!(route.nodes.len() == route.edges.len() + 1);
-                    for (node, edge) in route.nodes[1..].iter().zip(route.edges.iter()) {
-                        println!("    {}", edge);
-                        println!("  {}", node);
-                    }
+                    route.print();
                 }
                 None => {
                     println!("No route found.");
