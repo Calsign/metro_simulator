@@ -183,17 +183,26 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
 
         let (x, y) = junction.location;
         let address = quadtree::Address::from_xy(x as u64, y as u64, input.max_depth);
-        let node_id = if junction.ramp {
-            let id = graph.add_node(Node::HighwayRamp {
+        let node_id = if let Some(ramp) = &junction.ramp {
+            let outer_id = graph.add_node(Node::HighwayRamp {
                 position: (x, y),
                 address,
             });
+            let inner_id = graph.add_node(Node::HighwayRamp {
+                position: (x, y),
+                address,
+            });
+            let (first, second) = match ramp {
+                highway::RampDirection::OnRamp => (outer_id, inner_id),
+                highway::RampDirection::OffRamp => (inner_id, outer_id),
+            };
+            graph.add_edge(first, second, Edge::HighwayRamp { position: (x, y) });
             neighbors
                 .get_mut(&Mode::Driving)
                 .unwrap()
-                .insert(id, x, y)
+                .insert(outer_id, x, y)
                 .unwrap();
-            id
+            inner_id
         } else {
             graph.add_node(Node::HighwayJunction {
                 position: (x, y),

@@ -1,6 +1,8 @@
 // time it takes to wait for a train, on average
 // TODO: replace this with correct accounting for train schedules
 pub const EMBARK_TIME: f64 = 480.0;
+// time it takes to enter or leave a highway
+pub const RAMP_TIME: f64 = 30.0;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
@@ -194,6 +196,9 @@ pub enum Edge {
         data: highway::HighwayData,
         time: f64,
     },
+    HighwayRamp {
+        position: (f64, f64),
+    },
     ModeSegment {
         mode: Mode,
         distance: f64,
@@ -221,6 +226,7 @@ impl Edge {
                 station,
             } => 0.0,
             Highway { time, .. } => *time,
+            HighwayRamp { .. } => RAMP_TIME,
             ModeSegment { mode, distance } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
         }
@@ -249,6 +255,7 @@ impl std::fmt::Display for Edge {
                 let refs = data.refs.join(";");
                 write!(f, "highway:{}:{}:{}:{:.2}", segment, name, refs, time)
             }
+            HighwayRamp { .. } => write!(f, "ramp"),
             ModeSegment { mode, distance } => {
                 write!(
                     f,

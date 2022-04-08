@@ -167,6 +167,7 @@ impl Route {
                         ));
                     }
                 }
+                Edge::HighwayRamp { .. } => (),
                 Edge::ModeSegment { mode, .. } => {
                     keys.push(RouteKey::new(start.location(), d, t, *mode));
                     keys.push(RouteKey::new(end.location(), d, t, *mode));

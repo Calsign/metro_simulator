@@ -203,8 +203,10 @@ impl State {
         )
     }
 
-    fn add_highway_junction(&mut self, x: f64, y: f64, ramp: bool) -> u64 {
-        self.state.highways.add_junction((x, y), ramp)
+    fn add_highway_junction(&mut self, x: f64, y: f64, ramp: Option<RampDirection>) -> u64 {
+        self.state
+            .highways
+            .add_junction((x, y), ramp.map(|ramp| ramp.direction))
     }
 
     fn add_highway_segment(
@@ -519,6 +521,29 @@ struct HighwaySegment {
 #[pymethods]
 impl HighwaySegment {}
 
+#[pyclass]
+#[derive(Clone, Copy)]
+struct RampDirection {
+    direction: highway::RampDirection,
+}
+
+#[pymethods]
+impl RampDirection {
+    #[staticmethod]
+    fn on_ramp() -> Self {
+        Self {
+            direction: highway::RampDirection::OnRamp,
+        }
+    }
+
+    #[staticmethod]
+    fn off_ramp() -> Self {
+        Self {
+            direction: highway::RampDirection::OffRamp,
+        }
+    }
+}
+
 #[pymodule]
 fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Config>()?;
@@ -534,6 +559,7 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<HighwayData>()?;
     m.add_class::<HighwaySegment>()?;
+    m.add_class::<RampDirection>()?;
 
     return Ok(());
 }

@@ -48,7 +48,7 @@ impl App {
         for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
             let (x, y) = highway_junction.location;
             let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-            if highway_junction.ramp {
+            if let Some(_) = highway_junction.ramp {
                 painter.circle(
                     pos,
                     2.0,

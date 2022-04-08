@@ -1,10 +1,16 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub enum RampDirection {
+    OnRamp,
+    OffRamp,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HighwayJunction {
     pub id: u64,
     pub location: (f64, f64),
-    pub ramp: bool,
+    pub ramp: Option<RampDirection>,
     incoming_segments: Vec<u64>,
     outgoing_segments: Vec<u64>,
 }
@@ -30,7 +36,7 @@ impl PartialOrd for HighwayJunction {
 }
 
 impl HighwayJunction {
-    pub(crate) fn new(id: u64, location: (f64, f64), ramp: bool) -> Self {
+    pub(crate) fn new(id: u64, location: (f64, f64), ramp: Option<RampDirection>) -> Self {
         Self {
             id,
             location,

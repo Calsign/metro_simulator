@@ -256,9 +256,14 @@ class Highways(Layer):
                 assert 0 <= x <= self.max_dim, (x, self.max_dim)
                 assert 0 <= y <= self.max_dim, (y, self.max_dim)
 
-                # TODO: we don't currently support a distinction between on- and off-ramps
-                is_ramp = point in on_ramps or point in off_ramps
-                junction_id = state.add_highway_junction(x, y, is_ramp)
+                if point in on_ramps:
+                    ramp = engine.RampDirection.on_ramp()
+                elif point in off_ramps:
+                    ramp = engine.RampDirection.off_ramp()
+                else:
+                    ramp = None
+
+                junction_id = state.add_highway_junction(x, y, ramp)
                 junction_map[point] = junction_id
                 return junction_id
 

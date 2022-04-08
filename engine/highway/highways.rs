@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::junction::HighwayJunction;
+use crate::junction::{HighwayJunction, RampDirection};
 use crate::segment::{HighwayData, HighwayKey, HighwaySegment};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ impl Highways {
         }
     }
 
-    pub fn add_junction(&mut self, location: (f64, f64), ramp: bool) -> u64 {
+    pub fn add_junction(&mut self, location: (f64, f64), ramp: Option<RampDirection>) -> u64 {
         let id = self.junction_counter;
 
         self.junctions
