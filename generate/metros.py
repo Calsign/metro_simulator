@@ -137,7 +137,7 @@ class Metros(Layer):
             assert name is not None, route
 
             last_point = None
-            stops: T.List[osm.Stop] = []
+            stops: T.List[osm.Node] = []
             spline_all_coords: T.List[T.Tuple[float, float]] = []
             spline_coord_map: T.Dict[T.Tuple[float, float], int] = {}
 

@@ -20,7 +20,7 @@ from generate import osm
 VALIDATE = False
 
 
-def parse_ref(tags: T.Dict[str, str]) -> T.List[str]:
+def parse_ref(tags: T.Dict[str, str]) -> T.Optional[T.List[str]]:
     """
     Parses OSM's "ref" tag; splits into separate refs.
     """
@@ -31,7 +31,7 @@ def parse_ref(tags: T.Dict[str, str]) -> T.List[str]:
     return ref.split(";")
 
 
-def parse_lanes(tags: T.Dict[str, str]) -> int:
+def parse_lanes(tags: T.Dict[str, str]) -> T.Optional[int]:
     """
     Parse OSM's "lanes" tag; returns number of lanes.
     """
@@ -57,7 +57,7 @@ def parse_lanes(tags: T.Dict[str, str]) -> int:
         return None
 
 
-def parse_speed_limit(tags: T.Dict[str, str]) -> int:
+def parse_speed_limit(tags: T.Dict[str, str]) -> T.Optional[int]:
     """
     Parse OSM's "maxspeed" tag; returns speed limit in m/s.
     """
@@ -81,7 +81,7 @@ def parse_speed_limit(tags: T.Dict[str, str]) -> int:
         return None
 
 
-def is_oneway(tags: T.Dict[str, str]):
+def is_oneway(tags: T.Dict[str, str]) -> bool:
     highway = tags["highway"]
     if highway == "motorway":
         # motorway implies oneway
@@ -134,7 +134,9 @@ class Highways(Layer):
         self.osm = dataset
 
         # each item is a (incoming, outgoing) tuple
-        coord_map = defaultdict(lambda: ([], []))
+        coord_map: T.Dict[
+            T.Tuple[float, float], T.Tuple[T.List[osm.Way], T.List[osm.Way]]
+        ] = defaultdict(lambda: ([], []))
 
         on_ramps = set()
         off_ramps = set()
@@ -188,7 +190,7 @@ class Highways(Layer):
         for (point, in_ways, out_ways) in junctions:
             # NOTE: only use diverging edges to avoid double-counting
             for highway in out_ways:
-                points = []
+                points: T.List[T.Tuple[float, float]] = []
                 way = highway
                 border_point = point
                 prev_segment_data = None
@@ -234,7 +236,7 @@ class Highways(Layer):
                         points.extend(coords)
                         prev_segment_data = cur_segment_data
 
-                    next_in_ways, next_out_ways = coord_map.get(border_point)
+                    next_in_ways, next_out_ways = coord_map[border_point]
 
                     if len(next_in_ways) != 1 or len(next_out_ways) != 1:
                         break
@@ -246,7 +248,7 @@ class Highways(Layer):
                     add_segment_tuple(points, prev_segment_data)
 
         # map from points to junction IDs
-        junction_map = {}
+        junction_map: T.Dict[T.Tuple[float, float], int] = {}
 
         def get_junction_id(point: T.Tuple[float, float]) -> int:
             if point in junction_map:
@@ -287,7 +289,7 @@ class Highways(Layer):
         pass
 
     def finalize(self, data: T.Any) -> Tile:
-        raise UnimplementedError()
+        raise NotImplementedError()
 
     def fuse(self, entities: T.List[T.Any]) -> T.Any:
         assert False, entities

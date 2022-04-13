@@ -11,6 +11,12 @@ from shapely.affinity import affine_transform
 from generate.data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
 
 
+class SupportsParse(T.Protocol):
+    @staticmethod
+    def parse(data: T.Dict[str, T.Any]) -> SupportsParse:
+        pass
+
+
 @dataclass
 class Way:
     id: int
@@ -72,7 +78,7 @@ class Relation:
             member.transform(matrix)
 
 
-FIELDS = {
+FIELDS: T.Dict[str, T.Type[SupportsParse]] = {
     "subways": Way,
     "stations": Node,
     "stops": Node,
@@ -83,6 +89,14 @@ FIELDS = {
 
 
 class OsmData:
+    # NOTE: for mypy
+    subways: T.List[Way]
+    stations: T.List[Node]
+    stops: T.List[Node]
+    subway_route_masters: T.List[Relation]
+    subway_routes: T.List[Relation]
+    highways: T.List[Way]
+
     def __init__(self):
         for field in FIELDS:
             setattr(self, field, [])
