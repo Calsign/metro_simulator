@@ -89,15 +89,8 @@ impl SqrtPair {
         }
     }
 
-    fn integral(&self, t: f64) -> f64 {
-        let f = |x: f64| {
-            (self.b.powi(2) + 2.0 * self.a * (x - self.t)).powf(3.0 / 2.0) / (3.0 * self.a)
-        };
-        f(self.t + (t - self.t).abs()) - f(self.t)
-    }
-
-    fn average_speed(&self, t: f64) -> f64 {
-        self.integral(t) / (t - self.t).abs()
+    fn travel_time(&self, t: f64) -> f64 {
+        (t - self.t).abs() / ((self.eval(t) + self.b) / 2.0)
     }
 }
 
@@ -122,9 +115,14 @@ pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64) -> Vec<SqrtPair
     let mut speed_bounds = Vec::new();
     let mut t = 0.0; // total distance
 
+    let get_station = |key| match key {
+        &types::MetroKey::Stop(_, ref station) => Some(station.clone()),
+        &types::MetroKey::Key(_) => None,
+    };
+
     // start from rest
     speed_bounds.push(SqrtPair {
-        station: None,
+        station: keys.first().and_then(get_station),
         t,
         b: 0.0,
         a: MAX_ACCEL,
@@ -161,10 +159,16 @@ pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64) -> Vec<SqrtPair
         });
     }
 
+    if keys.len() >= 2 {
+        // account for the distance of the last key
+        let last = &keys[keys.len() - 1];
+        let second_to_last = &keys[keys.len() - 2];
+        t += last.vec(tile_size).distance(second_to_last.vec(tile_size));
+    }
+
     // finish at rest
     speed_bounds.push(SqrtPair {
-        station: None,
-        // TODO: account for the last key here
+        station: keys.last().and_then(get_station),
         t,
         b: 0.0,
         a: MAX_ACCEL,
@@ -195,7 +199,9 @@ fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
                 }
                 Some(std::cmp::Ordering::Equal) => match minima.last_mut() {
                     Some(last) => {
-                        last.station = sqrt_pair.station;
+                        if let None = last.station {
+                            last.station = sqrt_pair.station;
+                        }
                     }
                     None => (),
                 },
@@ -241,12 +247,18 @@ fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>) -> Vec<SpeedKey> {
         // boarding time at each station
         if let Some(_) = left.station {
             t += STATION_TIME;
+            speed_keys.push(SpeedKey {
+                station: None,
+                t,
+                v: 0.0,
+            });
         }
 
         if intersection.b > MAX_SPEED {
             let (_, l_int) = left.intersect_bound(MAX_SPEED).unwrap();
             let (r_int, _) = right.intersect_bound(MAX_SPEED).unwrap();
-            t += (l_int - left.t) / left.average_speed(l_int);
+            // t += (l_int - left.t) / left.average_speed(l_int);
+            t += left.travel_time(l_int);
             speed_keys.push(SpeedKey {
                 station: None,
                 t,
@@ -258,20 +270,24 @@ fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>) -> Vec<SpeedKey> {
                 t,
                 v: MAX_SPEED,
             });
-            t += (right.t - r_int) / right.average_speed(r_int);
+            t += right.travel_time(r_int);
             speed_keys.push(SpeedKey {
                 station: right.station.clone(),
                 t,
                 v: right.b,
             });
         } else {
-            t += (intersection.t - left.t) / left.average_speed(intersection.t);
+            if left.t != intersection.t {
+                t += left.travel_time(intersection.t)
+            }
             speed_keys.push(SpeedKey {
                 station: None,
                 t,
                 v: intersection.b,
             });
-            t += (right.t - intersection.t) / right.average_speed(intersection.t);
+            if right.t != intersection.t {
+                t += right.travel_time(intersection.t)
+            }
             speed_keys.push(SpeedKey {
                 station: right.station.clone(),
                 t,
@@ -305,6 +321,7 @@ fn distance_spline(speed_keys: &Vec<SpeedKey>) -> Vec<splines::Key<f64, f64>> {
     let mut d = 0.0; // total distance
 
     for (left, right) in speed_keys.iter().tuple_windows() {
+        assert!(right.t >= left.t, "{:?}, {:?}", left, right);
         if left.v == right.v {
             dist_keys.push(Key::new(left.t, d, Interpolation::Linear));
         } else {
@@ -312,11 +329,13 @@ fn distance_spline(speed_keys: &Vec<SpeedKey>) -> Vec<splines::Key<f64, f64>> {
             let m = (right.v - left.v) / (right.t - left.t);
 
             // integrate speed curve to get a parabola
-            let a = d;
-            let b = left.v;
-            let c = m / 2.0;
+            // TODO: not currently working :(
+            let a = m / 2.0;
+            let b = left.v - m * left.t;
+            let c = left.t - left.t * left.v + 0.5 * m * left.t.powi(2) + m * left.t;
 
-            dist_keys.push(parabolic_key(a, b, c, left.t, right.t));
+            // dist_keys.push(parabolic_key(a, b, c, left.t, right.t));
+            dist_keys.push(Key::new(left.t, d, Interpolation::Linear));
         }
 
         let avg_speed = (left.v + right.v) / 2.0;
@@ -445,14 +464,6 @@ mod sqrt_pair_tests {
     }
 
     #[test]
-    fn integral() {
-        assert_approx_eq!(f64, F1.integral(2.0), 8.0 / 3.0);
-        assert_approx_eq!(f64, F2.integral(3.0), 8.0 / 3.0);
-        assert_approx_eq!(f64, F3.integral(1.5), 7.0 / 3.0);
-        assert_approx_eq!(f64, F4.integral(5.0), 7.0 / 3.0);
-    }
-
-    #[test]
     fn minima() {
         assert_eq!(sqrt_pair_minima(vec!()), vec!());
         assert_eq!(sqrt_pair_minima(vec!(F1)), vec!(F1));
@@ -464,5 +475,64 @@ mod sqrt_pair_tests {
         assert_eq!(sqrt_pair_minima(vec!(F3, F1, F2)), vec!(F1, F2));
 
         assert_eq!(sqrt_pair_minima(vec!(F1, F2, F4)), vec!(F1, F2, F4));
+    }
+}
+
+#[cfg(test)]
+mod dist_spline_tests {
+    use crate::timing::{distance_spline, time_rectify, SpeedKey, SqrtPair};
+    use float_cmp::assert_approx_eq;
+
+    #[test]
+    fn time_rectify_test() {
+        let speed_keys = time_rectify(vec![
+            SqrtPair {
+                station: None,
+                t: 0.0,
+                b: 0.0,
+                a: 0.5,
+            },
+            SqrtPair {
+                station: None,
+                t: 2.0,
+                b: 0.0,
+                a: 0.5,
+            },
+        ]);
+        assert_eq!(speed_keys.len(), 3);
+        assert_approx_eq!(f64, speed_keys[0].t, 0.0);
+        assert_approx_eq!(f64, speed_keys[0].v, 0.0);
+        assert_approx_eq!(f64, speed_keys[1].t, 2.0);
+        assert_approx_eq!(f64, speed_keys[1].v, 1.0);
+        assert_approx_eq!(f64, speed_keys[2].t, 4.0);
+        assert_approx_eq!(f64, speed_keys[2].v, 0.0);
+    }
+
+    #[test]
+    fn distance_spline_test() {
+        let keys = distance_spline(&vec![
+            SpeedKey {
+                station: None,
+                t: 0.0,
+                v: 0.0,
+            },
+            SpeedKey {
+                station: None,
+                t: 2.0,
+                v: 1.0,
+            },
+            SpeedKey {
+                station: None,
+                t: 4.0,
+                v: 0.0,
+            },
+        ]);
+        assert_eq!(keys.len(), 3);
+        assert_approx_eq!(f64, keys[0].t, 0.0);
+        assert_approx_eq!(f64, keys[0].value, 0.0);
+        assert_approx_eq!(f64, keys[1].t, 2.0);
+        assert_approx_eq!(f64, keys[1].value, 1.0);
+        assert_approx_eq!(f64, keys[2].t, 4.0);
+        assert_approx_eq!(f64, keys[2].value, 2.0);
     }
 }

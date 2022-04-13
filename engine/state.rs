@@ -139,7 +139,8 @@ impl State {
             None => metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into(),
         };
 
-        let mut metro_line = metro::MetroLine::new(id, color, name);
+        let mut metro_line =
+            metro::MetroLine::new(id, color, name, self.config.min_tile_size as f64);
 
         if let Some(keys) = keys {
             metro_line.set_keys(keys);

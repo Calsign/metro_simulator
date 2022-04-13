@@ -435,13 +435,14 @@ impl MetroLine {
 
     #[getter]
     fn length(&self) -> f64 {
-        self.metro_line.length()
+        self.metro_line.get_splines().length
     }
 
     #[getter]
     fn stops(&self) -> Vec<MetroStation> {
         self.metro_line
-            .stops()
+            .get_splines()
+            .stops
             .iter()
             .map(|station| station.clone().into())
             .collect()

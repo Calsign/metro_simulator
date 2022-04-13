@@ -3,6 +3,7 @@ enum Operation {
     TimeTable,
     SpeedPlot { output: std::path::PathBuf },
     SpeedBounds { output: std::path::PathBuf },
+    ComputeDistSpline,
 }
 
 #[derive(clap::Parser, Debug)]
@@ -78,6 +79,13 @@ fn main() {
                 &output,
             )
             .unwrap();
+        }
+        Operation::ComputeDistSpline => {
+            println!(
+                "metro line length: {}",
+                metro_line.get_splines().length * state.config.min_tile_size as f64
+            );
+            let dist_spline = metro::timing::dist_spline(&speed_keys);
         }
     };
 }

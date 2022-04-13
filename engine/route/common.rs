@@ -182,6 +182,8 @@ pub enum Edge {
     MetroSegment {
         metro_line: u64,
         time: f64,
+        start: quadtree::Address,
+        stop: quadtree::Address,
     },
     MetroEmbark {
         metro_line: u64,
@@ -237,7 +239,9 @@ impl std::fmt::Display for Edge {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Edge::*;
         match self {
-            MetroSegment { metro_line, time } => write!(f, "metro:{}:{:.2}", metro_line, time),
+            MetroSegment {
+                metro_line, time, ..
+            } => write!(f, "metro:{}:{:.2}", metro_line, time),
             MetroEmbark {
                 metro_line,
                 station,

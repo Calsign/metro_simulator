@@ -58,6 +58,23 @@ impl App {
             }
         }
 
+        let route_input = route::SplineConstructionInput {
+            metro_lines: &self.engine.metro_lines,
+            highways: &self.engine.highways,
+            state: &route::WorldState::new(),
+            tile_size: self.engine.config.min_tile_size as f64,
+        };
+
+        for route in &self.routes {
+            let mut route_visitor = DrawSplineVisitor::new(self, &painter);
+            route.visit_spline(
+                &mut route_visitor,
+                spline_scale,
+                &bounding_box,
+                &route_input,
+            )?;
+        }
+
         Ok(())
     }
 
@@ -345,5 +362,18 @@ impl<'a, 'b> highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64
         t: f64,
     ) -> Result<()> {
         self.visit(&egui::Color32::from_gray(204), 1.0, vertex, t)
+    }
+}
+
+impl<'a, 'b> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Error>
+    for DrawSplineVisitor<'a, 'b>
+{
+    fn visit(&mut self, route: &route::Route, key: route::RouteKey, t: f64) -> Result<()> {
+        self.visit(
+            &egui::Color32::from_rgb(0, 0, 255),
+            5.0,
+            key.position.into(),
+            t,
+        )
     }
 }

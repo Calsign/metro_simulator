@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use cgmath as cg;
+use once_cell::unsync::OnceCell;
 use serde::{Deserialize, Serialize};
 
-use crate::color;
 pub use spline_util::SplineVisitor;
+
+use crate::color;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Station {
@@ -18,15 +22,37 @@ pub enum MetroKey {
     Stop(cg::Vector2<f64>, Station),
 }
 
+#[derive(Debug, Clone)]
+pub struct Splines {
+    /// spline mapping distance (in coordinate space) along spline to location on map
+    pub spline: splines::Spline<f64, cg::Vector2<f64>>,
+    /// total length of spline (in coordinate space)
+    pub length: f64,
+    /// stops along the metro line
+    pub stops: Vec<Station>,
+    /// spline mapping time to distance (in meters) along spline
+    pub dist_spline: splines::Spline<f64, f64>,
+    /// list of (stop, time) tuples
+    pub timetable: Vec<(Station, f64)>,
+    /// mapping from station to distance (in coordinate space)
+    pub dist_map: HashMap<quadtree::Address, f64>,
+    /// mapping from station address to time
+    pub time_map: HashMap<quadtree::Address, f64>,
+    /// mapping from station address to dist_spline key index
+    pub index_map: HashMap<quadtree::Address, usize>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetroLine {
     pub id: u64,
     pub color: color::Color,
     pub name: String,
+    tile_size: f64,
+    /// the MetroKeys defining the metro line
     keys: Vec<MetroKey>,
-    spline: splines::Spline<f64, cg::Vector2<f64>>,
-    length: f64,
-    stops: Vec<Station>,
+    /// this is fully determined by the keys
+    #[serde(skip)]
+    splines: OnceCell<Splines>,
 }
 
 impl PartialEq for MetroLine {
@@ -50,15 +76,14 @@ impl PartialOrd for MetroLine {
 }
 
 impl MetroLine {
-    pub fn new(id: u64, color: color::Color, name: String) -> Self {
+    pub fn new(id: u64, color: color::Color, name: String, tile_size: f64) -> Self {
         Self {
             id,
             color,
             name,
-            keys: vec![],
-            spline: splines::Spline::from_vec(vec![]),
-            length: 0.0,
-            stops: vec![],
+            tile_size,
+            keys: Vec::new(),
+            splines: OnceCell::new(),
         }
     }
 
@@ -66,21 +91,18 @@ impl MetroLine {
         &self.keys
     }
 
-    pub fn get_spline_keys(&self) -> &[splines::Key<f64, cg::Vector2<f64>>] {
-        &self.spline.keys()
-    }
-
-    pub fn get_spline(&self) -> &splines::Spline<f64, cg::Vector2<f64>> {
-        &self.spline
-    }
-
     pub fn set_keys(&mut self, keys: Vec<MetroKey>) {
+        self.keys = keys;
+    }
+
+    fn construct_splines(&self) -> Splines {
         use cg::MetricSpace;
 
         let mut spline_keys: Vec<splines::Key<f64, cg::Vector2<f64>>> = Vec::new();
         let mut stops = Vec::new();
+        let mut dist_map = HashMap::new();
         let mut t = 0.0;
-        for key in &keys {
+        for key in &self.keys {
             let vec = match key {
                 MetroKey::Key(vec) => vec,
                 MetroKey::Stop(vec, station) => {
@@ -92,20 +114,43 @@ impl MetroLine {
                 t += vec.distance(last.value);
             }
             spline_keys.push(splines::Key::new(t, *vec, splines::Interpolation::Linear));
+            if let MetroKey::Stop(_, station) = key {
+                dist_map.insert(station.address, t);
+            }
         }
 
-        self.keys = keys;
-        self.spline = splines::Spline::from_vec(spline_keys);
-        self.length = t;
-        self.stops = stops;
+        let speed_keys = crate::timing::speed_keys(&self.keys, self.tile_size);
+        let dist_spline = crate::timing::dist_spline(&speed_keys);
+        let timetable = crate::timing::timetable(&speed_keys);
+
+        let mut time_map = HashMap::new();
+        for (station, time) in &timetable {
+            time_map.insert(station.address, *time);
+        }
+
+        assert_eq!(speed_keys.len(), dist_spline.len());
+
+        let mut index_map = HashMap::new();
+        for (i, speed_key) in speed_keys.iter().enumerate() {
+            if let Some(station) = &speed_key.station {
+                index_map.insert(station.address, i);
+            }
+        }
+
+        Splines {
+            spline: splines::Spline::from_vec(spline_keys),
+            length: t,
+            stops,
+            dist_spline,
+            timetable,
+            dist_map,
+            time_map,
+            index_map,
+        }
     }
 
-    pub fn length(&self) -> f64 {
-        self.length
-    }
-
-    pub fn stops(&self) -> &Vec<Station> {
-        &self.stops
+    pub fn get_splines(&self) -> &Splines {
+        self.splines.get_or_init(|| self.construct_splines())
     }
 
     pub fn visit_spline<V, E>(
@@ -119,8 +164,8 @@ impl MetroLine {
     {
         spline_util::visit_spline(
             self,
-            &self.spline,
-            self.length,
+            &self.get_splines().spline,
+            self.get_splines().length,
             visitor,
             step,
             rect,

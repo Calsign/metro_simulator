@@ -14,6 +14,7 @@ rust_library(
         "//util:spline_util",
         "@crates//:cgmath",
         "@crates//:itertools",
+        "@crates//:once_cell",
         "@crates//:serde",
         "@crates//:splines",
         "@crates//:thiserror",

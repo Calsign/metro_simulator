@@ -163,6 +163,8 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
                 Edge::MetroSegment {
                     metro_line: metro_line.id,
                     time: right_t - left_t,
+                    start: left.address,
+                    stop: right.address,
                 },
             );
         }
@@ -324,7 +326,7 @@ mod highway_tests {
         let metro_lines = HashMap::new();
         let mut highways = Highways::new();
         for junction in &junctions {
-            highways.add_junction(junction.location, false);
+            highways.add_junction(junction.location, None);
         }
         for segment in &segments {
             highways.add_segment(

@@ -84,10 +84,10 @@ pub struct Route {
  * used to construct the base graph from which this route was derived.
  */
 pub struct SplineConstructionInput<'a, 'b, 'c> {
-    metro_lines: &'a HashMap<u64, MetroLine>,
-    highways: &'b Highways,
-    state: &'c WorldState,
-    tile_size: f64,
+    pub metro_lines: &'a HashMap<u64, MetroLine>,
+    pub highways: &'b Highways,
+    pub state: &'c WorldState,
+    pub tile_size: f64,
 }
 
 impl Route {
@@ -134,48 +134,102 @@ impl Route {
         let mut t = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
+            let dt = edge.cost(input.state);
+            // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
+            let default_dd =
+                cgmath::Vector2::from(start.location()).distance(end.location().into());
+            let dd: f64;
             match &edge {
-                Edge::MetroSegment { metro_line, .. } => {
+                Edge::MetroSegment {
+                    metro_line,
+                    start,
+                    stop,
+                    ..
+                } => {
                     let metro_line = input
                         .metro_lines
                         .get(metro_line)
                         .expect("missing metro line");
-                    let speed_keys =
-                        metro::timing::speed_keys(metro_line.get_keys(), input.tile_size);
-                    let dist_spline = metro::timing::dist_spline(&speed_keys);
-                    for key in dist_spline.keys() {
-                        let time = key.t;
-                        let dist = key.value;
-                        let location = metro_line.get_spline().clamped_sample(dist).unwrap();
+                    let dist_spline = &metro_line.get_splines().dist_spline;
+
+                    let start_index = *metro_line
+                        .get_splines()
+                        .index_map
+                        .get(start)
+                        .expect("start index not found");
+                    let stop_index = *metro_line
+                        .get_splines()
+                        .index_map
+                        .get(stop)
+                        .expect("end index not found");
+
+                    let start_key = dist_spline.keys()[start_index];
+                    let stop_key = dist_spline.keys()[stop_index];
+
+                    println!("start_index: {}, stop_index: {}", start_index, stop_index);
+
+                    println!("start key: {:?}", start_key);
+
+                    for key in &dist_spline.keys()[start_index..=stop_index] {
+                        let time = key.t - start_key.t;
+                        let dist = key.value - start_key.value;
+
+                        assert!(time >= 0.0, "{}", time);
+                        assert!(dist >= 0.0, "{}", dist);
+
+                        let location = metro_line
+                            .get_splines()
+                            .spline
+                            .clamped_sample(key.value / input.tile_size)
+                            .unwrap();
                         // TODO: it is probably insufficient to describe this as walking
-                        keys.push(RouteKey::new(location.into(), dist, time, Mode::Walking));
+                        keys.push(RouteKey::new(
+                            location.into(),
+                            d + dist,
+                            t + time,
+                            Mode::Walking,
+                        ));
                     }
+
+                    dd = stop_key.value - start_key.value;
                 }
-                Edge::MetroEmbark { .. } | Edge::MetroDisembark { .. } => (),
+                Edge::MetroEmbark { .. } | Edge::MetroDisembark { .. } => {
+                    println!("edge: {:?}", edge);
+                    dd = default_dd;
+                }
                 Edge::Highway { segment, .. } => {
                     let segment = input
                         .highways
                         .get_segment(*segment)
                         .expect("missing highway segment");
                     for key in segment.get_spline_keys() {
-                        let total_time = highway::timing::travel_time(segment, input.tile_size);
                         keys.push(RouteKey::new(
                             key.value.into(),
                             d + key.t,
-                            t + total_time * d / segment.length(),
+                            t + dt * key.t / segment.length(),
                             Mode::Driving,
                         ));
                     }
+                    dd = segment.length();
                 }
-                Edge::HighwayRamp { .. } => (),
+                Edge::HighwayRamp { .. } => {
+                    dd = default_dd;
+                }
                 Edge::ModeSegment { mode, .. } => {
+                    dd = default_dd;
                     keys.push(RouteKey::new(start.location(), d, t, *mode));
-                    keys.push(RouteKey::new(end.location(), d, t, *mode));
+                    keys.push(RouteKey::new(end.location(), d + dd, t + dt, *mode));
                 }
-                Edge::ModeTransition { .. } => (),
+                Edge::ModeTransition { .. } => {
+                    dd = default_dd;
+                }
             }
-            t += edge.cost(input.state);
-            d += cgmath::Vector2::from(start.location()).distance(end.location().into());
+            d += dd;
+            t += dt;
+        }
+
+        for key in &keys {
+            println!("{:?}", key);
         }
 
         Splines {

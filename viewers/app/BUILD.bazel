@@ -16,6 +16,7 @@ rust_library(
         "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",
+        "//engine/route",
         "//engine/tiles",
         "@crates//:anyhow",
         "@crates//:cgmath",

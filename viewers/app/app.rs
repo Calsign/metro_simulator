@@ -4,18 +4,33 @@ pub struct App {
     pub(crate) options: Options,
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
+    pub(crate) routes: Vec<route::Route>,
 }
 
 impl App {
     fn new(mut engine: engine::state::State) -> Self {
         // TODO: re-run this when the qtree updates
         engine.update_fields().unwrap();
+
+        let mut base_graph = engine.construct_base_route_graph().unwrap();
+        let query_input = route::QueryInput {
+            base_graph: &mut base_graph,
+            // end: engine.qtree.get_address(2109, 2488).unwrap(),
+            start: engine.qtree.get_address(2087, 2008).unwrap(),
+            // start: engine.qtree.get_address(3084, 1364).unwrap(),
+            end: engine.qtree.get_address(3186, 2246).unwrap(),
+            state: &route::WorldState::new(),
+            car_config: None, // Some(route::CarConfig::StartWithCar),
+        };
+        let route = route::best_route(query_input).unwrap().unwrap();
+
         Self {
             pan: PanState::new(&engine),
             field: None,
             engine,
             options: Options::new(),
             diagnostics: Diagnostics::default(),
+            routes: vec![route],
         }
     }
 

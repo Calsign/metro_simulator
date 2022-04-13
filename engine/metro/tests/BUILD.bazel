@@ -1,0 +1,14 @@
+load("@rules_rust//rust:defs.bzl", "rust_test")
+
+rust_test(
+    name = "timing_consistency_test",
+    srcs = ["timing_consistency_test.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+        "//engine/metro",
+        "@crates//:cgmath",
+        "@crates//:float-cmp",
+        "@crates//:itertools",
+    ],
+)
