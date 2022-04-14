@@ -5,6 +5,7 @@ pub struct App {
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
     pub(crate) routes: Vec<route::Route>,
+    pub(crate) route_query: RouteQuery,
 }
 
 impl App {
@@ -12,25 +13,14 @@ impl App {
         // TODO: re-run this when the qtree updates
         engine.update_fields().unwrap();
 
-        let mut base_graph = engine.construct_base_route_graph().unwrap();
-        let query_input = route::QueryInput {
-            base_graph: &mut base_graph,
-            // end: engine.qtree.get_address(2109, 2488).unwrap(),
-            start: engine.qtree.get_address(2087, 2008).unwrap(),
-            // start: engine.qtree.get_address(3084, 1364).unwrap(),
-            end: engine.qtree.get_address(3186, 2246).unwrap(),
-            state: &route::WorldState::new(),
-            car_config: None, // Some(route::CarConfig::StartWithCar),
-        };
-        let route = route::best_route(query_input).unwrap().unwrap();
-
         Self {
             pan: PanState::new(&engine),
             field: None,
             engine,
             options: Options::new(),
             diagnostics: Diagnostics::default(),
-            routes: vec![route],
+            routes: Vec::new(),
+            route_query: RouteQuery::new(),
         }
     }
 
@@ -62,21 +52,87 @@ impl App {
                     ui.add_space(10.0);
                     self.diagnostics.draw(ui);
 
-                    let mouse = ui
-                        .input()
-                        .pointer
-                        .hover_pos()
-                        .map(|pos| self.pan.to_model_fu((pos.x, pos.y)));
-                    if let Some((x, y)) = mouse {
+                    if let Some((x, y)) = self.get_hovered_pos(&ui) {
                         ui.add_space(10.0);
                         ui.label(format!("Coords: {}, {}", x, y));
                     }
+
+                    ui.add_space(10.0);
+                    ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
                 });
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             self.draw_content(ui).unwrap();
         });
+    }
+
+    pub fn get_hovered_pos(&self, ui: &egui::Ui) -> Option<(u64, u64)> {
+        ui.input()
+            .pointer
+            .hover_pos()
+            .map(|pos| self.pan.to_model_fu((pos.x, pos.y)))
+    }
+
+    fn draw_route_query(&mut self, ui: &mut egui::Ui) {
+        match self.route_query.start_address {
+            Some(start) => {
+                let (x, y) = start.to_xy();
+                ui.label(format!("[a] Start: {}, {}", x, y));
+            }
+            None => {
+                ui.label("[a] No start selected");
+            }
+        }
+        match self.route_query.stop_address {
+            Some(stop) => {
+                let (x, y) = stop.to_xy();
+                ui.label(format!("[z] Stop: {}, {}", x, y));
+            }
+            None => {
+                ui.label("[z] No stop selected");
+            }
+        }
+        ui.checkbox(&mut self.route_query.has_car, "Has car");
+
+        if ui.input().keys_down.contains(&egui::Key::A) {
+            if let Some((x, y)) = self.get_hovered_pos(&ui) {
+                if let Ok(start) = self.engine.qtree.get_address(x, y) {
+                    self.route_query.start_address = Some(start);
+                }
+            }
+        }
+        if ui.input().keys_down.contains(&egui::Key::Z) {
+            if let Some((x, y)) = self.get_hovered_pos(&ui) {
+                if let Ok(stop) = self.engine.qtree.get_address(x, y) {
+                    self.route_query.stop_address = Some(stop);
+                }
+            }
+        }
+
+        if ui.button("Plot route").clicked() {
+            if let (Some(start), Some(stop)) = (
+                self.route_query.start_address,
+                self.route_query.stop_address,
+            ) {
+                // TODO: move base graph computation into engine
+                let mut base_graph = self.engine.construct_base_route_graph().unwrap();
+                let query_input = route::QueryInput {
+                    base_graph: &mut base_graph,
+                    start,
+                    end: stop,
+                    state: &route::WorldState::new(),
+                    car_config: if self.route_query.has_car {
+                        Some(route::CarConfig::StartWithCar)
+                    } else {
+                        None
+                    },
+                };
+                if let Ok(Some(route)) = route::best_route(query_input) {
+                    self.routes = vec![route];
+                }
+            }
+        }
     }
 }
 
@@ -179,5 +235,25 @@ impl PanState {
 
     pub fn to_model_ff(&self, (x, y): (f32, f32)) -> (f32, f32) {
         ((x - self.tx) / self.scale, (y - self.ty) / self.scale)
+    }
+}
+
+pub(crate) struct RouteQuery {
+    pub start_address: Option<quadtree::Address>,
+    pub stop_address: Option<quadtree::Address>,
+    pub start_selection: bool,
+    pub stop_selection: bool,
+    pub has_car: bool,
+}
+
+impl RouteQuery {
+    fn new() -> Self {
+        Self {
+            start_address: None,
+            stop_address: None,
+            start_selection: false,
+            stop_selection: false,
+            has_car: false,
+        }
     }
 }
