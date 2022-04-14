@@ -62,6 +62,8 @@ pub struct State {
     pub metro_lines: HashMap<u64, metro::MetroLine>,
     metro_line_counter: u64,
     pub highways: highway::Highways,
+    #[serde(skip)]
+    pub collect_tiles: CollectTilesVisitor,
 }
 
 impl State {
@@ -73,6 +75,7 @@ impl State {
             metro_lines: HashMap::new(),
             metro_line_counter: 0,
             highways: highway::Highways::new(),
+            collect_tiles: CollectTilesVisitor::default(),
         }
     }
 
@@ -95,6 +98,12 @@ impl State {
     pub fn update_fields(&mut self) -> Result<(), Error> {
         let mut fold = UpdateFieldsFold {};
         let _ = self.qtree.fold_mut(&mut fold)?;
+        Ok(())
+    }
+
+    pub fn update_collect_tiles(&mut self) -> Result<(), Error> {
+        self.collect_tiles.clear();
+        self.qtree.visit(&mut self.collect_tiles)?;
         Ok(())
     }
 
@@ -172,6 +181,25 @@ impl State {
     pub fn construct_base_route_graph(&self) -> Result<route::Graph, Error> {
         self.construct_base_route_graph_filter(None, None)
     }
+
+    pub fn query_route(
+        &self,
+        start: quadtree::Address,
+        end: quadtree::Address,
+        car_config: Option<route::CarConfig>,
+    ) -> Result<Option<route::Route>, Error> {
+        // TODO: re-use existing base graph, but invalidate it when metros/highways change
+        // also need to make sure we have a separate instance per thread
+        let mut base_graph = self.construct_base_route_graph()?;
+        let query_input = route::QueryInput {
+            base_graph: &mut base_graph,
+            start,
+            end,
+            state: &route::WorldState::new(),
+            car_config,
+        };
+        Ok(route::best_route(query_input)?)
+    }
 }
 
 struct UpdateFieldsFold {}
@@ -201,5 +229,46 @@ impl quadtree::MutFold<BranchState, LeafState, (bool, fields::FieldsState), Erro
             branch.fields.compute_branch(&fields, data);
         }
         Ok((changed, branch.fields.clone()))
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CollectTilesVisitor {
+    pub housing: Vec<quadtree::Address>,
+    pub workplaces: Vec<quadtree::Address>,
+}
+
+impl CollectTilesVisitor {
+    pub fn clear(&mut self) {
+        self.housing.clear();
+        self.workplaces.clear();
+    }
+}
+
+impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
+    fn visit_branch_pre(
+        &mut self,
+        branch: &BranchState,
+        data: &quadtree::VisitData,
+    ) -> Result<bool, Error> {
+        Ok(true)
+    }
+
+    fn visit_leaf(&mut self, leaf: &LeafState, data: &quadtree::VisitData) -> Result<(), Error> {
+        use tiles::Tile::*;
+        match leaf.tile {
+            HousingTile(_) => self.housing.push(data.address),
+            WorkplaceTile(_) => self.workplaces.push(data.address),
+            _ => (),
+        }
+        Ok(())
+    }
+
+    fn visit_branch_post(
+        &mut self,
+        branch: &BranchState,
+        data: &quadtree::VisitData,
+    ) -> Result<(), Error> {
+        Ok(())
     }
 }

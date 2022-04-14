@@ -27,6 +27,7 @@ rust_library(
         "@crates//:itertools",
         "@crates//:log",
         "@crates//:pollster",
+        "@crates//:rand",
         "@crates//:wgpu",
         "@crates//:winit",
     ],

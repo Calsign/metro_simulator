@@ -65,7 +65,7 @@ impl App {
             tile_size: self.engine.config.min_tile_size as f64,
         };
 
-        for route in &self.routes {
+        for route in &self.route_query.current_routes {
             let mut route_visitor = DrawSplineVisitor::new(self, &painter);
             route.visit_spline(
                 &mut route_visitor,

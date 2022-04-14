@@ -4,7 +4,6 @@ pub struct App {
     pub(crate) options: Options,
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
-    pub(crate) routes: Vec<route::Route>,
     pub(crate) route_query: RouteQuery,
 }
 
@@ -12,6 +11,7 @@ impl App {
     fn new(mut engine: engine::state::State) -> Self {
         // TODO: re-run this when the qtree updates
         engine.update_fields().unwrap();
+        engine.update_collect_tiles().unwrap();
 
         Self {
             pan: PanState::new(&engine),
@@ -19,7 +19,6 @@ impl App {
             engine,
             options: Options::new(),
             diagnostics: Diagnostics::default(),
-            routes: Vec::new(),
             route_query: RouteQuery::new(),
         }
     }
@@ -75,6 +74,8 @@ impl App {
     }
 
     fn draw_route_query(&mut self, ui: &mut egui::Ui) {
+        let mut changed = false;
+
         match self.route_query.start_address {
             Some(start) => {
                 let (x, y) = start.to_xy();
@@ -93,12 +94,30 @@ impl App {
                 ui.label("[z] No stop selected");
             }
         }
-        ui.checkbox(&mut self.route_query.has_car, "Has car");
+        if ui
+            .checkbox(&mut self.route_query.has_car, "Has car")
+            .clicked()
+        {
+            changed = true;
+        }
+
+        if ui.button("Pick random").clicked() {
+            use rand::seq::SliceRandom;
+            let mut rng = rand::thread_rng();
+
+            // for now, go from home to work
+            let start = self.engine.collect_tiles.housing.choose(&mut rng);
+            let stop = self.engine.collect_tiles.workplaces.choose(&mut rng);
+            self.route_query.start_address = start.map(|a| *a);
+            self.route_query.stop_address = stop.map(|a| *a);
+            changed = true;
+        }
 
         if ui.input().keys_down.contains(&egui::Key::A) {
             if let Some((x, y)) = self.get_hovered_pos(&ui) {
                 if let Ok(start) = self.engine.qtree.get_address(x, y) {
                     self.route_query.start_address = Some(start);
+                    changed = true;
                 }
             }
         }
@@ -106,30 +125,23 @@ impl App {
             if let Some((x, y)) = self.get_hovered_pos(&ui) {
                 if let Ok(stop) = self.engine.qtree.get_address(x, y) {
                     self.route_query.stop_address = Some(stop);
+                    changed = true;
                 }
             }
         }
 
-        if ui.button("Plot route").clicked() {
+        if changed {
             if let (Some(start), Some(stop)) = (
                 self.route_query.start_address,
                 self.route_query.stop_address,
             ) {
-                // TODO: move base graph computation into engine
-                let mut base_graph = self.engine.construct_base_route_graph().unwrap();
-                let query_input = route::QueryInput {
-                    base_graph: &mut base_graph,
-                    start,
-                    end: stop,
-                    state: &route::WorldState::new(),
-                    car_config: if self.route_query.has_car {
-                        Some(route::CarConfig::StartWithCar)
-                    } else {
-                        None
-                    },
+                let car_config = if self.route_query.has_car {
+                    Some(route::CarConfig::StartWithCar)
+                } else {
+                    None
                 };
-                if let Ok(Some(route)) = route::best_route(query_input) {
-                    self.routes = vec![route];
+                if let Ok(Some(route)) = self.engine.query_route(start, stop, car_config) {
+                    self.route_query.current_routes = vec![route];
                 }
             }
         }
@@ -244,6 +256,7 @@ pub(crate) struct RouteQuery {
     pub start_selection: bool,
     pub stop_selection: bool,
     pub has_car: bool,
+    pub current_routes: Vec<route::Route>,
 }
 
 impl RouteQuery {
@@ -253,7 +266,8 @@ impl RouteQuery {
             stop_address: None,
             start_selection: false,
             stop_selection: false,
-            has_car: false,
+            has_car: true,
+            current_routes: Vec::new(),
         }
     }
 }
