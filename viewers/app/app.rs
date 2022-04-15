@@ -51,13 +51,13 @@ impl App {
                     ui.add_space(10.0);
                     self.diagnostics.draw(ui);
 
+                    ui.add_space(10.0);
+                    ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
+
                     if let Some((x, y)) = self.get_hovered_pos(&ui) {
                         ui.add_space(10.0);
                         ui.label(format!("Coords: {}, {}", x, y));
                     }
-
-                    ui.add_space(10.0);
-                    ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
                 });
             });
 
