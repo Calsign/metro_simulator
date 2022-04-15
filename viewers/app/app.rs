@@ -38,26 +38,29 @@ impl App {
     pub fn draw(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("controls")
             .resizable(false)
+            .min_width(200.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.label("Field:");
-                    ui.radio_value(&mut self.field, None, "None");
-                    ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
-                    ui.radio_value(&mut self.field, Some(FieldType::Employment), "Employment");
-                    ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
+                    ui.collapsing("Fields", |ui| {
+                        ui.radio_value(&mut self.field, None, "None");
+                        ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
+                        ui.radio_value(&mut self.field, Some(FieldType::Employment), "Employment");
+                        ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
+                    });
 
-                    ui.add_space(10.0);
-                    self.options.draw(ui);
-                    ui.add_space(10.0);
-                    self.diagnostics.draw(ui);
+                    ui.collapsing("Display options", |ui| {
+                        self.options.draw(ui);
+                    });
 
-                    ui.add_space(10.0);
+                    ui.collapsing("Diagnostics", |ui| {
+                        self.diagnostics.draw(ui);
+                        match self.get_hovered_pos(&ui) {
+                            Some((x, y)) => ui.label(format!("Coords: {}, {}", x, y)),
+                            None => ui.label("Coords: n/a"),
+                        }
+                    });
+
                     ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
-
-                    if let Some((x, y)) = self.get_hovered_pos(&ui) {
-                        ui.add_space(10.0);
-                        ui.label(format!("Coords: {}, {}", x, y));
-                    }
                 });
             });
 
