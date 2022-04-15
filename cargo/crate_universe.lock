@@ -1,5 +1,5 @@
 {
-  "checksum": "03e01f70fdfbdce7ddb9fced483825c533733102eaecae56554e9f984e992544",
+  "checksum": "80936c37684078ab9fd0325bf9d9734ac94659cb3e2a6caf845081b1ef46134e",
   "crates": {
     "ab_glyph 0.2.15": {
       "name": "ab_glyph",
@@ -3036,7 +3036,7 @@
               "target": "pollster"
             },
             {
-              "id": "pyo3 0.15.1",
+              "id": "pyo3 0.15.2",
               "target": "pyo3"
             },
             {
@@ -3060,7 +3060,7 @@
               "target": "thiserror"
             },
             {
-              "id": "toml 0.5.8",
+              "id": "toml 0.5.9",
               "target": "toml"
             },
             {
@@ -8798,7 +8798,7 @@
               "target": "thiserror"
             },
             {
-              "id": "toml 0.5.8",
+              "id": "toml 0.5.9",
               "target": "toml"
             }
           ],
@@ -9138,13 +9138,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "pyo3 0.15.1": {
+    "pyo3 0.15.2": {
       "name": "pyo3",
-      "version": "0.15.1",
+      "version": "0.15.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/pyo3/0.15.1/download",
-          "sha256": "7cf01dbf1c05af0a14c7779ed6f3aa9deac9c3419606ac9de537a2d649005720"
+          "url": "https://crates.io/api/v1/crates/pyo3/0.15.2/download",
+          "sha256": "d41d50a7271e08c7c8a54cd24af5d62f73ee3a6f6a314215281ebdec421d5752"
         }
       },
       "targets": [
@@ -9210,7 +9210,7 @@
               "target": "paste"
             },
             {
-              "id": "pyo3 0.15.1",
+              "id": "pyo3 0.15.2",
               "target": "build_script_build"
             },
             {
@@ -9224,13 +9224,13 @@
         "proc_macro_deps": {
           "common": [
             {
-              "id": "pyo3-macros 0.15.1",
+              "id": "pyo3-macros 0.15.2",
               "target": "pyo3_macros"
             }
           ],
           "selects": {}
         },
-        "version": "0.15.1"
+        "version": "0.15.2"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -9239,7 +9239,7 @@
         "deps": {
           "common": [
             {
-              "id": "pyo3-build-config 0.15.1",
+              "id": "pyo3-build-config 0.15.2",
               "target": "pyo3_build_config"
             }
           ],
@@ -9249,13 +9249,13 @@
       },
       "license": "Apache-2.0"
     },
-    "pyo3-build-config 0.15.1": {
+    "pyo3-build-config 0.15.2": {
       "name": "pyo3-build-config",
-      "version": "0.15.1",
+      "version": "0.15.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/pyo3-build-config/0.15.1/download",
-          "sha256": "dbf9e4d128bfbddc898ad3409900080d8d5095c379632fbbfbb9c8cfb1fb852b"
+          "url": "https://crates.io/api/v1/crates/pyo3-build-config/0.15.2/download",
+          "sha256": "779239fc40b8e18bc8416d3a37d280ca9b9fb04bda54b98037bb6748595c2410"
         }
       },
       "targets": [
@@ -9300,14 +9300,14 @@
               "target": "once_cell"
             },
             {
-              "id": "pyo3-build-config 0.15.1",
+              "id": "pyo3-build-config 0.15.2",
               "target": "build_script_build"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.15.1"
+        "version": "0.15.2"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -9316,13 +9316,13 @@
       },
       "license": "Apache-2.0"
     },
-    "pyo3-macros 0.15.1": {
+    "pyo3-macros 0.15.2": {
       "name": "pyo3-macros",
-      "version": "0.15.1",
+      "version": "0.15.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/pyo3-macros/0.15.1/download",
-          "sha256": "67701eb32b1f9a9722b4bc54b548ff9d7ebfded011c12daece7b9063be1fd755"
+          "url": "https://crates.io/api/v1/crates/pyo3-macros/0.15.2/download",
+          "sha256": "00b247e8c664be87998d8628e86f282c25066165f1f8dda66100c48202fdb93a"
         }
       },
       "targets": [
@@ -9347,7 +9347,7 @@
         "deps": {
           "common": [
             {
-              "id": "pyo3-macros-backend 0.15.1",
+              "id": "pyo3-macros-backend 0.15.2",
               "target": "pyo3_macros_backend"
             },
             {
@@ -9362,17 +9362,17 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.15.1"
+        "version": "0.15.2"
       },
       "license": "Apache-2.0"
     },
-    "pyo3-macros-backend 0.15.1": {
+    "pyo3-macros-backend 0.15.2": {
       "name": "pyo3-macros-backend",
-      "version": "0.15.1",
+      "version": "0.15.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/pyo3-macros-backend/0.15.1/download",
-          "sha256": "f44f09e825ee49a105f2c7b23ebee50886a9aee0746f4dd5a704138a64b0218a"
+          "url": "https://crates.io/api/v1/crates/pyo3-macros-backend/0.15.2/download",
+          "sha256": "5a8c2812c412e00e641d99eeb79dd478317d981d938aa60325dfa7157b607095"
         }
       },
       "targets": [
@@ -9401,7 +9401,7 @@
               "target": "proc_macro2"
             },
             {
-              "id": "pyo3-build-config 0.15.1",
+              "id": "pyo3-build-config 0.15.2",
               "target": "pyo3_build_config"
             },
             {
@@ -9416,7 +9416,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.15.1"
+        "version": "0.15.2"
       },
       "license": "Apache-2.0"
     },
@@ -11347,13 +11347,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "toml 0.5.8": {
+    "toml 0.5.9": {
       "name": "toml",
-      "version": "0.5.8",
+      "version": "0.5.9",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/toml/0.5.8/download",
-          "sha256": "a31142970826733df8241ef35dc040ef98c679ab14d7c3e54d827099b3acecaa"
+          "url": "https://crates.io/api/v1/crates/toml/0.5.9/download",
+          "sha256": "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
         }
       },
       "targets": [
@@ -11388,7 +11388,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.5.8"
+        "version": "0.5.9"
       },
       "license": "MIT/Apache-2.0"
     },
