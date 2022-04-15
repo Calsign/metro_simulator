@@ -94,16 +94,18 @@ impl State {
         false
     }
 
-    fn update(&mut self) {}
-
-    fn render(&mut self, window: &Window, app: &mut App) -> Result<(), wgpu::SurfaceError> {
+    fn update(&mut self, app: &mut App) -> f64 {
         let frame_start = Instant::now();
-        let new_frame_rate = 1.0 / (frame_start - self.last_frame_start).as_secs_f64();
+        let frame_elapsed = (frame_start - self.last_frame_start).as_secs_f64();
+        let new_frame_rate = 1.0 / frame_elapsed;
         // smooth so you can read it
         // TODO: this might not actually be correct?
         app.diagnostics.frame_rate = app.diagnostics.frame_rate * 0.5 + new_frame_rate * 0.5;
         self.last_frame_start = frame_start;
+        frame_elapsed
+    }
 
+    fn render(&mut self, window: &Window, app: &mut App) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -210,8 +212,8 @@ pub fn bootstrap(mut app: App, wait_for_resume: bool) {
                             .platform
                             .update_time(start_time.elapsed().as_secs_f64());
 
-                        app.update();
-                        state.update();
+                        let elapsed = state.update(&mut app);
+                        app.update(elapsed);
                         match state.render(window, &mut app) {
                             Ok(_) => (),
                             Err(wgpu::SurfaceError::Lost) => state.resize(state.size),

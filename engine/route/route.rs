@@ -76,6 +76,7 @@ pub struct Route {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
     pub cost: f64,
+    pub start_time: u64,
     splines: OnceCell<Splines>,
 }
 
@@ -91,11 +92,12 @@ pub struct SplineConstructionInput<'a, 'b, 'c> {
 }
 
 impl Route {
-    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f64) -> Self {
+    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f64, start_time: u64) -> Self {
         Self {
             nodes,
             edges,
             cost,
+            start_time,
             splines: OnceCell::new(),
         }
     }
@@ -166,10 +168,6 @@ impl Route {
                     let start_key = dist_spline.keys()[start_index];
                     let stop_key = dist_spline.keys()[stop_index];
 
-                    println!("start_index: {}, stop_index: {}", start_index, stop_index);
-
-                    println!("start key: {:?}", start_key);
-
                     for key in &dist_spline.keys()[start_index..=stop_index] {
                         let time = key.t - start_key.t;
                         let dist = key.value - start_key.value;
@@ -194,7 +192,6 @@ impl Route {
                     dd = stop_key.value - start_key.value;
                 }
                 Edge::MetroEmbark { .. } | Edge::MetroDisembark { .. } => {
-                    println!("edge: {:?}", edge);
                     dd = default_dd;
                 }
                 Edge::Highway { segment, .. } => {
@@ -226,10 +223,6 @@ impl Route {
             }
             d += dd;
             t += dt;
-        }
-
-        for key in &keys {
-            println!("{:?}", key);
         }
 
         Splines {
@@ -274,8 +267,23 @@ impl Route {
         )
     }
 
+    /**
+     * Get the route key at the given time, relative to the start of the route.
+     */
     pub fn sample_time(&self, time: f64, input: &SplineConstructionInput) -> Option<RouteKey> {
         let splines = self.get_splines(input);
         splines.time_spline.sample(time)
+    }
+
+    /**
+     * Get the route key at the given time in engine time, i.e. subtract off this route's start
+     * time.
+     */
+    pub fn sample_engine_time(
+        &self,
+        time: f64,
+        input: &SplineConstructionInput,
+    ) -> Option<RouteKey> {
+        self.sample_time(time - self.start_time as f64, input)
     }
 }

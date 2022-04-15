@@ -1,4 +1,6 @@
 use crate::config::Config;
+use crate::time_state::TimeState;
+
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -64,6 +66,7 @@ pub struct State {
     pub highways: highway::Highways,
     #[serde(skip)]
     pub collect_tiles: CollectTilesVisitor,
+    pub time_state: TimeState,
 }
 
 impl State {
@@ -76,6 +79,7 @@ impl State {
             metro_line_counter: 0,
             highways: highway::Highways::new(),
             collect_tiles: CollectTilesVisitor::default(),
+            time_state: TimeState::new(),
         }
     }
 
@@ -187,6 +191,7 @@ impl State {
         start: quadtree::Address,
         end: quadtree::Address,
         car_config: Option<route::CarConfig>,
+        start_time: u64,
     ) -> Result<Option<route::Route>, Error> {
         // TODO: re-use existing base graph, but invalidate it when metros/highways change
         // also need to make sure we have a separate instance per thread
@@ -197,8 +202,13 @@ impl State {
             end,
             state: &route::WorldState::new(),
             car_config,
+            start_time,
         };
         Ok(route::best_route(query_input)?)
+    }
+
+    pub fn update(&mut self, elapsed: f64) {
+        self.time_state.update(elapsed);
     }
 }
 

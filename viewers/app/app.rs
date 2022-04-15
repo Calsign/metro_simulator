@@ -31,8 +31,8 @@ impl App {
         Self::new(engine::state::State::load(&map).unwrap())
     }
 
-    pub fn update(&mut self) {
-        // todo
+    pub fn update(&mut self, elapsed: f64) {
+        self.engine.update(elapsed);
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
@@ -41,6 +41,8 @@ impl App {
             .min_width(200.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.collapsing("Time", |ui| self.draw_time_state(ui));
+
                     ui.collapsing("Fields", |ui| {
                         ui.radio_value(&mut self.field, None, "None");
                         ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
@@ -67,6 +69,24 @@ impl App {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.draw_content(ui).unwrap();
         });
+    }
+
+    fn draw_time_state(&mut self, ui: &mut egui::Ui) {
+        let time = &mut self.engine.time_state;
+        ui.label(format!("Current time: {}", time.current_time));
+        ui.label(
+            time.current_date_time()
+                .format("%a, %b %d, %Y %l:%M %P")
+                .to_string(),
+        );
+        ui.label("Playback rate:");
+        ui.add(egui::Slider::new(&mut time.playback_rate, 60..=86400));
+        if ui
+            .button(if time.paused { "Resume" } else { "Pause" })
+            .clicked()
+        {
+            time.paused = !time.paused;
+        }
     }
 
     pub fn get_hovered_pos(&self, ui: &egui::Ui) -> Option<(u64, u64)> {
@@ -143,7 +163,12 @@ impl App {
                 } else {
                     None
                 };
-                if let Ok(Some(route)) = self.engine.query_route(start, stop, car_config) {
+                if let Ok(Some(route)) = self.engine.query_route(
+                    start,
+                    stop,
+                    car_config,
+                    self.engine.time_state.current_time,
+                ) {
                     self.route_query.current_routes = vec![route];
                 }
             }

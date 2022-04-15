@@ -46,9 +46,9 @@ impl App {
         }
 
         for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
-            let (x, y) = highway_junction.location;
-            let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
             if let Some(_) = highway_junction.ramp {
+                let (x, y) = highway_junction.location;
+                let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
                 painter.circle(
                     pos,
                     2.0,
@@ -73,6 +73,18 @@ impl App {
                 &bounding_box,
                 &route_input,
             )?;
+            if let Some(key) =
+                route.sample_engine_time(self.engine.time_state.current_time as f64, &route_input)
+            {
+                let (x, y) = key.position;
+                let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                painter.circle(
+                    pos,
+                    6.0,
+                    egui::Color32::from_rgb(0, 0, 255),
+                    egui::Stroke::none(),
+                );
+            }
         }
 
         Ok(())

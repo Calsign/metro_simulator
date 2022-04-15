@@ -6,6 +6,7 @@ rust_library(
         "config.rs",
         "lib.rs",
         "state.rs",
+        "time_state.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -16,6 +17,7 @@ rust_library(
         "//engine/route",
         "//engine/tiles",
         "@crates//:cgmath",
+        "@crates//:chrono",
         "@crates//:petgraph",
         "@crates//:serde",
         "@crates//:serde_json",

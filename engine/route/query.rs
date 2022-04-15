@@ -21,6 +21,7 @@ pub struct QueryInput<'a, 'b> {
     pub end: quadtree::Address,
     pub state: &'b WorldState,
     pub car_config: Option<CarConfig>,
+    pub start_time: u64,
 }
 
 /**
@@ -268,6 +269,7 @@ pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Er
                     })
                     .collect(),
                 cost,
+                input.start_time,
             )),
             None => None,
         },
