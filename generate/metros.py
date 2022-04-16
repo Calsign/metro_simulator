@@ -292,5 +292,5 @@ class Metros(Layer):
     def fuse(self, entities: T.List[Station]) -> Station:
         assert False, entities
 
-    def modify_state(self, state: T.Any) -> None:
+    def modify_state(self, state: T.Any, qtree: Quadtree) -> None:
         pass

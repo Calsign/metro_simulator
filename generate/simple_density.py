@@ -57,10 +57,10 @@ class SimpleDensity(Layer):
         if rounded == 0:
             return Tile("EmptyTile", {})
         else:
-            return Tile(self.tile_name, {"density": rounded})
+            return Tile(self.tile_name, {"density": rounded, "agents": []})
 
     def fuse(self, entities: T.List[float]) -> float:
         return sum(entities)
 
-    def modify_state(self, state):
+    def modify_state(self, state: T.Any, qtree: Quadtree):
         pass

@@ -4,6 +4,7 @@ load("@pip_pkgs//:requirements.bzl", "requirement")
 py_binary(
     name = "generate",
     srcs = [
+        "common.py",
         "data.py",
         "gdal.py",
         "highways.py",

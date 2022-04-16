@@ -228,6 +228,19 @@ impl State {
         )
     }
 
+    fn add_agent(
+        &mut self,
+        data: &AgentData,
+        housing: &Address,
+        workplace: Option<&Address>,
+    ) -> u64 {
+        self.state.add_agent(
+            data.data.clone(),
+            housing.address,
+            workplace.map(|a| a.address),
+        )
+    }
+
     fn validate_highways(&self) {
         self.state.highways.validate();
     }
@@ -545,6 +558,22 @@ impl RampDirection {
     }
 }
 
+#[pyclass]
+#[derive(Clone)]
+struct AgentData {
+    data: agent::AgentData,
+}
+
+#[pymethods]
+impl AgentData {
+    #[new]
+    fn new() -> Self {
+        Self {
+            data: agent::AgentData::new(),
+        }
+    }
+}
+
 #[pymodule]
 fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Config>()?;
@@ -561,6 +590,8 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<HighwayData>()?;
     m.add_class::<HighwaySegment>()?;
     m.add_class::<RampDirection>()?;
+
+    m.add_class::<AgentData>()?;
 
     return Ok(());
 }

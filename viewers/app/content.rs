@@ -65,6 +65,7 @@ impl App {
             tile_size: self.engine.config.min_tile_size as f64,
         };
 
+        // draw route from the query interface
         for route in &self.route_query.current_routes {
             let mut route_visitor = DrawSplineVisitor::new(self, &painter);
             route.visit_spline(
@@ -84,6 +85,23 @@ impl App {
                     egui::Color32::from_rgb(0, 0, 255),
                     egui::Stroke::none(),
                 );
+            }
+        }
+
+        for agent in self.engine.agents.values() {
+            if let agent::AgentState::Route(route) = &agent.state {
+                if let Some(key) = route
+                    .sample_engine_time(self.engine.time_state.current_time as f64, &route_input)
+                {
+                    let (x, y) = key.position;
+                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                    painter.circle(
+                        pos,
+                        5.0,
+                        egui::Color32::from_rgb(0, 0, 255),
+                        egui::Stroke::none(),
+                    );
+                }
             }
         }
 
@@ -242,14 +260,14 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
                     egui::Color32::from_rgb(0, 0, 150),
                 );
             }
-            HousingTile(tiles::HousingTile { density }) => {
+            HousingTile(tiles::HousingTile { density, .. }) => {
                 self.painter.circle_filled(
                     rect.center(),
                     width / 8.0,
                     egui::Color32::from_gray(255),
                 );
             }
-            WorkplaceTile(tiles::WorkplaceTile { density }) => {
+            WorkplaceTile(tiles::WorkplaceTile { density, .. }) => {
                 self.painter.add(regular_poly::<3>(
                     self.painter,
                     rect.center().into(),

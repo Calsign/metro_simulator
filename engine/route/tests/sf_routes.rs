@@ -192,6 +192,7 @@ pub fn perform_query(state: &State, graph: &mut Graph, test: &RouteTest) -> Rout
         end,
         state: &test.world_state,
         car_config: test.car_config.clone(),
+        start_time: 0,
     })
     .unwrap()
     .unwrap()

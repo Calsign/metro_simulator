@@ -40,5 +40,5 @@ class Terrain(Layer):
         # should be impossible
         assert False, entities
 
-    def modify_state(self, state):
+    def modify_state(self, state: T.Any, qtree: Quadtree):
         pass

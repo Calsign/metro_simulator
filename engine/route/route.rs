@@ -3,6 +3,7 @@ use std::iter::Zip;
 use std::slice::Iter;
 
 use once_cell::unsync::OnceCell;
+use serde::{Deserialize, Serialize};
 
 pub use spline_util::SplineVisitor;
 
@@ -11,7 +12,7 @@ use metro::MetroLine;
 
 use crate::common::{Edge, Mode, Node, WorldState};
 
-#[derive(Debug, Copy, Clone, derive_more::Constructor)]
+#[derive(Debug, Copy, Clone, derive_more::Constructor, Serialize, Deserialize)]
 pub struct RouteKey {
     pub position: (f64, f64),
     pub dist: f64,
@@ -63,7 +64,7 @@ impl splines::Interpolate<f64> for RouteKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Splines {
     dist_spline: splines::Spline<f64, RouteKey>,
     time_spline: splines::Spline<f64, RouteKey>,
@@ -71,12 +72,13 @@ struct Splines {
     total_time: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Route {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
     pub cost: f64,
     pub start_time: u64,
+    #[serde(skip)]
     splines: OnceCell<Splines>,
 }
 

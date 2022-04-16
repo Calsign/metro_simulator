@@ -294,5 +294,5 @@ class Highways(Layer):
     def fuse(self, entities: T.List[T.Any]) -> T.Any:
         assert False, entities
 
-    def modify_state(self, state: T.Any) -> None:
+    def modify_state(self, state: T.Any, qtree: Quadtree) -> None:
         pass

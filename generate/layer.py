@@ -122,7 +122,7 @@ class Layer(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def modify_state(self, state: T.Any):
+    def modify_state(self, state: T.Any, qtree: Quadtree):
         """
         Modify the state after the qtree is fully merged.
         May be used to add non-tile items.

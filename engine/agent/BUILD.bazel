@@ -1,0 +1,15 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "agent",
+    srcs = [
+        "agent.rs",
+        "lib.rs",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//engine/quadtree",
+        "//engine/route",
+        "@crates//:serde",
+    ],
+)

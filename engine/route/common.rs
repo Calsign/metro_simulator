@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 // time it takes to wait for a train, on average
 // TODO: replace this with correct accounting for train schedules
 pub const EMBARK_TIME: f64 = 480.0;
@@ -22,7 +24,7 @@ impl WorldState {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Mode {
     Walking,
@@ -84,7 +86,7 @@ impl std::fmt::Display for Mode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Node {
     StartNode {
@@ -177,7 +179,7 @@ impl std::fmt::Display for Node {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Edge {
     MetroSegment {
         metro_line: u64,

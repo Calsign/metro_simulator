@@ -23,6 +23,7 @@ rust_library(
         "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:petgraph",
+        "@crates//:serde",
         "@crates//:splines",
         "@crates//:thiserror",
     ],

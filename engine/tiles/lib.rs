@@ -38,6 +38,7 @@ impl TileType for WaterTile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HousingTile {
     pub density: usize,
+    pub agents: Vec<u64>,
 }
 
 impl TileType for HousingTile {
@@ -49,6 +50,7 @@ impl TileType for HousingTile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkplaceTile {
     pub density: usize,
+    pub agents: Vec<u64>,
 }
 
 impl TileType for WorkplaceTile {

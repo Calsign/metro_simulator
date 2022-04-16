@@ -99,6 +99,7 @@ fn main() {
                 end,
                 state: &world_state,
                 car_config,
+                start_time: 0,
             })
             .unwrap();
 

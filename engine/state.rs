@@ -67,6 +67,8 @@ pub struct State {
     #[serde(skip)]
     pub collect_tiles: CollectTilesVisitor,
     pub time_state: TimeState,
+    pub agents: HashMap<u64, agent::Agent>,
+    agent_counter: u64,
 }
 
 impl State {
@@ -80,6 +82,8 @@ impl State {
             highways: highway::Highways::new(),
             collect_tiles: CollectTilesVisitor::default(),
             time_state: TimeState::new(),
+            agents: HashMap::new(),
+            agent_counter: 0,
         }
     }
 
@@ -164,6 +168,45 @@ impl State {
         id
     }
 
+    pub fn add_agent(
+        &mut self,
+        data: agent::AgentData,
+        housing: quadtree::Address,
+        workplace: Option<quadtree::Address>,
+    ) -> u64 {
+        let id = self.agent_counter;
+        self.agent_counter += 1;
+
+        match self.qtree.get_leaf_mut(housing) {
+            Ok(LeafState {
+                tile: tiles::Tile::HousingTile(tiles::HousingTile { density, agents }),
+                ..
+            }) => {
+                assert!(agents.len() < *density);
+                agents.push(id);
+            }
+            _ => panic!("missing housing tile at {:?}", housing),
+        };
+
+        if let Some(workplace) = workplace {
+            match self.qtree.get_leaf_mut(workplace) {
+                Ok(LeafState {
+                    tile: tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }),
+                    ..
+                }) => {
+                    assert!(agents.len() < *density);
+                    agents.push(id);
+                }
+                _ => panic!("missing workplace tile at {:?}", workplace),
+            }
+        }
+
+        self.agents
+            .insert(id, agent::Agent::new(id, data, housing, workplace));
+
+        id
+    }
+
     pub fn construct_base_route_graph_filter(
         &self,
         metro_lines: Option<HashSet<u64>>,
@@ -209,6 +252,8 @@ impl State {
 
     pub fn update(&mut self, elapsed: f64) {
         self.time_state.update(elapsed);
+
+        // TODO: make agents do things
     }
 }
 

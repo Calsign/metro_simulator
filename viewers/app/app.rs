@@ -50,6 +50,8 @@ impl App {
                         ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
                     });
 
+                    ui.collapsing("Stats", |ui| self.draw_stats(ui));
+
                     ui.collapsing("Display options", |ui| {
                         self.options.draw(ui);
                     });
@@ -86,6 +88,16 @@ impl App {
             .clicked()
         {
             time.paused = !time.paused;
+        }
+    }
+
+    fn draw_stats(&mut self, ui: &mut egui::Ui) {
+        if let Ok(root) = self.engine.qtree.get_branch(quadtree::Address::from((
+            vec![],
+            self.engine.qtree.max_depth(),
+        ))) {
+            ui.label(format!("Population: {}", root.fields.population.total));
+            ui.label(format!("Employment: {}", root.fields.employment.total));
         }
     }
 
