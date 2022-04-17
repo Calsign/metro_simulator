@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 rust_library(
     name = "engine",
@@ -7,7 +7,9 @@ rust_library(
         "lib.rs",
         "state.rs",
         "time_state.rs",
+        "trigger.rs",
     ],
+    proc_macro_deps = ["@crates//:enum_dispatch"],
     visibility = ["//visibility:public"],
     deps = [
         "//engine/agent",
@@ -26,4 +28,10 @@ rust_library(
         "@crates//:thiserror",
         "@crates//:toml",
     ],
+)
+
+rust_test(
+    name = "engine_tests",
+    crate = ":engine",
+    deps = [":engine"],
 )

@@ -36,6 +36,9 @@ CRATES = {
         features = ["cgmath", "serde"],
     ),
 
+    # parallelism
+    "rayon": "1.5.2",
+
     # cli
     "clap": dict(
         version = "3",

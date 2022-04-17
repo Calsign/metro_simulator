@@ -13,6 +13,8 @@ impl App {
         engine.update_fields().unwrap();
         engine.update_collect_tiles().unwrap();
 
+        engine.init_trigger_queue();
+
         Self {
             pan: PanState::new(&engine),
             field: None,

@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::time_state::TimeState;
+use crate::trigger::TriggerQueue;
 
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
@@ -69,6 +70,7 @@ pub struct State {
     pub time_state: TimeState,
     pub agents: HashMap<u64, agent::Agent>,
     agent_counter: u64,
+    pub trigger_queue: TriggerQueue,
 }
 
 impl State {
@@ -84,6 +86,7 @@ impl State {
             time_state: TimeState::new(),
             agents: HashMap::new(),
             agent_counter: 0,
+            trigger_queue: TriggerQueue::new(),
         }
     }
 
@@ -250,10 +253,20 @@ impl State {
         Ok(route::best_route(query_input)?)
     }
 
+    /**
+     * Only adds triggers for a freshly-generated state, so that we don't clobber triggers when
+     * loading a map. We do this here so that we don't need to regenerate the map every time we
+     * update the trigger queue. This should also make it easier to perform testing.
+     */
+    pub fn init_trigger_queue(&mut self) {
+        if self.time_state.current_time == 0 {
+            // TODO: add starter triggers
+        }
+    }
+
     pub fn update(&mut self, elapsed: f64) {
         self.time_state.update(elapsed);
-
-        // TODO: make agents do things
+        self.advance_trigger_queue();
     }
 }
 
@@ -325,5 +338,33 @@ impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
         data: &quadtree::VisitData,
     ) -> Result<(), Error> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod trigger_tests {
+    use engine::config::Config;
+    use engine::state::State;
+    use engine::trigger::*;
+
+    #[test]
+    fn doubling_trigger() {
+        let mut state = State::new(Config {
+            max_depth: 3,
+            people_per_sim: 1,
+            min_tile_size: 1,
+        });
+
+        // NOTE: all triggers have to be defined in the same crate, so we define the trigger in trigger.rs.
+        state.trigger_queue.push(DoublingTrigger {}, 1);
+
+        state.time_state.playback_rate = 1;
+        state.time_state.paused = false;
+
+        for i in 1..=6 {
+            state.update(1.0);
+            // make sure it added itself back to the queue twice
+            assert_eq!(state.trigger_queue.len(), 2_usize.pow(i));
+        }
     }
 }
