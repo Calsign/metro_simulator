@@ -3,13 +3,17 @@ load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 rust_library(
     name = "engine",
     srcs = [
+        "behavior.rs",
         "config.rs",
         "lib.rs",
         "state.rs",
         "time_state.rs",
         "trigger.rs",
     ],
-    proc_macro_deps = ["@crates//:enum_dispatch"],
+    proc_macro_deps = [
+        "@crates//:enum_dispatch",
+        "@crates//:derivative",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//engine/agent",
@@ -21,12 +25,14 @@ rust_library(
         "//engine/tiles",
         "@crates//:cgmath",
         "@crates//:chrono",
+        "@crates//:once_cell",
         "@crates//:petgraph",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:splines",
         "@crates//:thiserror",
         "@crates//:toml",
+        "@crates//:uom",
     ],
 )
 

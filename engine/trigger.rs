@@ -3,21 +3,14 @@ use std::collections::binary_heap::BinaryHeap;
 
 use serde::{Deserialize, Serialize};
 
+// NOTE: Trigger, and all implementations, are defined in behavior.rs
+use crate::behavior::{Trigger, TriggerType};
 use crate::state::State;
 
-#[enum_dispatch::enum_dispatch]
-pub trait TriggerType: PartialEq + Eq + PartialOrd + Ord {
-    fn execute(self, state: &mut State, time: u64);
-}
-
-// NOTE: all implementations of TriggerType must be listed here
-#[enum_dispatch::enum_dispatch(TriggerType)]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(tag = "type")]
-#[non_exhaustive]
-pub enum Trigger {
-    DummyTrigger,
-    DoublingTrigger,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+struct TriggerEntry {
+    trigger: Trigger,
+    time: u64,
 }
 
 impl Ord for TriggerEntry {
@@ -69,6 +62,13 @@ impl TriggerQueue {
         });
     }
 
+    pub fn push_rel<T: Into<Trigger>>(&mut self, trigger: T, rel_time: u64) {
+        self.heap.push(TriggerEntry {
+            trigger: trigger.into(),
+            time: self.current_time + rel_time,
+        });
+    }
+
     pub fn len(&self) -> usize {
         self.heap.len()
     }
@@ -95,33 +95,4 @@ impl crate::state::State {
         }
         self.trigger_queue.current_time = time;
     }
-}
-
-// Sample trigger implementation, demonstrates a simple recurring trigger
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct DummyTrigger {}
-
-impl TriggerType for DummyTrigger {
-    fn execute(self, state: &mut State, time: u64) {
-        println!("executing {}", time);
-        state.trigger_queue.push(self, time + 1);
-    }
-}
-
-// Used for testing. Must be defined here since enum_dispatch doesn't support crossing crate
-// boundaries.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct DoublingTrigger {}
-
-impl TriggerType for DoublingTrigger {
-    fn execute(self, state: &mut State, time: u64) {
-        state.trigger_queue.push(DoublingTrigger {}, time + 1);
-        state.trigger_queue.push(DoublingTrigger {}, time + 1);
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct TriggerEntry {
-    trigger: Trigger,
-    time: u64,
 }

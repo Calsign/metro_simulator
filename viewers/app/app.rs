@@ -9,10 +9,6 @@ pub struct App {
 
 impl App {
     fn new(mut engine: engine::state::State) -> Self {
-        // TODO: re-run this when the qtree updates
-        engine.update_fields().unwrap();
-        engine.update_collect_tiles().unwrap();
-
         engine.init_trigger_queue();
 
         Self {

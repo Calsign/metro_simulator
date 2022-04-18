@@ -1,10 +1,12 @@
-use crate::config::Config;
-use crate::time_state::TimeState;
-use crate::trigger::TriggerQueue;
+use once_cell::unsync::OnceCell;
 
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+
+use crate::config::Config;
+use crate::time_state::TimeState;
+use crate::trigger::TriggerQueue;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -67,6 +69,10 @@ pub struct State {
     pub highways: highway::Highways,
     #[serde(skip)]
     pub collect_tiles: CollectTilesVisitor,
+    #[serde(skip)]
+    route_state: OnceCell<route::WorldState>,
+    #[serde(skip)]
+    base_route_graph: Option<route::Graph>,
     pub time_state: TimeState,
     pub agents: HashMap<u64, agent::Agent>,
     agent_counter: u64,
@@ -84,6 +90,8 @@ impl State {
             highways: highway::Highways::new(),
             collect_tiles: CollectTilesVisitor::default(),
             time_state: TimeState::new(),
+            route_state: OnceCell::new(),
+            base_route_graph: None,
             agents: HashMap::new(),
             agent_counter: 0,
             trigger_queue: TriggerQueue::new(),
@@ -188,7 +196,14 @@ impl State {
                 assert!(agents.len() < *density);
                 agents.push(id);
             }
-            _ => panic!("missing housing tile at {:?}", housing),
+            Ok(tile) => panic!(
+                "missing housing tile at {:?}, found tile: {:?}",
+                housing, tile
+            ),
+            Err(err) => panic!(
+                "missing housing tile at {:?}, no tile found, error: {:?}",
+                housing, err
+            ),
         };
 
         if let Some(workplace) = workplace {
@@ -200,7 +215,14 @@ impl State {
                     assert!(agents.len() < *density);
                     agents.push(id);
                 }
-                _ => panic!("missing workplace tile at {:?}", workplace),
+                Ok(tile) => panic!(
+                    "missing workplace tile at {:?}, found tile: {:?}",
+                    workplace, tile
+                ),
+                Err(err) => panic!(
+                    "missing workplace tile at {:?}, no tile found, error: {:?}",
+                    workplace, err
+                ),
             }
         }
 
@@ -232,18 +254,24 @@ impl State {
         self.construct_base_route_graph_filter(None, None)
     }
 
+    pub fn get_base_route_graph(&mut self) -> &mut route::Graph {
+        // TODO: invalidate base graph when metros/highways change
+        // also want to have separate instances per thread
+        if let None = &self.base_route_graph {
+            self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
+        }
+        self.base_route_graph.as_mut().unwrap()
+    }
+
     pub fn query_route(
-        &self,
+        &mut self,
         start: quadtree::Address,
         end: quadtree::Address,
         car_config: Option<route::CarConfig>,
         start_time: u64,
     ) -> Result<Option<route::Route>, Error> {
-        // TODO: re-use existing base graph, but invalidate it when metros/highways change
-        // also need to make sure we have a separate instance per thread
-        let mut base_graph = self.construct_base_route_graph()?;
         let query_input = route::QueryInput {
-            base_graph: &mut base_graph,
+            base_graph: self.get_base_route_graph(),
             start,
             end,
             state: &route::WorldState::new(),
@@ -253,6 +281,19 @@ impl State {
         Ok(route::best_route(query_input)?)
     }
 
+    pub fn get_route_state(&self) -> &route::WorldState {
+        &self.route_state.get_or_init(|| route::WorldState::new())
+    }
+
+    pub fn get_spline_construction_input(&self) -> route::SplineConstructionInput {
+        route::SplineConstructionInput {
+            metro_lines: &self.metro_lines,
+            highways: &self.highways,
+            state: &self.get_route_state(),
+            tile_size: self.config.min_tile_size as f64,
+        }
+    }
+
     /**
      * Only adds triggers for a freshly-generated state, so that we don't clobber triggers when
      * loading a map. We do this here so that we don't need to regenerate the map every time we
@@ -260,13 +301,19 @@ impl State {
      */
     pub fn init_trigger_queue(&mut self) {
         if self.time_state.current_time == 0 {
-            // TODO: add starter triggers
+            self.trigger_queue.push(crate::behavior::Tick {}, 0);
+            for agent in self.agents.values() {
+                self.trigger_queue
+                    .push(crate::behavior::AgentStartDay { agent: agent.id }, 0);
+            }
         }
     }
 
     pub fn update(&mut self, elapsed: f64) {
         self.time_state.update(elapsed);
-        self.advance_trigger_queue();
+        if !self.time_state.paused {
+            self.advance_trigger_queue();
+        }
     }
 }
 
@@ -343,9 +390,9 @@ impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
 
 #[cfg(test)]
 mod trigger_tests {
+    use engine::behavior::*;
     use engine::config::Config;
     use engine::state::State;
-    use engine::trigger::*;
 
     #[test]
     fn doubling_trigger() {

@@ -58,12 +58,7 @@ impl App {
             }
         }
 
-        let route_input = route::SplineConstructionInput {
-            metro_lines: &self.engine.metro_lines,
-            highways: &self.engine.highways,
-            state: &route::WorldState::new(),
-            tile_size: self.engine.config.min_tile_size as f64,
-        };
+        let route_input = &self.engine.get_spline_construction_input();
 
         // draw route from the query interface
         for route in &self.route_query.current_routes {

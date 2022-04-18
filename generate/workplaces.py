@@ -23,17 +23,26 @@ class Workplaces(SimpleDensity):
         workplaces = []
 
         def count_tiles(node, data):
-            if isinstance(node.data, Tile):
-                if node.data.kind == "HousingTile":
-                    housing.append(data.address)
-                elif node.data.kind == "WorkplaceTile":
-                    workplaces.append(data.address)
+            if (
+                node.data is not None
+                and "tile" in node.data
+                and "type" in node.data["tile"]
+            ):
+                t = node.data["tile"]["type"]
+                if t == "HousingTile":
+                    housing.append(engine.Address(data.address, qtree.max_depth))
+                elif t == "WorkplaceTile":
+                    workplaces.append(engine.Address(data.address, qtree.max_depth))
 
         qtree.convolve(count_tiles)
 
         total_agents = min(len(housing), len(workplaces))
+        print(f"housing: {len(housing)}, workplaces: {len(workplaces)}")
+        print(f"adding {total_agents} agents")
 
         rand = random(self.map_config.name)
+
+        # TODO: set agents on housing/workplace tiles
 
         for _ in range(total_agents):
             housing_id = housing.pop(rand.randrange(0, len(housing)))

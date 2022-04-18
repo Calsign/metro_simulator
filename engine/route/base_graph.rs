@@ -27,6 +27,7 @@ pub type InnerGraph = petgraph::Graph<Node, Edge>;
  * between the pair of nodes for each parking area, then the route
  * planner would allow creating new cars out of thin air.
  */
+#[derive(Debug, Clone)]
 pub struct Parking {
     pub address: quadtree::Address,
     pub walking_node: petgraph::graph::NodeIndex,
@@ -35,6 +36,7 @@ pub struct Parking {
 
 pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<petgraph::graph::NodeIndex>>;
 
+#[derive(Debug, Clone)]
 pub struct Graph {
     pub graph: InnerGraph,
     pub neighbors: Neighbors,

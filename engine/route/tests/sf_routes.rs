@@ -165,7 +165,7 @@ lazy_static! {
             Some(CarConfig::StartWithCar),
         ),
         RouteTest::new(
-            "san mateo -> stanfrod",
+            "san mateo -> stanford",
             *SAN_MATEO,
             *STANFORD,
             vec![

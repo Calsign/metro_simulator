@@ -14,7 +14,7 @@ pub enum Error {
     ParkingNotFound(quadtree::Address),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct WorldState {}
 

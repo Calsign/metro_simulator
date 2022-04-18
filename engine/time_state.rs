@@ -39,4 +39,8 @@ impl TimeState {
             0,
         )
     }
+
+    pub fn time_from_datetime(&self, datetime: chrono::NaiveDateTime) {
+        unimplemented!()
+    }
 }

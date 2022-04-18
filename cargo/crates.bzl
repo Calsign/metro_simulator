@@ -7,6 +7,7 @@ CRATES = {
     "lazy_static": "1.4",
     "once_cell": "1.10.0",
     "derive_more": "0.99",
+    "derivative": "2.2.0",
     "enum_dispatch": "0.3",
     "chrono": "0.4",
     "itertools": "0.10",
@@ -16,6 +17,10 @@ CRATES = {
     ),
     "bencher": "0.1.5",
     "rand": "0.8.5",
+    "uom": dict(
+        version = "0.32.0",
+        features = ["u64", "serde"],
+    ),
 
     # serde
     "serde": dict(
@@ -38,6 +43,9 @@ CRATES = {
 
     # parallelism
     "rayon": "1.5.2",
+
+    # generating flamegraphs (not used in the code, just the executable is used)
+    "flamegraph": "0.6.1",
 
     # cli
     "clap": dict(

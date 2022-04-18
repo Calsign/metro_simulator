@@ -447,11 +447,11 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         report_timestamp("split")
         qtree.convolve(split, post=False)
 
-        for layer in layers:
-            layer.modify_state(state, qtree)
-
         report_timestamp("write qtree")
         write_qtree(state, qtree)
+
+        for layer in layers:
+            layer.modify_state(state, qtree)
 
         if save is not None:
             report_timestamp("save")

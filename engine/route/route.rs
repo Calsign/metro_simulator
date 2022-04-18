@@ -288,4 +288,22 @@ impl Route {
     ) -> Option<RouteKey> {
         self.sample_time(time - self.start_time as f64, input)
     }
+
+    pub fn total_dist(&self, input: &SplineConstructionInput) -> f64 {
+        let splines = self.get_splines(input);
+        splines.total_dist
+    }
+
+    pub fn total_time(&self, input: &SplineConstructionInput) -> f64 {
+        let splines = self.get_splines(input);
+        splines.total_dist
+    }
+
+    pub fn start(&self) -> quadtree::Address {
+        *self.nodes.first().expect("empty route").address()
+    }
+
+    pub fn stop(&self) -> quadtree::Address {
+        *self.nodes.last().expect("empty route").address()
+    }
 }

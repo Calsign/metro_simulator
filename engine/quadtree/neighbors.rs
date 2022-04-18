@@ -2,7 +2,7 @@ use crate::quadrant::{QuadMap, QUADRANTS};
 use crate::quadtree::{Error, Quadtree, VisitData};
 use crate::rect::Rect;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Entry<T> {
     x: f64,
     y: f64,
@@ -13,7 +13,7 @@ struct Entry<T> {
  * A data structure which can be used to efficiently query all
  * neighbors of one entry. Backed by a quadtree.
  */
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NeighborsStore<T> {
     qtree: Quadtree<(), Vec<Entry<T>>>,
     load_factor: u32,
