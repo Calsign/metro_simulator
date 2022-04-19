@@ -110,12 +110,8 @@ impl std::fmt::Display for Mode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Node {
-    StartNode {
-        address: quadtree::Address,
-    },
-    EndNode {
-        address: quadtree::Address,
-    },
+    StartNode,
+    EndNode,
     MetroStation {
         station: metro::Station,
     },
@@ -137,12 +133,12 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn address(&self) -> &quadtree::Address {
+    pub fn address(&self, input: &QueryInput) -> quadtree::Address {
         use Node::*;
         match self {
-            StartNode { address }
-            | EndNode { address }
-            | MetroStation {
+            StartNode => input.start,
+            EndNode => input.end,
+            MetroStation {
                 station: metro::Station { address, .. },
             }
             | MetroStop {
@@ -151,16 +147,22 @@ impl Node {
             }
             | HighwayJunction { address, .. }
             | HighwayRamp { address, .. }
-            | Parking { address } => address,
+            | Parking { address } => *address,
         }
     }
 
-    pub fn location(&self) -> (f64, f64) {
+    pub fn location(&self, input: &QueryInput) -> (f64, f64) {
         use Node::*;
         match self {
-            StartNode { address }
-            | EndNode { address }
-            | MetroStation {
+            StartNode => {
+                let (x, y) = input.start.to_xy();
+                (x as f64, y as f64)
+            }
+            EndNode => {
+                let (x, y) = input.end.to_xy();
+                (x as f64, y as f64)
+            }
+            MetroStation {
                 station: metro::Station { address, .. },
             }
             | MetroStop {
@@ -181,8 +183,8 @@ impl std::fmt::Display for Node {
         use Node::*;
 
         match self {
-            StartNode { .. } => write!(f, "start"),
-            EndNode { .. } => write!(f, "end"),
+            StartNode => write!(f, "start"),
+            EndNode => write!(f, "end"),
             MetroStation { station } => write!(f, "station:{}", station.name),
             MetroStop {
                 station,
@@ -240,7 +242,7 @@ pub enum Edge {
         mode: Mode,
         location: (f64, f64),
     },
-    ParkCarSegment {},
+    ParkCarSegment,
     CollectParkedCarSegment {
         address: quadtree::Address,
     },
@@ -252,7 +254,7 @@ fn u64_f64_point_dist(a: (f64, f64), (bx, by): (u64, u64)) -> f64 {
 }
 
 impl Edge {
-    pub fn cost(&self, input: &QueryInput, state: &WorldState) -> f64 {
+    pub fn cost(&self, input: &QueryInput, state: &WorldState, tile_size: f64) -> f64 {
         use Edge::*;
         match self {
             MetroSegment { time, .. } => *time,
@@ -272,10 +274,23 @@ impl Edge {
             ModeSegment { mode, distance } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
             StartSegment { mode, location } => {
-                u64_f64_point_dist(*location, input.start.to_xy()) / mode.linear_speed()
+                let dist = u64_f64_point_dist(*location, input.start.to_xy()) * tile_size
+                    / mode.linear_speed();
+                match (input.car_config, mode) {
+                    (Some(CarConfig::StartWithCar), Mode::Walking | Mode::Driving) => dist,
+                    (_, Mode::Walking) => dist,
+                    _ => MAX_COST,
+                }
             }
             EndSegment { mode, location } => {
-                u64_f64_point_dist(*location, input.end.to_xy()) / mode.linear_speed()
+                let dist = u64_f64_point_dist(*location, input.end.to_xy()) * tile_size
+                    / mode.linear_speed();
+                match (input.car_config, mode) {
+                    (Some(CarConfig::StartWithCar), Mode::Walking | Mode::Driving) => dist,
+                    (Some(CarConfig::CollectParkedCar { .. }), Mode::Driving) => dist,
+                    (None, Mode::Walking) => dist,
+                    _ => MAX_COST,
+                }
             }
             ParkCarSegment {} => match &input.car_config {
                 Some(CarConfig::StartWithCar) => 0.0,

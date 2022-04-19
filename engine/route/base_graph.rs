@@ -39,6 +39,8 @@ pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<petgraph::graph::Nod
 #[derive(Debug, Clone)]
 pub struct Graph {
     pub graph: InnerGraph,
+    pub start_node: petgraph::graph::NodeIndex,
+    pub end_node: petgraph::graph::NodeIndex,
     pub neighbors: Neighbors,
     pub parking: HashMap<quadtree::Address, Parking>,
     pub tile_size: f64,
@@ -94,6 +96,13 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
                 driving_node,
             },
         );
+        // edges have either 0 or infinite costs based on the input
+        graph.add_edge(
+            walking_node,
+            driving_node,
+            Edge::CollectParkedCarSegment { address },
+        );
+        graph.add_edge(driving_node, walking_node, Edge::ParkCarSegment {});
     };
 
     let mut station_map = HashMap::new();
@@ -246,6 +255,9 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
         segment_map.insert(segment.id, edge_id);
     }
 
+    let start_node = graph.add_node(Node::StartNode);
+    let end_node = graph.add_node(Node::EndNode);
+
     if input.add_inferred_edges {
         // TODO: cost to walk/drive should depend on the local density.
         // For example, it should take longer to drive across San Francisco
@@ -262,10 +274,35 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
                 |_| mode.bridge_radius() / input.tile_size,
             )?;
         }
+
+        for mode in [Mode::Walking, Mode::Driving] {
+            // TODO: use a more efficient implementation of visit_all;
+            // we don't need to calculate all the distances
+
+            let mut start_visitor = AddStartEndEdgesVisitor {
+                graph: &mut graph,
+                base: start_node,
+                edge_fn: |location, _| Edge::StartSegment { mode, location },
+                direction: petgraph::Direction::Outgoing,
+            };
+            // the location doesn't matter since we aren't using the distance
+            neighbors[&mode].visit_all(&mut start_visitor, 0.0, 0.0);
+
+            let mut end_visitor = AddStartEndEdgesVisitor {
+                graph: &mut graph,
+                base: end_node,
+                edge_fn: |location, _| Edge::EndSegment { mode, location },
+                direction: petgraph::Direction::Incoming,
+            };
+            // the location doesn't matter since we aren't using the distance
+            neighbors[&mode].visit_all(&mut end_visitor, 0.0, 0.0);
+        }
     }
 
     Ok(Graph {
         graph,
+        start_node,
+        end_node,
         neighbors,
         parking,
         tile_size: input.tile_size,
@@ -296,6 +333,39 @@ impl<'a> quadtree::AllNeighborsVisitor<petgraph::graph::NodeIndex, Error> for Ad
                 },
             );
         }
+        Ok(())
+    }
+}
+
+struct AddStartEndEdgesVisitor<'a, F>
+where
+    F: Fn((f64, f64), f64) -> Edge,
+{
+    graph: &'a mut InnerGraph,
+    base: petgraph::graph::NodeIndex,
+    edge_fn: F,
+    direction: petgraph::Direction,
+}
+
+impl<'a, F> quadtree::NeighborsVisitor<petgraph::graph::NodeIndex, Error>
+    for AddStartEndEdgesVisitor<'a, F>
+where
+    F: Fn((f64, f64), f64) -> Edge,
+{
+    fn visit(
+        &mut self,
+        entry: &petgraph::graph::NodeIndex,
+        x: f64,
+        y: f64,
+        distance: f64,
+    ) -> Result<(), Error> {
+        let (first, second) = match self.direction {
+            petgraph::Direction::Outgoing => (self.base, *entry),
+            petgraph::Direction::Incoming => (*entry, self.base),
+        };
+        let edge_id = self
+            .graph
+            .add_edge(first, second, (self.edge_fn)((x, y), distance));
         Ok(())
     }
 }
@@ -359,7 +429,7 @@ mod highway_tests {
     #[test]
     fn empty() {
         let graph = setup_problem(vec![], vec![]).graph;
-        assert_eq!(graph.node_count(), 0);
+        assert_eq!(graph.node_count(), 2);
         assert_eq!(graph.edge_count(), 0);
     }
 
@@ -370,7 +440,7 @@ mod highway_tests {
             vec![SegmentData::new(0, 1)],
         )
         .graph;
-        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.node_count(), 4);
         assert_eq!(graph.edge_count(), 1);
     }
 
@@ -385,7 +455,7 @@ mod highway_tests {
             vec![SegmentData::new(0, 1), SegmentData::new(1, 2)],
         )
         .graph;
-        assert_eq!(graph.node_count(), 3);
+        assert_eq!(graph.node_count(), 5);
         assert_eq!(graph.edge_count(), 2);
     }
 
@@ -411,7 +481,7 @@ mod highway_tests {
             ],
         )
         .graph;
-        assert_eq!(graph.node_count(), 7);
+        assert_eq!(graph.node_count(), 9);
         assert_eq!(graph.edge_count(), 6);
     }
 
@@ -436,7 +506,7 @@ mod highway_tests {
             ],
         )
         .graph;
-        assert_eq!(graph.node_count(), 6);
+        assert_eq!(graph.node_count(), 8);
         assert_eq!(graph.edge_count(), 6);
         // TODO: it would be great to verify the actual structure of the graphs.
     }

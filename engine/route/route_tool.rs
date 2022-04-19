@@ -22,13 +22,6 @@ enum Operation {
         #[clap(flatten)]
         coords: StartEndCoords,
     },
-    /// Dump the augmented graph for the given coords to the output, formatted as dot.
-    DumpAugmented {
-        #[clap(flatten)]
-        coords: StartEndCoords,
-        /// If provided, dump the graph to the file. Otherwise, dump to stdout.
-        output: Option<std::path::PathBuf>,
-    },
 }
 
 #[derive(clap::Parser, Debug)]
@@ -113,22 +106,6 @@ fn main() {
                     println!("No route found.");
                 }
             }
-        }
-        Operation::DumpAugmented { coords, output } => {
-            let start = state
-                .qtree
-                .get_address(coords.start_x, coords.start_y)
-                .unwrap();
-            let end = state.qtree.get_address(coords.end_x, coords.end_y).unwrap();
-
-            let mut graph = state
-                .construct_base_route_graph_filter(metro_lines, highway_segments)
-                .unwrap();
-
-            let (augmented, _, _) =
-                route::augment_base_graph(&mut graph, start, end, car_config).unwrap();
-
-            dump_graph(&augmented.graph, &output);
         }
     }
 }

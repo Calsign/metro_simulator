@@ -138,10 +138,11 @@ impl Route {
         let mut t = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
-            let dt = edge.cost(&self.query_input, input.state);
+            let dt = edge.cost(&self.query_input, input.state, input.tile_size);
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
-            let default_dd =
-                cgmath::Vector2::from(start.location()).distance(end.location().into());
+            let start_location = start.location(&self.query_input);
+            let end_location = end.location(&self.query_input);
+            let default_dd = cgmath::Vector2::from(start_location).distance(end_location.into());
             let dd: f64;
             match &edge {
                 Edge::MetroSegment {
@@ -218,8 +219,8 @@ impl Route {
                 | Edge::StartSegment { mode, .. }
                 | Edge::EndSegment { mode, .. } => {
                     dd = default_dd;
-                    keys.push(RouteKey::new(start.location(), d, t, *mode));
-                    keys.push(RouteKey::new(end.location(), d + dd, t + dt, *mode));
+                    keys.push(RouteKey::new(start_location, d, t, *mode));
+                    keys.push(RouteKey::new(end_location, d + dd, t + dt, *mode));
                 }
                 Edge::ModeTransition { .. }
                 | Edge::ParkCarSegment {}

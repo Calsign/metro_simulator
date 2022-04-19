@@ -103,6 +103,13 @@ impl<T> NeighborsStore<T> {
         self.qtree.visit(&mut visitor)?;
         Ok(())
     }
+
+    pub fn visit_all<V, E>(&self, visitor: &mut V, x: f64, y: f64) -> Result<(), E>
+    where
+        V: NeighborsVisitor<T, E>,
+    {
+        self.visit_radius(visitor, x, y, f64::MAX)
+    }
 }
 
 struct NeighborsVisitorImpl<'a, V, T, E>
