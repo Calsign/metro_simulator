@@ -271,14 +271,22 @@ impl State {
         start_time: u64,
     ) -> Result<Option<route::Route>, Error> {
         let query_input = route::QueryInput {
-            base_graph: self.get_base_route_graph(),
             start,
             end,
-            state: &route::WorldState::new(),
             car_config,
             start_time,
         };
-        Ok(route::best_route(query_input)?)
+
+        // TODO: borrowing issues, de-duplicate these
+        let base_graph = {
+            if let None = &self.base_route_graph {
+                self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
+            }
+            self.base_route_graph.as_mut().unwrap()
+        };
+        let state = &self.route_state.get_or_init(|| route::WorldState::new());
+
+        Ok(route::best_route(base_graph, query_input, state)?)
     }
 
     pub fn get_route_state(&self) -> &route::WorldState {

@@ -186,14 +186,16 @@ pub fn perform_query(state: &State, graph: &mut Graph, test: &RouteTest) -> Rout
     let start = state.qtree.get_address(test.start.0, test.start.1).unwrap();
     let end = state.qtree.get_address(test.end.0, test.end.1).unwrap();
 
-    best_route(QueryInput {
-        base_graph: graph,
-        start,
-        end,
-        state: &test.world_state,
-        car_config: test.car_config.clone(),
-        start_time: 0,
-    })
+    best_route(
+        graph,
+        QueryInput {
+            start,
+            end,
+            car_config: test.car_config.clone(),
+            start_time: 0,
+        },
+        &test.world_state,
+    )
     .unwrap()
     .unwrap()
 }

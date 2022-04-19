@@ -6,6 +6,8 @@ pub const EMBARK_TIME: f64 = 480.0;
 // time it takes to enter or leave a highway
 pub const RAMP_TIME: f64 = 30.0;
 
+pub const MAX_COST: f64 = f64::INFINITY;
+
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("Quadtree error: {0}")]
@@ -14,9 +16,28 @@ pub enum Error {
     ParkingNotFound(quadtree::Address),
 }
 
+/**
+ * The querying agent has a car available.
+ */
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum CarConfig {
+    /// departure: user has car available and can park it anywhere, including the destination
+    StartWithCar,
+    /// return home: user must arrive home with car, and parked it somewhere on the departing trip
+    CollectParkedCar { address: quadtree::Address },
+}
+
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct WorldState {}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct QueryInput {
+    pub start: quadtree::Address,
+    pub end: quadtree::Address,
+    pub car_config: Option<CarConfig>,
+    pub start_time: u64,
+}
 
 impl WorldState {
     pub fn new() -> Self {
@@ -211,10 +232,27 @@ pub enum Edge {
         from: Mode,
         to: Mode,
     },
+    StartSegment {
+        mode: Mode,
+        location: (f64, f64),
+    },
+    EndSegment {
+        mode: Mode,
+        location: (f64, f64),
+    },
+    ParkCarSegment {},
+    CollectParkedCarSegment {
+        address: quadtree::Address,
+    },
+}
+
+fn u64_f64_point_dist(a: (f64, f64), (bx, by): (u64, u64)) -> f64 {
+    use cgmath::MetricSpace;
+    cgmath::Vector2::from(a).distance((bx as f64, by as f64).into())
 }
 
 impl Edge {
-    pub fn cost(&self, state: &WorldState) -> f64 {
+    pub fn cost(&self, input: &QueryInput, state: &WorldState) -> f64 {
         use Edge::*;
         match self {
             MetroSegment { time, .. } => *time,
@@ -233,6 +271,22 @@ impl Edge {
             HighwayRamp { .. } => RAMP_TIME,
             ModeSegment { mode, distance } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
+            StartSegment { mode, location } => {
+                u64_f64_point_dist(*location, input.start.to_xy()) / mode.linear_speed()
+            }
+            EndSegment { mode, location } => {
+                u64_f64_point_dist(*location, input.end.to_xy()) / mode.linear_speed()
+            }
+            ParkCarSegment {} => match &input.car_config {
+                Some(CarConfig::StartWithCar) => 0.0,
+                _ => MAX_COST,
+            },
+            CollectParkedCarSegment { address } => match &input.car_config {
+                Some(CarConfig::CollectParkedCar {
+                    address: parked_address,
+                }) if address == parked_address => 0.0,
+                _ => MAX_COST,
+            },
         }
     }
 }
@@ -272,6 +326,19 @@ impl std::fmt::Display for Edge {
                 )
             }
             ModeTransition { from, to } => write!(f, "{}->{}", from, to),
+            StartSegment {
+                mode,
+                location: (x, y),
+            } => write!(f, "start->({},{}):{}", x, y, mode),
+            EndSegment {
+                mode,
+                location: (x, y),
+            } => write!(f, "({},{})->end:{}", x, y, mode),
+            ParkCarSegment {} => write!(f, "park_car"),
+            CollectParkedCarSegment { address } => {
+                let (x, y) = address.to_xy();
+                write!(f, "collect_parked_car:({},{})", x, y)
+            }
         }
     }
 }

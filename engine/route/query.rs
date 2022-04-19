@@ -1,28 +1,8 @@
 use std::collections::HashMap;
 
 use crate::base_graph::{Graph, InnerGraph, Neighbors};
-use crate::common::{Edge, Error, Mode, Node, WorldState};
+use crate::common::{CarConfig, Edge, Error, Mode, Node, QueryInput, WorldState};
 use crate::route::Route;
-
-/**
- * The querying agent has a car available.
- */
-#[derive(Debug, Clone)]
-pub enum CarConfig {
-    /// departure: user has car available and can park it anywhere, including the destination
-    StartWithCar,
-    /// return home: user must arrive home with car, and parked it somewhere on the departing trip
-    CollectParkedCar { address: quadtree::Address },
-}
-
-pub struct QueryInput<'a, 'b> {
-    pub base_graph: &'a mut Graph,
-    pub start: quadtree::Address,
-    pub end: quadtree::Address,
-    pub state: &'b WorldState,
-    pub car_config: Option<CarConfig>,
-    pub start_time: u64,
-}
 
 /**
  * A wrapper around graph that removes added nodes and edges when dropped.
@@ -230,13 +210,17 @@ pub fn augment_base_graph(
  * TODO: adjust the construction of the problem so that we can always
  * find a route.
  */
-pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Error> {
+pub fn best_route<'a>(
+    base_graph: &mut Graph,
+    input: QueryInput,
+    state: &'a WorldState,
+) -> Result<Option<Route>, Error> {
     use cgmath::MetricSpace;
     use cgmath::Vector2;
     use itertools::Itertools;
 
     let (graph, start_index, end_index) =
-        augment_base_graph(input.base_graph, input.start, input.end, input.car_config)?;
+        augment_base_graph(base_graph, input.start, input.end, input.car_config)?;
     let inner = &graph.graph;
 
     let goal_vec = Vector2::from(inner.node_weight(end_index).unwrap().location());
@@ -245,7 +229,7 @@ pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Er
         Node::EndNode { .. } => true,
         _ => false,
     };
-    let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| e.weight().cost(input.state);
+    let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| e.weight().cost(&input, state);
 
     // This should be the fastest possible speed by any mode of transportation.
     // TODO: There is probably a more principled way to approach this.
@@ -269,7 +253,7 @@ pub fn best_route<'a, 'b>(input: QueryInput<'a, 'b>) -> Result<Option<Route>, Er
                     })
                     .collect(),
                 cost,
-                input.start_time,
+                input.clone(),
             )),
             None => None,
         },

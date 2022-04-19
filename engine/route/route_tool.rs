@@ -93,14 +93,16 @@ fn main() {
 
             let world_state = route::WorldState::new();
 
-            let best = route::best_route(route::QueryInput {
-                base_graph: &mut graph,
-                start,
-                end,
-                state: &world_state,
-                car_config,
-                start_time: 0,
-            })
+            let best = route::best_route(
+                &mut graph,
+                route::QueryInput {
+                    start,
+                    end,
+                    car_config,
+                    start_time: 0,
+                },
+                &world_state,
+            )
             .unwrap();
 
             match best {

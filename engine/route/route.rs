@@ -10,7 +10,7 @@ pub use spline_util::SplineVisitor;
 use highway::{HighwaySegment, Highways};
 use metro::MetroLine;
 
-use crate::common::{Edge, Mode, Node, WorldState};
+use crate::common::{CarConfig, Edge, Mode, Node, QueryInput, WorldState};
 
 #[derive(Debug, Copy, Clone, derive_more::Constructor, Serialize, Deserialize)]
 pub struct RouteKey {
@@ -76,8 +76,8 @@ struct Splines {
 pub struct Route {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
+    pub query_input: QueryInput,
     pub cost: f64,
-    pub start_time: u64,
     #[serde(skip)]
     splines: OnceCell<Splines>,
 }
@@ -94,12 +94,12 @@ pub struct SplineConstructionInput<'a, 'b, 'c> {
 }
 
 impl Route {
-    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f64, start_time: u64) -> Self {
+    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f64, query_input: QueryInput) -> Self {
         Self {
             nodes,
             edges,
             cost,
-            start_time,
+            query_input,
             splines: OnceCell::new(),
         }
     }
@@ -138,7 +138,7 @@ impl Route {
         let mut t = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
-            let dt = edge.cost(input.state);
+            let dt = edge.cost(&self.query_input, input.state);
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
             let default_dd =
                 cgmath::Vector2::from(start.location()).distance(end.location().into());
@@ -214,12 +214,16 @@ impl Route {
                 Edge::HighwayRamp { .. } => {
                     dd = default_dd;
                 }
-                Edge::ModeSegment { mode, .. } => {
+                Edge::ModeSegment { mode, .. }
+                | Edge::StartSegment { mode, .. }
+                | Edge::EndSegment { mode, .. } => {
                     dd = default_dd;
                     keys.push(RouteKey::new(start.location(), d, t, *mode));
                     keys.push(RouteKey::new(end.location(), d + dd, t + dt, *mode));
                 }
-                Edge::ModeTransition { .. } => {
+                Edge::ModeTransition { .. }
+                | Edge::ParkCarSegment {}
+                | Edge::CollectParkedCarSegment { .. } => {
                     dd = default_dd;
                 }
             }
@@ -286,7 +290,7 @@ impl Route {
         time: f64,
         input: &SplineConstructionInput,
     ) -> Option<RouteKey> {
-        self.sample_time(time - self.start_time as f64, input)
+        self.sample_time(time - self.query_input.start_time as f64, input)
     }
 
     pub fn total_dist(&self, input: &SplineConstructionInput) -> f64 {
@@ -300,10 +304,10 @@ impl Route {
     }
 
     pub fn start(&self) -> quadtree::Address {
-        *self.nodes.first().expect("empty route").address()
+        self.query_input.start
     }
 
     pub fn stop(&self) -> quadtree::Address {
-        *self.nodes.last().expect("empty route").address()
+        self.query_input.end
     }
 }

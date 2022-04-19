@@ -138,6 +138,9 @@ impl App {
             use rand::seq::SliceRandom;
             let mut rng = rand::thread_rng();
 
+            // make sure these lists are up-to-date
+            self.engine.update_collect_tiles().unwrap();
+
             // for now, go from home to work
             let start = self.engine.collect_tiles.housing.choose(&mut rng);
             let stop = self.engine.collect_tiles.workplaces.choose(&mut rng);
@@ -173,13 +176,15 @@ impl App {
                 } else {
                     None
                 };
-                if let Ok(Some(route)) = self.engine.query_route(
+                match self.engine.query_route(
                     start,
                     stop,
                     car_config,
                     self.engine.time_state.current_time,
                 ) {
-                    self.route_query.current_routes = vec![route];
+                    Ok(Some(route)) => self.route_query.current_routes = vec![route],
+                    Ok(None) => (),
+                    Err(err) => eprintln!("Error querying route: {}", err),
                 }
             }
         }
