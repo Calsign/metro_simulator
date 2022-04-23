@@ -138,10 +138,10 @@ impl Route {
         let mut t = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
-            let dt = edge.cost(&self.query_input, input.state, input.tile_size);
+            let dt = edge.cost(input.state);
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
-            let start_location = start.location(&self.query_input);
-            let end_location = end.location(&self.query_input);
+            let start_location = start.location();
+            let end_location = end.location();
             let default_dd = cgmath::Vector2::from(start_location).distance(end_location.into());
             let dd: f64;
             match &edge {
@@ -215,16 +215,14 @@ impl Route {
                 Edge::HighwayRamp { .. } => {
                     dd = default_dd;
                 }
-                Edge::ModeSegment { mode, .. }
-                | Edge::StartSegment { mode, .. }
-                | Edge::EndSegment { mode, .. } => {
+                Edge::ModeSegment { mode, .. } => {
                     dd = default_dd;
                     keys.push(RouteKey::new(start_location, d, t, *mode));
                     keys.push(RouteKey::new(end_location, d + dd, t + dt, *mode));
                 }
                 Edge::ModeTransition { .. }
-                | Edge::ParkCarSegment {}
-                | Edge::CollectParkedCarSegment { .. } => {
+                // | Edge::ParkCarSegment {}
+                => {
                     dd = default_dd;
                 }
             }
@@ -299,9 +297,8 @@ impl Route {
         splines.total_dist
     }
 
-    pub fn total_time(&self, input: &SplineConstructionInput) -> f64 {
-        let splines = self.get_splines(input);
-        splines.total_dist
+    pub fn total_time(&self) -> f64 {
+        self.cost
     }
 
     pub fn start(&self) -> quadtree::Address {

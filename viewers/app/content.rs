@@ -58,33 +58,19 @@ impl App {
             }
         }
 
-        let route_input = &self.engine.get_spline_construction_input();
+        // only render routes if the simulation is slow enough to see them
+        if self.engine.time_state.should_render_motion() {
+            let route_input = &self.engine.get_spline_construction_input();
 
-        // draw route from the query interface
-        for route in &self.route_query.current_routes {
-            let mut route_visitor = DrawSplineVisitor::new(self, &painter);
-            route.visit_spline(
-                &mut route_visitor,
-                spline_scale,
-                &bounding_box,
-                &route_input,
-            )?;
-            if let Some(key) =
-                route.sample_engine_time(self.engine.time_state.current_time as f64, &route_input)
-            {
-                let (x, y) = key.position;
-                let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                painter.circle(
-                    pos,
-                    6.0,
-                    egui::Color32::from_rgb(0, 0, 255),
-                    egui::Stroke::none(),
-                );
-            }
-        }
-
-        for agent in self.engine.agents.values() {
-            if let agent::AgentState::Route(route) = &agent.state {
+            // draw route from the query interface
+            for route in &self.route_query.current_routes {
+                let mut route_visitor = DrawSplineVisitor::new(self, &painter);
+                route.visit_spline(
+                    &mut route_visitor,
+                    spline_scale,
+                    &bounding_box,
+                    &route_input,
+                )?;
                 if let Some(key) = route
                     .sample_engine_time(self.engine.time_state.current_time as f64, &route_input)
                 {
@@ -92,10 +78,28 @@ impl App {
                     let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
                     painter.circle(
                         pos,
-                        5.0,
+                        6.0,
                         egui::Color32::from_rgb(0, 0, 255),
                         egui::Stroke::none(),
                     );
+                }
+            }
+
+            for agent in self.engine.agents.values() {
+                if let agent::AgentState::Route(route) = &agent.state {
+                    if let Some(key) = route.sample_engine_time(
+                        self.engine.time_state.current_time as f64,
+                        &route_input,
+                    ) {
+                        let (x, y) = key.position;
+                        let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                        painter.circle(
+                            pos,
+                            5.0,
+                            egui::Color32::from_rgb(0, 0, 255),
+                            egui::Stroke::none(),
+                        );
+                    }
                 }
             }
         }

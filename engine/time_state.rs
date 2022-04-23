@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use uom::si::time::hour;
+use uom::si::u64::Time;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeState {
@@ -42,5 +44,10 @@ impl TimeState {
 
     pub fn time_from_datetime(&self, datetime: chrono::NaiveDateTime) {
         unimplemented!()
+    }
+
+    pub fn should_render_motion(&self) -> bool {
+        // NOTE: could use some tweaking?
+        self.playback_rate < Time::new::<hour>(2).value
     }
 }

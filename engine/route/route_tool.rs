@@ -37,10 +37,7 @@ struct Args {
     has_car: bool,
 }
 
-fn dump_graph(
-    graph: &petgraph::Graph<route::Node, route::Edge>,
-    output: &Option<std::path::PathBuf>,
-) {
+fn dump_graph(graph: &route::InnerGraph, output: &Option<std::path::PathBuf>) {
     match output {
         Some(path) => route::dump_graph(graph, &mut std::fs::File::create(path).unwrap()).unwrap(),
         None => route::dump_graph(graph, &mut std::io::stdout()).unwrap(),

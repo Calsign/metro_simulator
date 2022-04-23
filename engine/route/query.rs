@@ -1,8 +1,86 @@
-use std::collections::HashMap;
-
-use crate::base_graph::{Graph, InnerGraph, Neighbors};
+use crate::base_graph::{Graph, InnerGraph, Neighbors, NodeIndex};
 use crate::common::{CarConfig, Edge, Error, Mode, Node, QueryInput, WorldState};
 use crate::route::Route;
+
+fn perform_query<'a>(
+    base_graph: &mut InnerGraph,
+    state: &WorldState,
+    start_id: NodeIndex,
+    end_id: NodeIndex,
+) -> Result<Option<(f64, Vec<NodeIndex>)>, Error> {
+    use cgmath::MetricSpace;
+    use cgmath::Vector2;
+
+    #[cfg(feature = "petgraph")]
+    let path = {
+        let goal_vec = Vector2::from(base_graph.node_weight(end_id).unwrap().location());
+        let is_goal = |n| n == end_id;
+        let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| e.weight().cost(state);
+
+        // This should be the fastest possible speed by any mode of transportation.
+        // TODO: There is probably a more principled way to approach this.
+        let top_speed = metro::timing::MAX_SPEED;
+        let estimate_cost =
+            |n| goal_vec.distance(base_graph.node_weight(n).unwrap().location().into()) / top_speed;
+
+        petgraph::algo::astar(&*base_graph, start_id, is_goal, edge_cost, estimate_cost)
+    };
+
+    #[cfg(feature = "fast_paths")]
+    let path = {
+        let shortest_path = base_graph.query(start_id, end_id);
+        match shortest_path {
+            // TODO: remove this clone
+            Some(p) if p.is_found() => Some((p.get_weight() as f64, p.get_nodes().clone())),
+            _ => None,
+        }
+    };
+
+    Ok(path)
+}
+
+fn construct_route(
+    base_graph: &InnerGraph,
+    input: QueryInput,
+    cost: f64,
+    path: &Vec<NodeIndex>,
+    start: quadtree::Address,
+    end: quadtree::Address,
+    start_mode: Mode,
+    end_mode: Mode,
+    start_dist: f64,
+    end_dist: f64,
+) -> Route {
+    use itertools::Itertools;
+    use std::iter::once;
+
+    Route::new(
+        once(Node::Endpoint { address: start })
+            .chain(
+                path.iter()
+                    .map(|n| base_graph.node_weight(*n).unwrap().clone()),
+            )
+            .chain(once(Node::Endpoint { address: end }))
+            .collect(),
+        once(Edge::ModeSegment {
+            mode: start_mode,
+            distance: start_dist,
+        })
+        .chain(path.iter().tuple_windows().map(|(a, b)| {
+            base_graph
+                .edge_weight(base_graph.find_edge(*a, *b).unwrap())
+                .unwrap()
+                .clone()
+        }))
+        .chain(once(Edge::ModeSegment {
+            mode: end_mode,
+            distance: end_dist,
+        }))
+        .collect(),
+        cost,
+        input,
+    )
+}
 
 /**
  * Finds the best (lowest cost) route from `start` to `end` in
@@ -17,57 +95,95 @@ pub fn best_route<'a>(
     state: &'a WorldState,
 ) -> Result<Option<Route>, Error> {
     use cgmath::MetricSpace;
-    use cgmath::Vector2;
-    use itertools::Itertools;
 
-    let inner = &base_graph.graph;
+    let inner = &mut base_graph.graph;
 
-    let goal_vec = Vector2::from(
-        inner
-            .node_weight(base_graph.end_node)
-            .unwrap()
-            .location(&input),
-    );
+    let mut fastest: Option<(f64, Vec<NodeIndex>, Mode, Mode, f64, f64)> = None;
 
-    let is_goal = |n| match inner.node_weight(n).unwrap() {
-        Node::EndNode { .. } => true,
-        _ => false,
+    let mut attempt_route = |start: quadtree::Address,
+                             start_mode,
+                             end: quadtree::Address,
+                             end_mode|
+     -> Result<(), Error> {
+        let (start_x, start_y) = start.to_xy();
+        let (end_x, end_y) = end.to_xy();
+
+        // TODO: precompute these values and store in the qtree
+        let start_id =
+            base_graph.neighbors[&start_mode].find_nearest(start_x as f64, start_y as f64);
+        let end_id = base_graph.neighbors[&end_mode].find_nearest(end_x as f64, end_y as f64);
+
+        if let (Some(start_id), Some(end_id)) = (start_id, end_id) {
+            let path = perform_query(inner, state, start_id, end_id)?;
+            if let Some((cost, nodes)) = path {
+                // add in cost for reaching the start node and end node
+                let start_vec = cgmath::Vector2::from(
+                    inner
+                        .node_weight(*nodes.first().unwrap())
+                        .unwrap()
+                        .location(),
+                );
+                let end_vec = cgmath::Vector2::from(
+                    inner
+                        .node_weight(*nodes.last().unwrap())
+                        .unwrap()
+                        .location(),
+                );
+                let start_dist = start_vec.distance((start_x as f64, start_y as f64).into())
+                    * base_graph.tile_size;
+                let start_cost = start_dist / start_mode.linear_speed();
+                let end_dist =
+                    end_vec.distance((end_x as f64, end_y as f64).into()) * base_graph.tile_size;
+                let end_cost = end_dist / end_mode.linear_speed();
+
+                let total_cost = cost + start_cost + end_cost;
+
+                match &fastest {
+                    None => {
+                        fastest = Some((
+                            total_cost, nodes, start_mode, end_mode, start_dist, end_dist,
+                        ))
+                    }
+                    Some((old_cost, _, _, _, _, _)) if total_cost < *old_cost => {
+                        fastest = Some((
+                            total_cost, nodes, start_mode, end_mode, start_dist, end_dist,
+                        ))
+                    }
+                    _ => (),
+                }
+            }
+        }
+        Ok(())
     };
-    let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| {
-        e.weight().cost(&input, state, base_graph.tile_size)
-    };
 
-    // This should be the fastest possible speed by any mode of transportation.
-    // TODO: There is probably a more principled way to approach this.
-    let top_speed = metro::timing::MAX_SPEED;
-    let estimate_cost =
-        |n| goal_vec.distance(inner.node_weight(n).unwrap().location(&input).into()) / top_speed;
+    match &input.car_config {
+        None => {
+            attempt_route(input.start, Mode::Walking, input.end, Mode::Walking)?;
+        }
+        Some(CarConfig::StartWithCar) => {
+            attempt_route(input.start, Mode::Driving, input.end, Mode::Walking)?;
+            attempt_route(input.start, Mode::Driving, input.end, Mode::Driving)?;
+        }
+        Some(CarConfig::CollectParkedCar { address }) => {
+            // TODO: basically just merge two routes together
+            unimplemented!()
+        }
+    }
 
     Ok(
-        match petgraph::algo::astar(
-            inner,
-            base_graph.start_node,
-            is_goal,
-            edge_cost,
-            estimate_cost,
-        ) {
-            Some((cost, path)) => Some(Route::new(
-                path.iter()
-                    .map(|n| inner.node_weight(*n).unwrap().clone())
-                    .collect(),
-                path.iter()
-                    .tuple_windows()
-                    .map(|(a, b)| {
-                        inner
-                            .edge_weight(inner.find_edge(*a, *b).unwrap())
-                            .unwrap()
-                            .clone()
-                    })
-                    .collect(),
+        fastest.map(|(cost, path, start_mode, end_mode, start_dist, end_dist)| {
+            construct_route(
+                inner,
+                input,
                 cost,
-                input.clone(),
-            )),
-            None => None,
-        },
+                &path,
+                input.start,
+                input.end,
+                start_mode,
+                end_mode,
+                start_dist,
+                end_dist,
+            )
+        }),
     )
 }

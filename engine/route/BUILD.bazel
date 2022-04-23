@@ -1,16 +1,24 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
+# NOTE: Use features to specify the underlying search implementation:
+# - "petgraph": petgraph's A* implementation
+# - "fast_paths": fast_paths's contraction hierarchies implementation
+BACKEND = "fast_paths"
+
 rust_library(
     name = "route",
     srcs = [
         "base_graph.rs",
         "common.rs",
+        "fast_graph_wrapper.rs",
         "lib.rs",
         "query.rs",
         "route.rs",
     ],
+    crate_features = [BACKEND],
     proc_macro_deps = [
         "@crates//:derive_more",
+        "@crates//:derivative",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -20,6 +28,7 @@ rust_library(
         "//engine/quadtree",
         "//util:spline_util",
         "@crates//:cgmath",
+        "@crates//:fast_paths",
         "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:petgraph",
@@ -44,5 +53,6 @@ rust_binary(
 rust_test(
     name = "route_tests",
     crate = ":route",
+    crate_features = [BACKEND],
     proc_macro_deps = ["@crates//:derive_more"],
 )

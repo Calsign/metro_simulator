@@ -36,6 +36,11 @@ CRATES = {
         features = ["serde"],
     ),
     "petgraph": "0.6",
+    "fast_paths": dict(
+        git = "https://github.com/easbar/fast_paths",
+        # master as of 2022-04-20; we need PR #37
+        rev = "6d236d1be5f341071c65ee36c540279986cf7231",
+    ),
     "splines": dict(
         version = "4.0",
         features = ["cgmath", "serde"],

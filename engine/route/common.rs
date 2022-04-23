@@ -6,8 +6,6 @@ pub const EMBARK_TIME: f64 = 480.0;
 // time it takes to enter or leave a highway
 pub const RAMP_TIME: f64 = 30.0;
 
-pub const MAX_COST: f64 = f64::INFINITY;
-
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("Quadtree error: {0}")]
@@ -76,9 +74,11 @@ impl Mode {
     pub fn bridge_radius(&self) -> f64 {
         use Mode::*;
         match self {
-            Walking => 800.0,  // about 0.5 miles
-            Biking => 3200.0,  // about 2 miles
-            Driving => 8000.0, // about 5 miles
+            Walking => 800.0, // about 0.5 miles
+            Biking => 3200.0, // about 2 miles
+            // TODO: this seems to make fast_paths intractable for some reason
+            Driving => 1000.0,
+            // Driving => 8000.0, // about 5 miles
         }
     }
 
@@ -110,8 +110,6 @@ impl std::fmt::Display for Mode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Node {
-    StartNode,
-    EndNode,
     MetroStation {
         station: metro::Station,
     },
@@ -130,14 +128,15 @@ pub enum Node {
     Parking {
         address: quadtree::Address,
     },
+    Endpoint {
+        address: quadtree::Address,
+    },
 }
 
 impl Node {
-    pub fn address(&self, input: &QueryInput) -> quadtree::Address {
+    pub fn address(&self) -> quadtree::Address {
         use Node::*;
         match self {
-            StartNode => input.start,
-            EndNode => input.end,
             MetroStation {
                 station: metro::Station { address, .. },
             }
@@ -147,21 +146,14 @@ impl Node {
             }
             | HighwayJunction { address, .. }
             | HighwayRamp { address, .. }
-            | Parking { address } => *address,
+            | Parking { address }
+            | Endpoint { address } => *address,
         }
     }
 
-    pub fn location(&self, input: &QueryInput) -> (f64, f64) {
+    pub fn location(&self) -> (f64, f64) {
         use Node::*;
         match self {
-            StartNode => {
-                let (x, y) = input.start.to_xy();
-                (x as f64, y as f64)
-            }
-            EndNode => {
-                let (x, y) = input.end.to_xy();
-                (x as f64, y as f64)
-            }
             MetroStation {
                 station: metro::Station { address, .. },
             }
@@ -169,7 +161,8 @@ impl Node {
                 station: metro::Station { address, .. },
                 ..
             }
-            | Parking { address } => {
+            | Parking { address }
+            | Endpoint { address } => {
                 let (x, y) = address.to_xy();
                 (x as f64, y as f64)
             }
@@ -183,8 +176,6 @@ impl std::fmt::Display for Node {
         use Node::*;
 
         match self {
-            StartNode => write!(f, "start"),
-            EndNode => write!(f, "end"),
             MetroStation { station } => write!(f, "station:{}", station.name),
             MetroStop {
                 station,
@@ -197,6 +188,7 @@ impl std::fmt::Display for Node {
                 position: (x, y), ..
             } => write!(f, "ramp:({:.1}, {:.1})", x, y),
             Parking { .. } => write!(f, "parking"),
+            Endpoint { .. } => write!(f, "endpoint"),
         }
     }
 }
@@ -234,18 +226,6 @@ pub enum Edge {
         from: Mode,
         to: Mode,
     },
-    StartSegment {
-        mode: Mode,
-        location: (f64, f64),
-    },
-    EndSegment {
-        mode: Mode,
-        location: (f64, f64),
-    },
-    ParkCarSegment,
-    CollectParkedCarSegment {
-        address: quadtree::Address,
-    },
 }
 
 fn u64_f64_point_dist(a: (f64, f64), (bx, by): (u64, u64)) -> f64 {
@@ -254,9 +234,29 @@ fn u64_f64_point_dist(a: (f64, f64), (bx, by): (u64, u64)) -> f64 {
 }
 
 impl Edge {
-    pub fn cost(&self, input: &QueryInput, state: &WorldState, tile_size: f64) -> f64 {
+    pub fn base_cost(&self) -> f64 {
         use Edge::*;
-        match self {
+        let cost = match self {
+            MetroSegment { time, .. } => *time,
+            MetroEmbark {
+                metro_line,
+                station,
+            } => EMBARK_TIME,
+            MetroDisembark {
+                metro_line,
+                station,
+            } => 0.0,
+            Highway { time, .. } => *time,
+            HighwayRamp { .. } => RAMP_TIME,
+            ModeSegment { mode, distance } => distance / mode.linear_speed(),
+            ModeTransition { .. } => 0.0,
+        };
+        f64::max(cost, 1.0)
+    }
+
+    pub fn cost(&self, state: &WorldState) -> f64 {
+        use Edge::*;
+        let cost = match self {
             MetroSegment { time, .. } => *time,
             MetroEmbark {
                 metro_line,
@@ -273,36 +273,8 @@ impl Edge {
             HighwayRamp { .. } => RAMP_TIME,
             ModeSegment { mode, distance } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
-            StartSegment { mode, location } => {
-                let dist = u64_f64_point_dist(*location, input.start.to_xy()) * tile_size
-                    / mode.linear_speed();
-                match (input.car_config, mode) {
-                    (Some(CarConfig::StartWithCar), Mode::Walking | Mode::Driving) => dist,
-                    (_, Mode::Walking) => dist,
-                    _ => MAX_COST,
-                }
-            }
-            EndSegment { mode, location } => {
-                let dist = u64_f64_point_dist(*location, input.end.to_xy()) * tile_size
-                    / mode.linear_speed();
-                match (input.car_config, mode) {
-                    (Some(CarConfig::StartWithCar), Mode::Walking | Mode::Driving) => dist,
-                    (Some(CarConfig::CollectParkedCar { .. }), Mode::Driving) => dist,
-                    (None, Mode::Walking) => dist,
-                    _ => MAX_COST,
-                }
-            }
-            ParkCarSegment {} => match &input.car_config {
-                Some(CarConfig::StartWithCar) => 0.0,
-                _ => MAX_COST,
-            },
-            CollectParkedCarSegment { address } => match &input.car_config {
-                Some(CarConfig::CollectParkedCar {
-                    address: parked_address,
-                }) if address == parked_address => 0.0,
-                _ => MAX_COST,
-            },
-        }
+        };
+        f64::max(cost, 1.0)
     }
 }
 
@@ -341,19 +313,6 @@ impl std::fmt::Display for Edge {
                 )
             }
             ModeTransition { from, to } => write!(f, "{}->{}", from, to),
-            StartSegment {
-                mode,
-                location: (x, y),
-            } => write!(f, "start->({},{}):{}", x, y, mode),
-            EndSegment {
-                mode,
-                location: (x, y),
-            } => write!(f, "({},{})->end:{}", x, y, mode),
-            ParkCarSegment {} => write!(f, "park_car"),
-            CollectParkedCarSegment { address } => {
-                let (x, y) = address.to_xy();
-                write!(f, "collect_parked_car:({},{})", x, y)
-            }
         }
     }
 }

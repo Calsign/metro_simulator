@@ -112,6 +112,31 @@ impl<T> NeighborsStore<T> {
     }
 }
 
+impl<T> NeighborsStore<T>
+where
+    T: Clone,
+{
+    pub fn find_nearest(&self, x: f64, y: f64) -> Option<T> {
+        // idea: start by searching a small neighborhood, expanding outward until we find at least
+        // one neighbor
+
+        // TODO: test different values
+        let mut radius = ((self.qtree.width() / 100) as u64).max(1);
+        return loop {
+            let mut visitor = NearestNeighborsVisitor::new();
+            self.visit_radius(&mut visitor, x, y, radius as f64)
+                .unwrap();
+            if let Some((entry, _)) = visitor.nearest {
+                break Some(entry);
+            }
+            radius *= 2;
+            if radius >= self.qtree.width() {
+                break None;
+            }
+        };
+    }
+}
+
 struct NeighborsVisitorImpl<'a, V, T, E>
 where
     V: NeighborsVisitor<T, E>,
@@ -205,6 +230,38 @@ where
     }
 }
 
+struct NearestNeighborsVisitor<T>
+where
+    T: Clone,
+{
+    nearest: Option<(T, f64)>,
+}
+
+impl<T> NearestNeighborsVisitor<T>
+where
+    T: Clone,
+{
+    fn new() -> Self {
+        Self { nearest: None }
+    }
+}
+
+impl<T> NeighborsVisitor<T, ()> for NearestNeighborsVisitor<T>
+where
+    T: Clone,
+{
+    fn visit(&mut self, entry: &T, x: f64, y: f64, distance: f64) -> Result<(), ()> {
+        // TODO: don't need distance here, just need squared distance
+        // TODO: should be possible to implement this with references instead of cloning
+        match self.nearest {
+            None => self.nearest = Some((entry.clone(), distance)),
+            Some((_, dist)) if distance < dist => self.nearest = Some((entry.clone(), distance)),
+            _ => (),
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use quadtree::*;
@@ -284,6 +341,22 @@ mod tests {
         neighbors.insert(0, 0.0, 0.0)?;
         // this one will crash if max depth isn't respected
         neighbors.insert(1, 0.0, 0.0)?;
+        Ok(())
+    }
+
+    #[test]
+    fn nearest() -> Result<(), quadtree::Error> {
+        let mut neighbors = NeighborsStore::new(1, 2);
+        neighbors.insert(0, 0.0, 0.0);
+        neighbors.insert(1, 3.0, 0.0);
+        neighbors.insert(2, 0.0, 3.0);
+
+        assert_eq!(neighbors.find_nearest(0.0, 0.0), Some(0));
+        assert_eq!(neighbors.find_nearest(3.0, 0.0), Some(1));
+        assert_eq!(neighbors.find_nearest(0.0, 3.0), Some(2));
+        assert_eq!(neighbors.find_nearest(1.0, 1.0), Some(0));
+        assert_eq!(neighbors.find_nearest(1.0, 4.0), Some(2));
+
         Ok(())
     }
 }

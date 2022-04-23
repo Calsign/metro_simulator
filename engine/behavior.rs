@@ -94,8 +94,7 @@ pub struct AgentRouteStart {
 
 impl TriggerType for AgentRouteStart {
     fn execute(self, state: &mut State, time: u64) {
-        let input = state.get_spline_construction_input();
-        let total_time = self.route.total_time(&input).ceil() as u64;
+        let total_time = self.route.total_time().ceil() as u64;
 
         let agent = state.agents.get_mut(&self.agent).expect("missing agent");
         agent.state = agent::AgentState::Route(*self.route);
