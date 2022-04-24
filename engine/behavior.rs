@@ -16,7 +16,8 @@ pub trait TriggerType: PartialEq + Eq + PartialOrd + Ord {
 #[non_exhaustive]
 pub enum Trigger {
     Tick,
-    AgentStartDay,
+    AgentPlanCommuteToWork,
+    AgentPlanCommuteHome,
     AgentRouteStart,
     AgentRouteEnd,
     #[cfg(debug_assertions)]
@@ -47,11 +48,11 @@ impl TriggerType for Tick {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct AgentStartDay {
+pub struct AgentPlanCommuteToWork {
     pub agent: u64,
 }
 
-impl TriggerType for AgentStartDay {
+impl TriggerType for AgentPlanCommuteToWork {
     fn execute(self, state: &mut State, time: u64) {
         let agent = state.agents.get(&self.agent).expect("missing agent");
         if let Some(workplace) = &agent.workplace {
@@ -68,6 +69,50 @@ impl TriggerType for AgentStartDay {
                 Some(route::CarConfig::StartWithCar),
                 start_time,
             ) {
+                let total_time = route.total_time();
+                state.trigger_queue.push(
+                    AgentRouteStart {
+                        agent: id,
+                        route: Box::new(route),
+                    },
+                    start_time,
+                );
+                // come home from work after 8 hours
+                state.trigger_queue.push(
+                    AgentPlanCommuteHome { agent: id },
+                    start_time + total_time.ceil() as u64 + Time::new::<hour>(8).value,
+                );
+            }
+        }
+
+        state
+            .trigger_queue
+            .push_rel(self, Time::new::<day>(1).value);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct AgentPlanCommuteHome {
+    pub agent: u64,
+}
+
+impl TriggerType for AgentPlanCommuteHome {
+    fn execute(self, state: &mut State, time: u64) {
+        let agent = state.agents.get(&self.agent).expect("missing agent");
+        if let Some(workplace) = &agent.workplace {
+            // commute back home from work
+
+            let housing = agent.housing;
+            let workplace = *workplace;
+            let id = agent.id;
+
+            let start_time = state.time_state.current_time;
+            if let Ok(Some(route)) = state.query_route(
+                workplace,
+                housing,
+                Some(route::CarConfig::StartWithCar),
+                start_time,
+            ) {
                 state.trigger_queue.push(
                     AgentRouteStart {
                         agent: id,
@@ -77,10 +122,6 @@ impl TriggerType for AgentStartDay {
                 );
             }
         }
-
-        state
-            .trigger_queue
-            .push_rel(self, Time::new::<day>(1).value);
     }
 }
 

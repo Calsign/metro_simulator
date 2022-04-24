@@ -3,6 +3,8 @@ use once_cell::unsync::OnceCell;
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use uom::si::time::hour;
+use uom::si::u64::Time;
 
 use crate::config::Config;
 use crate::time_state::TimeState;
@@ -330,8 +332,11 @@ impl State {
         if self.time_state.current_time == 0 {
             self.trigger_queue.push(crate::behavior::Tick {}, 0);
             for agent in self.agents.values() {
-                self.trigger_queue
-                    .push(crate::behavior::AgentStartDay { agent: agent.id }, 0);
+                // start the day at 8 am
+                self.trigger_queue.push(
+                    crate::behavior::AgentPlanCommuteToWork { agent: agent.id },
+                    Time::new::<hour>(8).value,
+                );
             }
         }
     }
