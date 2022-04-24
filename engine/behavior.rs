@@ -55,7 +55,6 @@ impl TriggerType for AgentStartDay {
     fn execute(self, state: &mut State, time: u64) {
         let agent = state.agents.get(&self.agent).expect("missing agent");
         if let Some(workplace) = &agent.workplace {
-            println!("plotting morning commute for {}", agent.id);
             // morning commute to work
 
             let housing = agent.housing;

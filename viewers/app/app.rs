@@ -30,7 +30,8 @@ impl App {
     }
 
     pub fn update(&mut self, elapsed: f64) {
-        self.engine.update(elapsed);
+        // target 60 fps
+        self.engine.update(elapsed, 1.0 / 60.0);
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {

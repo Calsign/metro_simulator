@@ -336,10 +336,12 @@ impl State {
         }
     }
 
-    pub fn update(&mut self, elapsed: f64) {
-        self.time_state.update(elapsed);
+    pub fn update(&mut self, elapsed: f64, time_budget: f64) {
         if !self.time_state.paused {
-            self.advance_trigger_queue();
+            // always advance at least one interval if unpaused
+            // NOTE: a small loss of precision, but shouldn't be noticeable
+            let time_step = ((self.time_state.playback_rate as f64 * elapsed) as u64).max(1);
+            self.advance_trigger_queue(time_step, time_budget);
         }
     }
 }

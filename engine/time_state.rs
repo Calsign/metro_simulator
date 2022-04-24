@@ -27,14 +27,6 @@ impl TimeState {
         }
     }
 
-    pub fn update(&mut self, elapsed: f64) {
-        if !self.paused {
-            // always advance at least one interval if unpaused
-            // NOTE: a small loss of precision, but shouldn't be noticeable
-            self.current_time += ((self.playback_rate as f64 * elapsed) as u64).max(1);
-        }
-    }
-
     pub fn current_date_time(&self) -> chrono::NaiveDateTime {
         chrono::NaiveDateTime::from_timestamp(
             (self.engine_start_time + self.current_time) as i64,

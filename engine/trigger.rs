@@ -78,21 +78,27 @@ impl crate::state::State {
     /**
      * Advance time forward to the current time, executing triggers in order until the given time.
      */
-    pub fn advance_trigger_queue(&mut self) {
-        let time = self.time_state.current_time;
-        assert!(time >= self.trigger_queue.current_time);
-        while self
-            .trigger_queue
-            .heap
-            .peek()
-            .map(|t| t.time <= time)
-            .unwrap_or(false)
-        {
+    pub fn advance_trigger_queue(&mut self, time_step: u64, time_budget: f64) {
+        let target_time = self.time_state.current_time + time_step;
+        let budget_start = std::time::Instant::now();
+
+        while budget_start.elapsed().as_secs_f64() < time_budget {
+            if self
+                .trigger_queue
+                .heap
+                .peek()
+                .map(|t| t.time > target_time)
+                .unwrap_or(true)
+            {
+                self.trigger_queue.current_time = target_time;
+                self.time_state.current_time = target_time;
+                break;
+            }
             let entry = self.trigger_queue.heap.pop().unwrap();
             assert!(entry.time >= self.trigger_queue.current_time);
             self.trigger_queue.current_time = entry.time;
+            self.time_state.current_time = entry.time;
             entry.trigger.execute(self, self.trigger_queue.current_time);
         }
-        self.trigger_queue.current_time = time;
     }
 }
