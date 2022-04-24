@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::common::{Edge, Error, Mode, Node, MODES};
 use crate::fast_graph_wrapper::FastGraphWrapper;
+use crate::traffic::WorldState;
 
 pub struct BaseGraphInput<'a, 'b> {
     pub metro_lines: &'a HashMap<u64, metro::MetroLine>,
@@ -55,6 +56,13 @@ pub struct Graph {
     pub parking: HashMap<quadtree::Address, Parking>,
     pub tile_size: f64,
     pub max_depth: u32,
+}
+
+impl Graph {
+    pub fn update_weights(&mut self, state: &WorldState) {
+        #[cfg(feature = "fast_paths")]
+        self.graph.update_weights(state);
+    }
 }
 
 pub fn dump_graph<W>(graph: &InnerGraph, write: &mut W) -> Result<(), std::io::Error>
@@ -211,10 +219,12 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
         let address = quadtree::Address::from_xy(x as u64, y as u64, input.max_depth);
         let node_id = if let Some(ramp) = &junction.ramp {
             let outer_id = graph.add_node(Node::HighwayRamp {
+                junction: junction.id,
                 position: (x, y),
                 address,
             });
             let inner_id = graph.add_node(Node::HighwayRamp {
+                junction: junction.id,
                 position: (x, y),
                 address,
             });
@@ -231,6 +241,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
             inner_id
         } else {
             graph.add_node(Node::HighwayJunction {
+                junction: junction.id,
                 position: (x, y),
                 address,
             })

@@ -10,7 +10,8 @@ pub use spline_util::SplineVisitor;
 use highway::{HighwaySegment, Highways};
 use metro::MetroLine;
 
-use crate::common::{CarConfig, Edge, Mode, Node, QueryInput, WorldState};
+use crate::common::{CarConfig, Edge, Mode, Node, QueryInput};
+use crate::traffic::WorldState;
 
 #[derive(Debug, Copy, Clone, derive_more::Constructor, Serialize, Deserialize)]
 pub struct RouteKey {

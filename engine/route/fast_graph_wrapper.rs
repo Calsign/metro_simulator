@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use fast_paths::{FastGraph, InputGraph, NodeId, Params, PathCalculator, ShortestPath, Weight};
 
-use crate::common::{Edge, Node, QueryInput, WorldState};
+use crate::common::{Edge, Node, QueryInput};
+use crate::traffic::WorldState;
 
 #[derive(derivative::Derivative)]
 #[derivative(Debug)]

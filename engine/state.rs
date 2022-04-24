@@ -70,7 +70,7 @@ pub struct State {
     #[serde(skip)]
     pub collect_tiles: CollectTilesVisitor,
     #[serde(skip)]
-    route_state: OnceCell<route::WorldState>,
+    route_state: route::WorldState,
     #[serde(skip)]
     base_route_graph: Option<route::Graph>,
     pub time_state: TimeState,
@@ -90,7 +90,7 @@ impl State {
             highways: highway::Highways::new(),
             collect_tiles: CollectTilesVisitor::default(),
             time_state: TimeState::new(),
-            route_state: OnceCell::new(),
+            route_state: route::WorldState::new(),
             base_route_graph: None,
             agents: HashMap::new(),
             agent_counter: 0,
@@ -284,20 +284,39 @@ impl State {
             }
             self.base_route_graph.as_mut().unwrap()
         };
-        let state = &self.route_state.get_or_init(|| route::WorldState::new());
 
-        Ok(route::best_route(base_graph, query_input, state)?)
+        Ok(route::best_route(
+            base_graph,
+            query_input,
+            &self.route_state,
+        )?)
+    }
+
+    fn construct_route_state(&self) -> route::WorldState {
+        route::WorldState::from_routes(self.agents.values().filter_map(
+            |agent| match &agent.state {
+                agent::AgentState::Route(route) => Some(route),
+                _ => None,
+            },
+        ))
+    }
+
+    pub fn update_world_state(&mut self) {
+        let route_state = self.construct_route_state();
+        // TODO: only do this lazily?
+        self.get_base_route_graph().update_weights(&route_state);
+        self.route_state = route_state;
     }
 
     pub fn get_route_state(&self) -> &route::WorldState {
-        &self.route_state.get_or_init(|| route::WorldState::new())
+        &self.route_state
     }
 
     pub fn get_spline_construction_input(&self) -> route::SplineConstructionInput {
         route::SplineConstructionInput {
             metro_lines: &self.metro_lines,
             highways: &self.highways,
-            state: &self.get_route_state(),
+            state: &self.route_state,
             tile_size: self.config.min_tile_size as f64,
         }
     }

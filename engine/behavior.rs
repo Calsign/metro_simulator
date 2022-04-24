@@ -36,6 +36,9 @@ impl TriggerType for Tick {
         state.update_fields().unwrap();
         state.update_collect_tiles().unwrap();
 
+        // update traffic conditions
+        state.update_world_state();
+
         // re-trigger every hour of simulated time
         state
             .trigger_queue

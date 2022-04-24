@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::traffic::WorldState;
+
 // time it takes to wait for a train, on average
 // TODO: replace this with correct accounting for train schedules
 pub const EMBARK_TIME: f64 = 480.0;
@@ -25,22 +27,12 @@ pub enum CarConfig {
     CollectParkedCar { address: quadtree::Address },
 }
 
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub struct WorldState {}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct QueryInput {
     pub start: quadtree::Address,
     pub end: quadtree::Address,
     pub car_config: Option<CarConfig>,
     pub start_time: u64,
-}
-
-impl WorldState {
-    pub fn new() -> Self {
-        Self {}
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
@@ -118,10 +110,12 @@ pub enum Node {
         metro_line: u64,
     },
     HighwayJunction {
+        junction: u64,
         position: (f64, f64),
         address: quadtree::Address,
     },
     HighwayRamp {
+        junction: u64,
         position: (f64, f64),
         address: quadtree::Address,
     },

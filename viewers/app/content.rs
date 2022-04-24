@@ -29,18 +29,20 @@ impl App {
             0.2,
         );
 
+        let traffic = self.overlay.traffic.then(|| self.engine.get_route_state());
+
         self.diagnostics.metro_vertices = 0;
         self.diagnostics.highway_vertices = 0;
 
         // TODO: don't sort every iteration!!
         for (id, metro_line) in self.engine.metro_lines.iter().sorted() {
-            let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
+            let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
             metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
             self.diagnostics.metro_vertices += spline_visitor.visited;
         }
 
         for (id, highway_segment) in self.engine.highways.get_segments().iter().sorted() {
-            let mut spline_visitor = DrawSplineVisitor::new(self, &painter);
+            let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
             highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
             self.diagnostics.highway_vertices += spline_visitor.visited;
         }
@@ -64,7 +66,7 @@ impl App {
 
             // draw route from the query interface
             for route in &self.route_query.current_routes {
-                let mut route_visitor = DrawSplineVisitor::new(self, &painter);
+                let mut route_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 route.visit_spline(
                     &mut route_visitor,
                     spline_scale,
@@ -202,7 +204,7 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
         let width = data.width as f32 * self.app.pan.scale;
         let threshold = self.app.options.field_resolution as f32;
         if is_leaf || (width >= threshold && width < threshold * 2.0) {
-            if let Some(field) = self.app.field {
+            if let Some(field) = self.app.overlay.field {
                 let hue = match field {
                     FieldType::Population => {
                         let peak = 0.15;
@@ -232,7 +234,7 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
         let should_descend =
             data.width as f32 * self.app.pan.scale >= self.app.options.min_tile_size as f32;
 
-        if !should_descend && self.app.field.is_none() {
+        if !should_descend && self.app.overlay.field.is_none() {
             let full_rect = self.get_full_rect(data);
             self.painter.rect_filled(
                 full_rect,
@@ -326,19 +328,26 @@ fn regular_poly<const N: usize>(
     })
 }
 
-struct DrawSplineVisitor<'a, 'b> {
+struct DrawSplineVisitor<'a, 'b, 'c> {
     app: &'a App,
     painter: &'b egui::Painter,
+
+    traffic: Option<&'c route::WorldState>,
 
     last_point: Option<(f32, f32)>,
     visited: u64,
 }
 
-impl<'a, 'b> DrawSplineVisitor<'a, 'b> {
-    fn new(app: &'a App, painter: &'b egui::Painter) -> Self {
+impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
+    fn new(
+        app: &'a App,
+        painter: &'b egui::Painter,
+        traffic: Option<&'c route::WorldState>,
+    ) -> Self {
         Self {
             app,
             painter,
+            traffic,
             last_point: None,
             visited: 0,
         }
@@ -348,6 +357,7 @@ impl<'a, 'b> DrawSplineVisitor<'a, 'b> {
         &mut self,
         color: &egui::Color32,
         line_width: f32,
+        traffic: Option<u64>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
     ) -> Result<()> {
@@ -356,9 +366,19 @@ impl<'a, 'b> DrawSplineVisitor<'a, 'b> {
             .pan
             .to_screen_ff((vertex.x as f32, vertex.y as f32));
 
+        let (color, line_width) = match traffic {
+            Some(traffic) => {
+                let scaled = ((traffic as f32).log2() / 12.0).min(1.0);
+                let hue = (2.0 + scaled) / 3.0;
+                let color = egui::color::Hsva::new(hue, 1.0, 1.0, 1.0).into();
+                (color, 3.0)
+            }
+            None => (*color, line_width),
+        };
+
         if let Some(last_point) = self.last_point {
             self.painter
-                .line_segment([last_point.into(), point.into()], (line_width, *color));
+                .line_segment([last_point.into(), point.into()], (line_width, color));
         }
         self.visited += 1;
         self.last_point = Some(point);
@@ -367,8 +387,8 @@ impl<'a, 'b> DrawSplineVisitor<'a, 'b> {
     }
 }
 
-impl<'a, 'b> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow::Error>
-    for DrawSplineVisitor<'a, 'b>
+impl<'a, 'b, 'c> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow::Error>
+    for DrawSplineVisitor<'a, 'b, 'c>
 {
     fn visit(
         &mut self,
@@ -377,12 +397,13 @@ impl<'a, 'b> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow
         t: f64,
     ) -> Result<()> {
         let color = egui::Color32::from_rgb(line.color.red, line.color.green, line.color.blue);
-        self.visit(&color, 2.0, vertex, t)
+        self.visit(&color, 2.0, None, vertex, t)
     }
 }
 
-impl<'a, 'b> highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64>, anyhow::Error>
-    for DrawSplineVisitor<'a, 'b>
+impl<'a, 'b, 'c>
+    highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64>, anyhow::Error>
+    for DrawSplineVisitor<'a, 'b, 'c>
 {
     fn visit(
         &mut self,
@@ -390,17 +411,25 @@ impl<'a, 'b> highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64
         vertex: cgmath::Vector2<f64>,
         t: f64,
     ) -> Result<()> {
-        self.visit(&egui::Color32::from_gray(204), 1.0, vertex, t)
+        self.visit(
+            &egui::Color32::from_gray(204),
+            1.0,
+            self.traffic
+                .map(|t| t.get_highway_segment_travelers(segment.id)),
+            vertex,
+            t,
+        )
     }
 }
 
-impl<'a, 'b> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Error>
-    for DrawSplineVisitor<'a, 'b>
+impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Error>
+    for DrawSplineVisitor<'a, 'b, 'c>
 {
     fn visit(&mut self, route: &route::Route, key: route::RouteKey, t: f64) -> Result<()> {
         self.visit(
             &egui::Color32::from_rgb(0, 0, 255),
             5.0,
+            None,
             key.position.into(),
             t,
         )

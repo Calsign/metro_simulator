@@ -1,6 +1,7 @@
 use crate::base_graph::{Graph, InnerGraph, Neighbors, NodeIndex};
-use crate::common::{CarConfig, Edge, Error, Mode, Node, QueryInput, WorldState};
+use crate::common::{CarConfig, Edge, Error, Mode, Node, QueryInput};
 use crate::route::Route;
+use crate::traffic::WorldState;
 
 fn perform_query<'a>(
     base_graph: &mut InnerGraph,
@@ -156,6 +157,7 @@ pub fn best_route<'a>(
         Ok(())
     };
 
+    // TODO: use calc_path_multiple_sources_and_targets instead of invoking calc_path multiple times
     match &input.car_config {
         None => {
             attempt_route(input.start, Mode::Walking, input.end, Mode::Walking)?;

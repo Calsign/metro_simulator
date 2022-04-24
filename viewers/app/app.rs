@@ -1,6 +1,6 @@
 pub struct App {
     pub(crate) engine: engine::state::State,
-    pub(crate) field: Option<FieldType>,
+    pub(crate) overlay: Overlay,
     pub(crate) options: Options,
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
@@ -13,7 +13,7 @@ impl App {
 
         Self {
             pan: PanState::new(&engine),
-            field: None,
+            overlay: Overlay::new(),
             engine,
             options: Options::new(),
             diagnostics: Diagnostics::default(),
@@ -40,19 +40,9 @@ impl App {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.collapsing("Time", |ui| self.draw_time_state(ui));
-
-                    ui.collapsing("Fields", |ui| {
-                        ui.radio_value(&mut self.field, None, "None");
-                        ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
-                        ui.radio_value(&mut self.field, Some(FieldType::Employment), "Employment");
-                        ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
-                    });
-
+                    ui.collapsing("Overlay", |ui| self.overlay.draw(ui));
                     ui.collapsing("Stats", |ui| self.draw_stats(ui));
-
-                    ui.collapsing("Display options", |ui| {
-                        self.options.draw(ui);
-                    });
+                    ui.collapsing("Display options", |ui| self.options.draw(ui));
 
                     ui.collapsing("Diagnostics", |ui| {
                         self.diagnostics.draw(ui);
@@ -196,6 +186,30 @@ pub(crate) enum FieldType {
     Population,
     Employment,
     LandValue,
+}
+
+#[derive(Debug)]
+pub(crate) struct Overlay {
+    pub field: Option<FieldType>,
+    pub traffic: bool,
+}
+
+impl Overlay {
+    fn new() -> Self {
+        Self {
+            field: None,
+            traffic: false,
+        }
+    }
+
+    fn draw(&mut self, ui: &mut egui::Ui) {
+        ui.radio_value(&mut self.field, None, "None");
+        ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
+        ui.radio_value(&mut self.field, Some(FieldType::Employment), "Employment");
+        ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
+
+        ui.checkbox(&mut self.traffic, "Traffic");
+    }
 }
 
 #[derive(Debug)]
