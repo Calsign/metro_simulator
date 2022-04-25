@@ -303,14 +303,28 @@ impl State {
         ))
     }
 
-    pub fn update_world_state(&mut self) {
+    /**
+     * Re-compute the current route state. This should be called periodically.
+     */
+    pub fn update_route_state(&mut self) {
         let route_state = self.construct_route_state();
         // TODO: only do this lazily?
         self.get_base_route_graph().update_weights(&route_state);
         self.route_state = route_state;
     }
 
+    /**
+     * Returns the current route state.
+     */
     pub fn get_route_state(&self) -> &route::WorldState {
+        &self.route_state
+    }
+
+    /**
+     * Returns a prediction of what the route state will be at the provided time.
+     */
+    pub fn predict_route_state(&self, time: u64) -> &route::WorldState {
+        // TODO: actually predict route state
         &self.route_state
     }
 

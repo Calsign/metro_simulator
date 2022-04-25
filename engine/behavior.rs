@@ -38,7 +38,7 @@ impl TriggerType for Tick {
         state.update_collect_tiles().unwrap();
 
         // update traffic conditions
-        state.update_world_state();
+        state.update_route_state();
 
         // re-trigger every hour of simulated time
         state
@@ -110,6 +110,7 @@ impl TriggerType for AgentPlanCommuteHome {
             if let Ok(Some(route)) = state.query_route(
                 workplace,
                 housing,
+                // TODO: if a car is parked somewhere, account for it
                 Some(route::CarConfig::StartWithCar),
                 start_time,
             ) {
