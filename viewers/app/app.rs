@@ -223,7 +223,7 @@ pub(crate) struct Options {
 impl Options {
     fn new() -> Self {
         Self {
-            min_tile_size: 5,
+            min_tile_size: 2,
             spline_resolution: 5,
             field_resolution: 10,
         }

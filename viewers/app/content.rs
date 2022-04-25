@@ -47,16 +47,18 @@ impl App {
             self.diagnostics.highway_vertices += spline_visitor.visited;
         }
 
-        for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
-            if let Some(_) = highway_junction.ramp {
-                let (x, y) = highway_junction.location;
-                let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                painter.circle(
-                    pos,
-                    2.0,
-                    egui::Color32::from_gray(255),
-                    egui::Stroke::none(),
-                );
+        if self.pan.scale >= 5.0 {
+            for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
+                if let Some(_) = highway_junction.ramp {
+                    let (x, y) = highway_junction.location;
+                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                    painter.circle(
+                        pos,
+                        2.0,
+                        egui::Color32::from_gray(255),
+                        egui::Stroke::none(),
+                    );
+                }
             }
         }
 

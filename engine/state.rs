@@ -397,12 +397,14 @@ impl quadtree::MutFold<BranchState, LeafState, (bool, fields::FieldsState), Erro
 
 #[derive(Debug, Clone, Default)]
 pub struct CollectTilesVisitor {
+    pub total: u64,
     pub housing: Vec<quadtree::Address>,
     pub workplaces: Vec<quadtree::Address>,
 }
 
 impl CollectTilesVisitor {
     pub fn clear(&mut self) {
+        self.total = 0;
         self.housing.clear();
         self.workplaces.clear();
     }
@@ -419,6 +421,7 @@ impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
 
     fn visit_leaf(&mut self, leaf: &LeafState, data: &quadtree::VisitData) -> Result<(), Error> {
         use tiles::Tile::*;
+        self.total += 1;
         match leaf.tile {
             HousingTile(_) => self.housing.push(data.address),
             WorkplaceTile(_) => self.workplaces.push(data.address),
