@@ -1,0 +1,22 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "state",
+    srcs = [
+        "config.rs",
+        "lib.rs",
+        "state.rs",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//engine/fields",
+        "//engine/highway",
+        "//engine/metro",
+        "//engine/quadtree",
+        "//engine/tiles",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:toml",
+    ],
+)

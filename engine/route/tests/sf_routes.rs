@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use lazy_static::lazy_static;
 
-use engine::state::State;
+use engine::Engine;
 use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route, WorldState};
 
 #[derive(Debug, Clone)]
@@ -176,15 +176,23 @@ lazy_static! {
     ]);
 }
 
-pub fn setup() -> (State, Graph) {
-    let state = State::load_file(&PathBuf::from("maps/sf.json")).unwrap();
+pub fn setup() -> (Engine, Graph) {
+    let state = Engine::load_file(&PathBuf::from("maps/sf.json")).unwrap();
     let graph = state.construct_base_route_graph().unwrap();
     (state, graph)
 }
 
-pub fn perform_query(state: &State, graph: &mut Graph, test: &RouteTest) -> Route {
-    let start = state.qtree.get_address(test.start.0, test.start.1).unwrap();
-    let end = state.qtree.get_address(test.end.0, test.end.1).unwrap();
+pub fn perform_query(engine: &Engine, graph: &mut Graph, test: &RouteTest) -> Route {
+    let start = engine
+        .state
+        .qtree
+        .get_address(test.start.0, test.start.1)
+        .unwrap();
+    let end = engine
+        .state
+        .qtree
+        .get_address(test.end.0, test.end.1)
+        .unwrap();
 
     best_route(
         graph,

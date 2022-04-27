@@ -6,7 +6,6 @@ use std::collections::{HashMap, HashSet};
 use uom::si::time::hour;
 use uom::si::u64::Time;
 
-use crate::config::Config;
 use crate::time_state::TimeState;
 use crate::trigger::TriggerQueue;
 
@@ -20,57 +19,15 @@ pub enum Error {
     TomlDeError(#[from] toml::de::Error),
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    #[error("Quadtree error: {0}")]
-    QuadtreeError(#[from] quadtree::Error),
+    #[error("State error: {0}")]
+    StateError(#[from] state::Error),
     #[error("Route error: {0}")]
     RouteError(#[from] route::Error),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BranchState {
-    #[serde(skip)]
-    pub fields: fields::FieldsState,
-}
-
-impl BranchState {
-    pub fn default() -> Self {
-        Self {
-            fields: fields::FieldsState::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LeafState {
-    pub tile: tiles::Tile,
-    #[serde(skip)]
-    pub fields: fields::FieldsState,
-}
-
-impl LeafState {
-    pub fn default() -> Self {
-        Self {
-            tile: tiles::EmptyTile {}.into(),
-            fields: fields::FieldsState::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum SerdeFormat {
-    Json,
-    Toml,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct State {
-    pub config: Config,
-    pub qtree: Quadtree<BranchState, LeafState>,
-    pub metro_lines: HashMap<u64, metro::MetroLine>,
-    metro_line_counter: u64,
-    pub highways: highway::Highways,
-    #[serde(skip)]
-    pub collect_tiles: CollectTilesVisitor,
+pub struct Engine {
+    pub state: state::State,
     #[serde(skip)]
     route_state: route::WorldState,
     #[serde(skip)]
@@ -81,16 +38,10 @@ pub struct State {
     pub trigger_queue: TriggerQueue,
 }
 
-impl State {
-    pub fn new(config: Config) -> Self {
-        let qtree = Quadtree::new(LeafState::default(), config.max_depth);
+impl Engine {
+    pub fn new(config: state::Config) -> Self {
         Self {
-            config,
-            qtree,
-            metro_lines: HashMap::new(),
-            metro_line_counter: 0,
-            highways: highway::Highways::new(),
-            collect_tiles: CollectTilesVisitor::default(),
+            state: state::State::new(config),
             time_state: TimeState::new(),
             route_state: route::WorldState::new(),
             base_route_graph: None,
@@ -116,71 +67,6 @@ impl State {
         Ok(std::fs::write(path, self.dump()?)?)
     }
 
-    pub fn update_fields(&mut self) -> Result<(), Error> {
-        let mut fold = UpdateFieldsFold {};
-        let _ = self.qtree.fold_mut(&mut fold)?;
-        Ok(())
-    }
-
-    pub fn update_collect_tiles(&mut self) -> Result<(), Error> {
-        self.collect_tiles.clear();
-        self.qtree.visit(&mut self.collect_tiles)?;
-        Ok(())
-    }
-
-    pub fn get_leaf_data<A: Into<quadtree::Address>>(
-        &self,
-        address: A,
-        format: SerdeFormat,
-    ) -> Result<String, Error> {
-        let leaf = self.qtree.get_leaf(address)?;
-        Ok(match format {
-            SerdeFormat::Json => serde_json::to_string(leaf)?,
-            SerdeFormat::Toml => toml::to_string(leaf)?,
-        })
-    }
-
-    pub fn set_leaf_data<A: Into<quadtree::Address>>(
-        &mut self,
-        address: A,
-        data: &str,
-        format: SerdeFormat,
-    ) -> Result<(), Error> {
-        let leaf = self.qtree.get_leaf_mut(address)?;
-        let decoded = match format {
-            SerdeFormat::Json => serde_json::from_str(data)?,
-            SerdeFormat::Toml => toml::from_str(data)?,
-        };
-        *leaf = decoded;
-        Ok(())
-    }
-
-    pub fn add_metro_line(
-        &mut self,
-        name: String,
-        color: Option<metro::Color>,
-        keys: Option<Vec<metro::MetroKey>>,
-    ) -> u64 {
-        let id = self.metro_line_counter;
-        self.metro_line_counter += 1;
-
-        let color = match color {
-            Some(color) => color,
-            None => metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into(),
-        };
-
-        let mut metro_line =
-            metro::MetroLine::new(id, color, name, self.config.min_tile_size as f64);
-
-        if let Some(keys) = keys {
-            metro_line.set_keys(keys);
-        }
-
-        self.metro_lines.insert(id, metro_line);
-
-        id
-    }
-
     pub fn add_agent(
         &mut self,
         data: agent::AgentData,
@@ -190,8 +76,8 @@ impl State {
         let id = self.agent_counter;
         self.agent_counter += 1;
 
-        match self.qtree.get_leaf_mut(housing) {
-            Ok(LeafState {
+        match self.state.qtree.get_leaf_mut(housing) {
+            Ok(state::LeafState {
                 tile: tiles::Tile::HousingTile(tiles::HousingTile { density, agents }),
                 ..
             }) => {
@@ -209,8 +95,8 @@ impl State {
         };
 
         if let Some(workplace) = workplace {
-            match self.qtree.get_leaf_mut(workplace) {
-                Ok(LeafState {
+            match self.state.qtree.get_leaf_mut(workplace) {
+                Ok(state::LeafState {
                     tile: tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }),
                     ..
                 }) => {
@@ -240,10 +126,10 @@ impl State {
         highway_segments: Option<HashSet<u64>>,
     ) -> Result<route::Graph, Error> {
         let graph = route::construct_base_graph(route::BaseGraphInput {
-            metro_lines: &self.metro_lines,
-            highways: &self.highways,
-            tile_size: self.config.min_tile_size as f64,
-            max_depth: self.qtree.max_depth(),
+            metro_lines: &self.state.metro_lines,
+            highways: &self.state.highways,
+            tile_size: self.state.config.min_tile_size as f64,
+            max_depth: self.state.qtree.max_depth(),
             filter_metro_lines: metro_lines,
             filter_highway_segments: highway_segments,
             add_inferred_edges: true,
@@ -330,10 +216,10 @@ impl State {
 
     pub fn get_spline_construction_input(&self) -> route::SplineConstructionInput {
         route::SplineConstructionInput {
-            metro_lines: &self.metro_lines,
-            highways: &self.highways,
+            metro_lines: &self.state.metro_lines,
+            highways: &self.state.highways,
             state: &self.route_state,
-            tile_size: self.config.min_tile_size as f64,
+            tile_size: self.state.config.min_tile_size as f64,
         }
     }
 
@@ -365,104 +251,29 @@ impl State {
     }
 }
 
-struct UpdateFieldsFold {}
-
-impl quadtree::MutFold<BranchState, LeafState, (bool, fields::FieldsState), Error>
-    for UpdateFieldsFold
-{
-    fn fold_leaf(
-        &mut self,
-        leaf: &mut LeafState,
-        data: &quadtree::VisitData,
-    ) -> Result<(bool, fields::FieldsState), Error> {
-        let changed = leaf.fields.compute_leaf(&leaf.tile, data);
-        Ok((changed, leaf.fields.clone()))
-    }
-
-    fn fold_branch(
-        &mut self,
-        branch: &mut BranchState,
-        children: &quadtree::QuadMap<(bool, fields::FieldsState)>,
-        data: &quadtree::VisitData,
-    ) -> Result<(bool, fields::FieldsState), Error> {
-        let changed = children.values().iter().any(|(c, _)| *c);
-        if changed {
-            // only recompute branch if at least one of the children changed
-            let fields = children.clone().map_into(&|(_, f)| f);
-            branch.fields.compute_branch(&fields, data);
-        }
-        Ok((changed, branch.fields.clone()))
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct CollectTilesVisitor {
-    pub total: u64,
-    pub housing: Vec<quadtree::Address>,
-    pub workplaces: Vec<quadtree::Address>,
-}
-
-impl CollectTilesVisitor {
-    pub fn clear(&mut self) {
-        self.total = 0;
-        self.housing.clear();
-        self.workplaces.clear();
-    }
-}
-
-impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
-    fn visit_branch_pre(
-        &mut self,
-        branch: &BranchState,
-        data: &quadtree::VisitData,
-    ) -> Result<bool, Error> {
-        Ok(true)
-    }
-
-    fn visit_leaf(&mut self, leaf: &LeafState, data: &quadtree::VisitData) -> Result<(), Error> {
-        use tiles::Tile::*;
-        self.total += 1;
-        match leaf.tile {
-            HousingTile(_) => self.housing.push(data.address),
-            WorkplaceTile(_) => self.workplaces.push(data.address),
-            _ => (),
-        }
-        Ok(())
-    }
-
-    fn visit_branch_post(
-        &mut self,
-        branch: &BranchState,
-        data: &quadtree::VisitData,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod trigger_tests {
-    use engine::behavior::*;
-    use engine::config::Config;
-    use engine::state::State;
+    use crate::behavior::*;
+    use crate::Engine;
 
     #[test]
     fn doubling_trigger() {
-        let mut state = State::new(Config {
+        let mut engine = Engine::new(state::Config {
             max_depth: 3,
             people_per_sim: 1,
             min_tile_size: 1,
         });
 
         // NOTE: all triggers have to be defined in the same crate, so we define the trigger in trigger.rs.
-        state.trigger_queue.push(DoublingTrigger {}, 1);
+        engine.trigger_queue.push(DoublingTrigger {}, 1);
 
-        state.time_state.playback_rate = 1;
-        state.time_state.paused = false;
+        engine.time_state.playback_rate = 1;
+        engine.time_state.paused = false;
 
         for i in 1..=6 {
-            state.update(1.0);
+            engine.update(1.0, f64::INFINITY);
             // make sure it added itself back to the queue twice
-            assert_eq!(state.trigger_queue.len(), 2_usize.pow(i));
+            assert_eq!(engine.trigger_queue.len(), 2_usize.pow(i));
         }
     }
 }

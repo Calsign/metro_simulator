@@ -18,6 +18,7 @@ rust_library(
         "//engine/metro",
         "//engine/quadtree",
         "//engine/route",
+        "//engine/state",
         "//engine/tiles",
         "@crates//:anyhow",
         "@crates//:cgmath",

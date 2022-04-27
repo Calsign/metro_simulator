@@ -56,28 +56,33 @@ fn main() {
         None
     };
 
-    let state = engine::state::State::load_file(&args.load).unwrap();
+    let engine = engine::Engine::load_file(&args.load).unwrap();
 
     match args.operation {
         Operation::Construct => {
-            let graph = state
+            let graph = engine
                 .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
         }
         Operation::Dump { output } => {
-            let graph = state
+            let graph = engine
                 .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
             dump_graph(&graph.graph, &output);
         }
         Operation::Query { coords } => {
-            let start = state
+            let start = engine
+                .state
                 .qtree
                 .get_address(coords.start_x, coords.start_y)
                 .unwrap();
-            let end = state.qtree.get_address(coords.end_x, coords.end_y).unwrap();
+            let end = engine
+                .state
+                .qtree
+                .get_address(coords.end_x, coords.end_y)
+                .unwrap();
 
-            let mut graph = state
+            let mut graph = engine
                 .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
 

@@ -11,10 +11,10 @@ fn timing_consistency_test() {
         ulps: 0,
     };
 
-    let state = engine::state::State::load_file(&PathBuf::from("maps/sf.json")).unwrap();
+    let engine = engine::Engine::load_file(&PathBuf::from("maps/sf.json")).unwrap();
     let mut failed = false;
-    for metro_line in state.metro_lines.values().sorted() {
-        let length = metro_line.get_splines().length * state.config.min_tile_size as f64;
+    for metro_line in engine.state.metro_lines.values().sorted() {
+        let length = metro_line.get_splines().length * engine.state.config.min_tile_size as f64;
         let dist_spline_length = metro_line
             .get_splines()
             .dist_spline
@@ -50,7 +50,7 @@ fn timing_consistency_test() {
                 .dist_map
                 .get(&stop.address)
                 .unwrap()
-                * state.config.min_tile_size as f64;
+                * engine.state.config.min_tile_size as f64;
 
             println!("Stop: {:?}", stop);
             println!("Expected distance: {:.2}", expected_dist);

@@ -1,5 +1,5 @@
 pub struct App {
-    pub(crate) engine: engine::state::State,
+    pub(crate) engine: engine::Engine,
     pub(crate) overlay: Overlay,
     pub(crate) options: Options,
     pub(crate) diagnostics: Diagnostics,
@@ -8,7 +8,7 @@ pub struct App {
 }
 
 impl App {
-    fn new(mut engine: engine::state::State) -> Self {
+    fn new(mut engine: engine::Engine) -> Self {
         engine.init_trigger_queue();
 
         Self {
@@ -22,11 +22,11 @@ impl App {
     }
 
     pub fn load_file(map: std::path::PathBuf) -> Self {
-        Self::new(engine::state::State::load_file(&map).unwrap())
+        Self::new(engine::Engine::load_file(&map).unwrap())
     }
 
     pub fn load_str(map: &str) -> Self {
-        Self::new(engine::state::State::load(&map).unwrap())
+        Self::new(engine::Engine::load(&map).unwrap())
     }
 
     pub fn update(&mut self, elapsed: f64) {
@@ -81,9 +81,9 @@ impl App {
     }
 
     fn draw_stats(&mut self, ui: &mut egui::Ui) {
-        if let Ok(root) = self.engine.qtree.get_branch(quadtree::Address::from((
+        if let Ok(root) = self.engine.state.qtree.get_branch(quadtree::Address::from((
             vec![],
-            self.engine.qtree.max_depth(),
+            self.engine.state.qtree.max_depth(),
         ))) {
             ui.label(format!("Population: {}", root.fields.population.total));
             ui.label(format!("Employment: {}", root.fields.employment.total));
@@ -130,11 +130,11 @@ impl App {
             let mut rng = rand::thread_rng();
 
             // make sure these lists are up-to-date
-            self.engine.update_collect_tiles().unwrap();
+            self.engine.state.update_collect_tiles().unwrap();
 
             // for now, go from home to work
-            let start = self.engine.collect_tiles.housing.choose(&mut rng);
-            let stop = self.engine.collect_tiles.workplaces.choose(&mut rng);
+            let start = self.engine.state.collect_tiles.housing.choose(&mut rng);
+            let stop = self.engine.state.collect_tiles.workplaces.choose(&mut rng);
             self.route_query.start_address = start.map(|a| *a);
             self.route_query.stop_address = stop.map(|a| *a);
             changed = true;
@@ -142,7 +142,7 @@ impl App {
 
         if ui.input().keys_down.contains(&egui::Key::A) {
             if let Some((x, y)) = self.get_hovered_pos(&ui) {
-                if let Ok(start) = self.engine.qtree.get_address(x, y) {
+                if let Ok(start) = self.engine.state.qtree.get_address(x, y) {
                     self.route_query.start_address = Some(start);
                     changed = true;
                 }
@@ -150,7 +150,7 @@ impl App {
         }
         if ui.input().keys_down.contains(&egui::Key::Z) {
             if let Some((x, y)) = self.get_hovered_pos(&ui) {
-                if let Ok(stop) = self.engine.qtree.get_address(x, y) {
+                if let Ok(stop) = self.engine.state.qtree.get_address(x, y) {
                     self.route_query.stop_address = Some(stop);
                     changed = true;
                 }
@@ -266,12 +266,12 @@ pub(crate) struct PanState {
 }
 
 impl PanState {
-    fn new(engine: &engine::state::State) -> Self {
+    fn new(engine: &engine::Engine) -> Self {
         // TODO: pass through actual screen dimensions?
         let (width, height) = (1920.0, 1080.0);
 
         let min_dim = f32::min(width, height);
-        let model_width = engine.qtree.width() as f32;
+        let model_width = engine.state.qtree.width() as f32;
 
         // TODO: this logic is duplicated in //viewers/editor
         let scale = min_dim / model_width / 2.0;

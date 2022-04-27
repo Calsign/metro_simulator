@@ -182,7 +182,7 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
     report_timestamp("start")
 
-    state = engine.State(engine.Config.from_json(json.dumps(map_config.engine_config)))
+    state = engine.Engine(engine.Config.from_json(json.dumps(map_config.engine_config)))
 
     max_depth = map_config.engine_config["max_depth"]
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)

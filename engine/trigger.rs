@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 // NOTE: Trigger, and all implementations, are defined in behavior.rs
 use crate::behavior::{Trigger, TriggerType};
-use crate::state::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct TriggerEntry {
@@ -34,7 +33,7 @@ impl PartialOrd for TriggerEntry {
 
 // This is a sequential implementation.
 // TODO: replace with a parallel implementation, perhaps using rayon.
-// As long as a trigger can access all of State, this will be very difficult.
+// As long as a trigger can access all of Engine, this will be very difficult.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerQueue {
     /// invariant: for each trigger in heap, we must have trigger.time() >= current_time
@@ -74,7 +73,7 @@ impl TriggerQueue {
     }
 }
 
-impl crate::state::State {
+impl crate::engine::Engine {
     /**
      * Advance time forward to the current time, executing triggers in order until the given time.
      */

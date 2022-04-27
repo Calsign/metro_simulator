@@ -13,6 +13,7 @@ rust_shared_library(
         "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",
+        "//engine/state",
         "//engine/tiles",
         "@crates//:cgmath",
         "@crates//:pyo3",

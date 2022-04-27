@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use uom::si::time::{day, hour, minute, second};
 use uom::si::u64::Time;
 
-use crate::state::State;
+use crate::engine::Engine;
 
 #[enum_dispatch::enum_dispatch]
 pub trait TriggerType: PartialEq + Eq + PartialOrd + Ord {
-    fn execute(self, state: &mut State, time: u64);
+    fn execute(self, state: &mut Engine, time: u64);
 }
 
 // NOTE: all implementations of TriggerType must be listed here
@@ -32,16 +32,16 @@ pub enum Trigger {
 pub struct Tick {}
 
 impl TriggerType for Tick {
-    fn execute(self, state: &mut State, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) {
         // TODO: only re-run these when the underlying data updates
-        state.update_fields().unwrap();
-        state.update_collect_tiles().unwrap();
+        engine.state.update_fields().unwrap();
+        engine.state.update_collect_tiles().unwrap();
 
         // update traffic conditions
-        state.update_route_state();
+        engine.update_route_state();
 
         // re-trigger every hour of simulated time
-        state
+        engine
             .trigger_queue
             .push_rel(self, Time::new::<hour>(1).value);
     }
@@ -53,8 +53,8 @@ pub struct AgentPlanCommuteToWork {
 }
 
 impl TriggerType for AgentPlanCommuteToWork {
-    fn execute(self, state: &mut State, time: u64) {
-        let agent = state.agents.get(&self.agent).expect("missing agent");
+    fn execute(self, engine: &mut Engine, time: u64) {
+        let agent = engine.agents.get(&self.agent).expect("missing agent");
         if let Some(workplace) = &agent.workplace {
             // morning commute to work
 
@@ -62,15 +62,15 @@ impl TriggerType for AgentPlanCommuteToWork {
             let workplace = *workplace;
             let id = agent.id;
 
-            let start_time = state.time_state.current_time;
-            if let Ok(Some(route)) = state.query_route(
+            let start_time = engine.time_state.current_time;
+            if let Ok(Some(route)) = engine.query_route(
                 housing,
                 workplace,
                 Some(route::CarConfig::StartWithCar),
                 start_time,
             ) {
                 let total_time = route.total_time();
-                state.trigger_queue.push(
+                engine.trigger_queue.push(
                     AgentRouteStart {
                         agent: id,
                         route: Box::new(route),
@@ -78,14 +78,14 @@ impl TriggerType for AgentPlanCommuteToWork {
                     start_time,
                 );
                 // come home from work after 8 hours
-                state.trigger_queue.push(
+                engine.trigger_queue.push(
                     AgentPlanCommuteHome { agent: id },
                     start_time + total_time.ceil() as u64 + Time::new::<hour>(8).value,
                 );
             }
         }
 
-        state
+        engine
             .trigger_queue
             .push_rel(self, Time::new::<day>(1).value);
     }
@@ -97,8 +97,8 @@ pub struct AgentPlanCommuteHome {
 }
 
 impl TriggerType for AgentPlanCommuteHome {
-    fn execute(self, state: &mut State, time: u64) {
-        let agent = state.agents.get(&self.agent).expect("missing agent");
+    fn execute(self, engine: &mut Engine, time: u64) {
+        let agent = engine.agents.get(&self.agent).expect("missing agent");
         if let Some(workplace) = &agent.workplace {
             // commute back home from work
 
@@ -106,15 +106,15 @@ impl TriggerType for AgentPlanCommuteHome {
             let workplace = *workplace;
             let id = agent.id;
 
-            let start_time = state.time_state.current_time;
-            if let Ok(Some(route)) = state.query_route(
+            let start_time = engine.time_state.current_time;
+            if let Ok(Some(route)) = engine.query_route(
                 workplace,
                 housing,
                 // TODO: if a car is parked somewhere, account for it
                 Some(route::CarConfig::StartWithCar),
                 start_time,
             ) {
-                state.trigger_queue.push(
+                engine.trigger_queue.push(
                     AgentRouteStart {
                         agent: id,
                         route: Box::new(route),
@@ -137,13 +137,13 @@ pub struct AgentRouteStart {
 }
 
 impl TriggerType for AgentRouteStart {
-    fn execute(self, state: &mut State, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) {
         let total_time = self.route.total_time().ceil() as u64;
 
-        let agent = state.agents.get_mut(&self.agent).expect("missing agent");
+        let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         agent.state = agent::AgentState::Route(*self.route);
 
-        state
+        engine
             .trigger_queue
             .push_rel(AgentRouteEnd { agent: self.agent }, total_time);
     }
@@ -155,11 +155,11 @@ pub struct AgentRouteEnd {
 }
 
 impl TriggerType for AgentRouteEnd {
-    fn execute(self, state: &mut State, time: u64) {
-        let agent = state.agents.get_mut(&self.agent).expect("missing agent");
+    fn execute(self, engine: &mut Engine, time: u64) {
+        let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         let dest = match &agent.state {
             agent::AgentState::Route(route) => route.start(),
-            _ => panic!("agent in unexpected state: {:?}", agent.state),
+            _ => panic!("agent in unexpected engine: {:?}", agent.state),
         };
         agent.state = agent::AgentState::Tile(dest);
     }
@@ -172,9 +172,9 @@ pub struct DummyTrigger {}
 
 #[cfg(debug_assertions)]
 impl TriggerType for DummyTrigger {
-    fn execute(self, state: &mut State, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) {
         println!("executing {}", time);
-        state.trigger_queue.push_rel(self, 1);
+        engine.trigger_queue.push_rel(self, 1);
     }
 }
 
@@ -186,8 +186,8 @@ pub struct DoublingTrigger {}
 
 #[cfg(debug_assertions)]
 impl TriggerType for DoublingTrigger {
-    fn execute(self, state: &mut State, time: u64) {
-        state.trigger_queue.push_rel(DoublingTrigger {}, 1);
-        state.trigger_queue.push_rel(DoublingTrigger {}, 1);
+    fn execute(self, engine: &mut Engine, time: u64) {
+        engine.trigger_queue.push_rel(DoublingTrigger {}, 1);
+        engine.trigger_queue.push_rel(DoublingTrigger {}, 1);
     }
 }

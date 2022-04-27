@@ -4,10 +4,12 @@ pyo3::create_exception!(engine, PyEngineError, pyo3::exceptions::PyException);
 
 #[derive(thiserror::Error, Debug)]
 pub enum EngineError {
-    #[error("Config error: {0}")]
-    ConfigError(#[from] engine::config::Error),
     #[error("State error: {0}")]
-    StateError(#[from] engine::state::Error),
+    StateError(#[from] state::Error),
+    #[error("Config error: {0}")]
+    ConfigError(#[from] state::ConfigError),
+    #[error("Engine error: {0}")]
+    EngineError(#[from] engine::Error),
     #[error("Quadtree error: {0}")]
     QuadtreeError(#[from] quadtree::Error),
     #[error("JSON error: {0}")]
@@ -53,7 +55,7 @@ impl Address {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct Config {
-    config: engine::config::Config,
+    config: state::Config,
 }
 
 #[pymethods]
@@ -61,13 +63,13 @@ impl Config {
     #[new]
     fn new(path: std::path::PathBuf) -> PyResult<Self> {
         Ok(Config {
-            config: wrap_err(engine::config::Config::load_file(&path))?,
+            config: wrap_err(state::Config::load_file(&path))?,
         })
     }
 
     #[staticmethod]
     fn from_json(json: String) -> PyResult<Self> {
-        let config: engine::config::Config = wrap_err(serde_json::from_str(&json))?;
+        let config: state::Config = wrap_err(serde_json::from_str(&json))?;
         Ok(config.into())
     }
 }
@@ -75,33 +77,33 @@ impl Config {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct BranchState {
-    branch: engine::state::BranchState,
+    branch: state::BranchState,
 }
 
 #[pymethods]
 impl BranchState {
     #[new]
     fn new() -> Self {
-        engine::state::BranchState::default().into()
+        state::BranchState::default().into()
     }
 }
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct LeafState {
-    leaf: engine::state::LeafState,
+    leaf: state::LeafState,
 }
 
 #[pymethods]
 impl LeafState {
     #[new]
     fn new() -> Self {
-        engine::state::LeafState::default().into()
+        state::LeafState::default().into()
     }
 
     #[staticmethod]
     fn from_json(json: String) -> PyResult<Self> {
-        let leaf: engine::state::LeafState = wrap_err(serde_json::from_str(&json))?;
+        let leaf: state::LeafState = wrap_err(serde_json::from_str(&json))?;
         Ok(leaf.into())
     }
 
@@ -114,38 +116,38 @@ impl LeafState {
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
-struct State {
-    state: engine::state::State,
+struct Engine {
+    engine: engine::Engine,
 }
 
 #[pymethods]
-impl State {
+impl Engine {
     #[new]
     fn new(config: &Config) -> Self {
-        State {
-            state: engine::state::State::new(config.config.clone()),
+        Self {
+            engine: engine::Engine::new(config.config.clone()),
         }
     }
 
     #[staticmethod]
     fn load(path: std::path::PathBuf) -> PyResult<Self> {
-        Ok(State {
-            state: wrap_err(engine::state::State::load_file(&path))?,
+        Ok(Self {
+            engine: wrap_err(engine::Engine::load_file(&path))?,
         })
     }
 
     fn save(&self, path: std::path::PathBuf) -> PyResult<()> {
-        wrap_err(self.state.dump_file(&path))
+        wrap_err(self.engine.dump_file(&path))
     }
 
     #[getter]
     fn width(&self) -> u64 {
-        self.state.qtree.width()
+        self.engine.state.qtree.width()
     }
 
     #[getter]
     fn max_depth(&self) -> u32 {
-        self.state.qtree.max_depth()
+        self.engine.state.qtree.max_depth()
     }
 
     fn visit(&self, branch_visitor: &PyAny, leaf_visitor: &PyAny) -> PyResult<()> {
@@ -158,7 +160,7 @@ impl State {
             branch_visitor: branch_visitor.into(),
             leaf_visitor: leaf_visitor.into(),
         };
-        self.state.qtree.visit(&mut visitor)
+        self.engine.state.qtree.visit(&mut visitor)
     }
 
     fn visit_rect(
@@ -179,7 +181,7 @@ impl State {
             branch_visitor: branch_visitor.into(),
             leaf_visitor: leaf_visitor.into(),
         };
-        self.state.qtree.visit_rect(
+        self.engine.state.qtree.visit_rect(
             &mut visitor,
             &quadtree::Rect {
                 min_x,
@@ -196,7 +198,7 @@ impl State {
         color: Option<(u8, u8, u8)>,
         keys: Option<Vec<pyo3::PyRef<MetroKey>>>,
     ) -> u64 {
-        self.state.add_metro_line(
+        self.engine.state.add_metro_line(
             name,
             color.map(|c| c.into()),
             keys.map(|v| v.iter().map(|k| k.key.clone()).collect()),
@@ -204,7 +206,8 @@ impl State {
     }
 
     fn add_highway_junction(&mut self, x: f64, y: f64, ramp: Option<RampDirection>) -> u64 {
-        self.state
+        self.engine
+            .state
             .highways
             .add_junction((x, y), ramp.map(|ramp| ramp.direction))
     }
@@ -216,7 +219,7 @@ impl State {
         end: u64,
         keys: Option<Vec<(f64, f64)>>,
     ) -> u64 {
-        self.state.highways.add_segment(
+        self.engine.state.highways.add_segment(
             data.data.clone(),
             start,
             end,
@@ -234,7 +237,7 @@ impl State {
         housing: &Address,
         workplace: Option<&Address>,
     ) -> u64 {
-        self.state.add_agent(
+        self.engine.add_agent(
             data.data.clone(),
             housing.address,
             workplace.map(|a| a.address),
@@ -242,11 +245,12 @@ impl State {
     }
 
     fn validate_highways(&self) {
-        self.state.highways.validate();
+        self.engine.state.highways.validate();
     }
 
     fn get_metro_line(&self, id: u64) -> Option<MetroLine> {
-        self.state
+        self.engine
+            .state
             .metro_lines
             .get(&id)
             .map(|line| line.clone().into())
@@ -283,7 +287,7 @@ impl State {
     }
 
     fn get_address(&self, x: u64, y: u64) -> PyResult<Address> {
-        Ok(wrap_err(self.state.qtree.get_address(x, y))?.into())
+        Ok(wrap_err(self.engine.state.qtree.get_address(x, y))?.into())
     }
 
     fn split(
@@ -295,7 +299,7 @@ impl State {
         sw: &LeafState,
         se: &LeafState,
     ) -> PyResult<()> {
-        wrap_err(self.state.qtree.split(
+        wrap_err(self.engine.state.qtree.split(
             address.address.clone(),
             data.branch.clone(),
             quadtree::QuadMap::new(
@@ -309,16 +313,17 @@ impl State {
 
     fn get_leaf_json(&self, address: &Address) -> PyResult<String> {
         wrap_err(
-            self.state
-                .get_leaf_data(address.address.clone(), engine::state::SerdeFormat::Json),
+            self.engine
+                .state
+                .get_leaf_data(address.address.clone(), state::SerdeFormat::Json),
         )
     }
 
     fn set_leaf_json(&mut self, address: &Address, json: &str) -> PyResult<()> {
-        wrap_err(self.state.set_leaf_data(
+        wrap_err(self.engine.state.set_leaf_data(
             address.address.clone(),
             json,
-            engine::state::SerdeFormat::Json,
+            state::SerdeFormat::Json,
         ))
     }
 }
@@ -362,12 +367,10 @@ struct PyQtreeVisitor {
     leaf_visitor: PyObject,
 }
 
-impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyErr>
-    for PyQtreeVisitor
-{
+impl quadtree::Visitor<state::BranchState, state::LeafState, PyErr> for PyQtreeVisitor {
     fn visit_branch_pre(
         &mut self,
-        branch: &engine::state::BranchState,
+        branch: &state::BranchState,
         data: &quadtree::VisitData,
     ) -> PyResult<bool> {
         Python::with_gil(|py| {
@@ -377,11 +380,7 @@ impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyE
         })
     }
 
-    fn visit_leaf(
-        &mut self,
-        leaf: &engine::state::LeafState,
-        data: &quadtree::VisitData,
-    ) -> PyResult<()> {
+    fn visit_leaf(&mut self, leaf: &state::LeafState, data: &quadtree::VisitData) -> PyResult<()> {
         Python::with_gil(|py| {
             let leaf = LeafState::from(leaf.clone());
             let data = VisitData::from(data.clone());
@@ -392,7 +391,7 @@ impl quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, PyE
 
     fn visit_branch_post(
         &mut self,
-        branch: &engine::state::BranchState,
+        branch: &state::BranchState,
         data: &quadtree::VisitData,
     ) -> PyResult<()> {
         Ok(())
@@ -581,7 +580,7 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BranchState>()?;
     m.add_class::<LeafState>()?;
     m.add_class::<VisitData>()?;
-    m.add_class::<State>()?;
+    m.add_class::<Engine>()?;
 
     m.add_class::<MetroStation>()?;
     m.add_class::<MetroLine>()?;

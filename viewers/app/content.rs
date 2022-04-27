@@ -1,6 +1,6 @@
 use crate::app::{App, FieldType};
 use anyhow::Result;
-use engine::state::{BranchState, LeafState};
+use state::{BranchState, LeafState};
 
 impl App {
     pub(crate) fn draw_content(&mut self, ui: &mut egui::Ui) -> Result<()> {
@@ -18,6 +18,7 @@ impl App {
 
         let mut qtree_visitor = DrawQtreeVisitor::new(self, &painter);
         self.engine
+            .state
             .qtree
             .visit_rect(&mut qtree_visitor, &bounding_box)?;
 
@@ -35,20 +36,21 @@ impl App {
         self.diagnostics.highway_vertices = 0;
 
         // TODO: don't sort every iteration!!
-        for (id, metro_line) in self.engine.metro_lines.iter().sorted() {
+        for (id, metro_line) in self.engine.state.metro_lines.iter().sorted() {
             let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
             metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
             self.diagnostics.metro_vertices += spline_visitor.visited;
         }
 
-        for (id, highway_segment) in self.engine.highways.get_segments().iter().sorted() {
+        for (id, highway_segment) in self.engine.state.highways.get_segments().iter().sorted() {
             let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
             highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
             self.diagnostics.highway_vertices += spline_visitor.visited;
         }
 
         if self.pan.scale >= 5.0 {
-            for (id, highway_junction) in self.engine.highways.get_junctions().iter().sorted() {
+            for (id, highway_junction) in self.engine.state.highways.get_junctions().iter().sorted()
+            {
                 if let Some(_) = highway_junction.ramp {
                     let (x, y) = highway_junction.location;
                     let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));

@@ -1,5 +1,6 @@
-pub mod behavior;
-pub mod config;
-pub mod state;
-pub mod time_state;
-pub mod trigger;
+mod behavior;
+mod engine;
+mod time_state;
+mod trigger;
+
+pub use crate::engine::{Engine, Error};

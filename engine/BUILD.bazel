@@ -4,9 +4,8 @@ rust_library(
     name = "engine",
     srcs = [
         "behavior.rs",
-        "config.rs",
+        "engine.rs",
         "lib.rs",
-        "state.rs",
         "time_state.rs",
         "trigger.rs",
     ],
@@ -17,11 +16,9 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//engine/agent",
-        "//engine/fields",
-        "//engine/highway",
-        "//engine/metro",
         "//engine/quadtree",
         "//engine/route",
+        "//engine/state",
         "//engine/tiles",
         "@crates//:cgmath",
         "@crates//:chrono",

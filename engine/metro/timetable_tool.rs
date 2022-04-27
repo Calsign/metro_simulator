@@ -44,13 +44,15 @@ fn main() {
     use clap::Parser;
     let args = Args::parse();
 
-    let state = engine::state::State::load_file(&args.load).unwrap();
-    let metro_line = state.metro_lines.get(&args.metro_line).unwrap();
+    let engine = engine::Engine::load_file(&args.load).unwrap();
+    let metro_line = engine.state.metro_lines.get(&args.metro_line).unwrap();
 
     println!("Loaded metro line: {}", metro_line.name);
 
-    let speed_keys =
-        metro::timing::speed_keys(metro_line.get_keys(), state.config.min_tile_size as f64);
+    let speed_keys = metro::timing::speed_keys(
+        metro_line.get_keys(),
+        engine.state.config.min_tile_size as f64,
+    );
 
     match args.operation {
         Operation::TimeTable => {
@@ -69,7 +71,7 @@ fn main() {
         Operation::SpeedBounds { output } => {
             let speed_bounds = metro::timing::speed_bounds(
                 metro_line.get_keys(),
-                state.config.min_tile_size as f64,
+                engine.state.config.min_tile_size as f64,
             );
             plot(
                 &speed_bounds
@@ -83,7 +85,7 @@ fn main() {
         Operation::ComputeDistSpline => {
             println!(
                 "metro line length: {}",
-                metro_line.get_splines().length * state.config.min_tile_size as f64
+                metro_line.get_splines().length * engine.state.config.min_tile_size as f64
             );
             let dist_spline = metro::timing::dist_spline(&speed_keys);
         }
