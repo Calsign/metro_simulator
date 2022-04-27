@@ -4,6 +4,7 @@ rust_library(
     name = "quadtree",
     srcs = [
         "address.rs",
+        "direction.rs",
         "lib.rs",
         "neighbors.rs",
         "quadrant.rs",

@@ -347,9 +347,9 @@ mod tests {
     #[test]
     fn nearest() -> Result<(), quadtree::Error> {
         let mut neighbors = NeighborsStore::new(1, 2);
-        neighbors.insert(0, 0.0, 0.0);
-        neighbors.insert(1, 3.0, 0.0);
-        neighbors.insert(2, 0.0, 3.0);
+        neighbors.insert(0, 0.0, 0.0)?;
+        neighbors.insert(1, 3.0, 0.0)?;
+        neighbors.insert(2, 0.0, 3.0)?;
 
         assert_eq!(neighbors.find_nearest(0.0, 0.0), Some(0));
         assert_eq!(neighbors.find_nearest(3.0, 0.0), Some(1));

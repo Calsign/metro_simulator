@@ -113,17 +113,22 @@ impl Address {
     }
 
     pub fn from_xy(x: u64, y: u64, max_depth: u32) -> Self {
+        Self::from_xy_depth(x, y, max_depth, max_depth)
+    }
+
+    pub fn from_xy_depth(x: u64, y: u64, depth: u32, max_depth: u32) -> Self {
         assert!(
             max_depth < MAX_ADDRESS_DEPTH as u32,
             "max_depth >= MAX_ADDRESS_DEPTH; max_depth: {}, MAX_ADDRESS_DEPTH: {}",
             max_depth,
             MAX_ADDRESS_DEPTH
         );
+        assert!(depth <= max_depth);
         let w = 2_u64.pow(max_depth);
         assert!(x < w && y < w, "width: {}, x: {}, y: {}", w, x, y);
         let mut data = [Quadrant::NW; MAX_ADDRESS_DEPTH];
         let (mut min_x, mut max_x, mut min_y, mut max_y) = (0, w, 0, w);
-        for i in 0..max_depth {
+        for i in 0..depth {
             let (mid_x, mid_y) = ((max_x + min_x) / 2, (max_y + min_y) / 2);
             let (right, bottom) = (x >= mid_x, y >= mid_y);
             data[i as usize] = Quadrant::from_sides(right, bottom);
@@ -140,7 +145,7 @@ impl Address {
         }
         Self {
             data,
-            depth: max_depth,
+            depth,
             max_depth,
         }
     }
@@ -248,6 +253,18 @@ mod tests {
         assert_eq!(
             Address::from_xy(6, 2, 3),
             Address::from_vec(vec![NE, SE, NW], 3),
+        );
+    }
+
+    #[test]
+    fn from_xy_depth() {
+        assert_eq!(
+            Address::from_xy_depth(7, 7, 1, 3),
+            Address::from_vec(vec![SE], 3)
+        );
+        assert_eq!(
+            Address::from_xy_depth(4, 4, 2, 3),
+            Address::from_vec(vec![SE, NW], 3)
         );
     }
 }

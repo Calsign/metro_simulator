@@ -1,4 +1,5 @@
 use crate::address::Address;
+use crate::direction::Direction;
 use crate::quadrant::{QuadMap, Quadrant, QUADRANTS};
 use crate::rect::Rect;
 
@@ -201,6 +202,20 @@ impl<B, L> Node<B, L> {
                 let sw = children[Quadrant::SW].fold_mut(fold, visit_data.child(Quadrant::SW))?;
                 let se = children[Quadrant::SE].fold_mut(fold, visit_data.child(Quadrant::SE))?;
                 fold.fold_branch(data, &QuadMap::new(nw, ne, sw, se), &visit_data)
+            }
+        }
+    }
+
+    /**
+     * Adds the addresses of all contained leaves along the given side to vec.
+     */
+    fn get_side(&self, direction: Direction, address: Address, vec: &mut Vec<Address>) {
+        match self {
+            Node::Leaf { .. } => vec.push(address),
+            Node::Branch { children, .. } => {
+                for quadrant in direction.get_quadrants() {
+                    children[quadrant].get_side(direction, address.child(quadrant), vec);
+                }
             }
         }
     }
@@ -463,6 +478,39 @@ impl<B, L> Quadtree<B, L> {
     {
         self.root.fold_mut(fold, self.root_visit_data())
     }
+
+    pub fn get_borders<A: Into<Address>>(&self, address: A) -> Result<Vec<Address>, Error> {
+        let address = address.into();
+
+        // make sure this is a valid address
+        let _ = self.get_leaf(address)?;
+
+        // TODO: this could probably be a bit more efficient;
+        // in particular, it may not make sense to allocate a vec
+
+        let mut borders = Vec::new();
+        for direction in crate::direction::DIRECTIONS {
+            if let Some(other) = address.in_direction(direction) {
+                // either the right size, too big, or too small
+                match self.get(&other) {
+                    Ok(Node::Leaf { .. }) => {
+                        // the right size
+                        borders.push(other)
+                    }
+                    Ok(branch @ Node::Branch { .. }) => {
+                        // too big
+                        branch.get_side(direction.opposite(), other, &mut borders);
+                    }
+                    Err(_) => {
+                        // too small
+                        let (x, y) = other.to_xy();
+                        borders.push(self.get_address(x, y)?);
+                    }
+                }
+            }
+        }
+        Ok(borders)
+    }
 }
 
 struct RectVisitor<'a, 'b, V, B, L, E>
@@ -722,6 +770,51 @@ mod tests {
                 (9, make_visit_data(vec![NE, SE], 2, 3, 1, 1, 2)),
                 (3, make_visit_data(vec![SW], 1, 0, 2, 2, 2)),
                 (4, make_visit_data(vec![SE], 1, 2, 2, 2, 2)),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_borders() {
+        use Quadrant::*;
+
+        let mut qtree = Quadtree::new(0, 3);
+
+        assert_equal_vec_unordered(qtree.get_borders((vec![], 3)).unwrap(), vec![]);
+
+        qtree.split((vec![], 3), 0, QuadMap::new(1, 2, 3, 4));
+        qtree.split((vec![NW], 3), 1, QuadMap::new(5, 6, 7, 8));
+
+        assert_equal_vec_unordered(
+            qtree.get_borders((vec![SE], 3)).unwrap(),
+            vec![Address::from((vec![NE], 3)), Address::from((vec![SW], 3))],
+        );
+
+        assert_equal_vec_unordered(
+            qtree.get_borders((vec![NE], 3)).unwrap(),
+            vec![
+                Address::from((vec![SE], 3)),
+                Address::from((vec![NW, NE], 3)),
+                Address::from((vec![NW, SE], 3)),
+            ],
+        );
+
+        assert_equal_vec_unordered(
+            qtree.get_borders((vec![NW, NE], 3)).unwrap(),
+            vec![
+                Address::from((vec![NE], 3)),
+                Address::from((vec![NW, SE], 3)),
+                Address::from((vec![NW, NW], 3)),
+            ],
+        );
+
+        assert_equal_vec_unordered(
+            qtree.get_borders((vec![NW, SE], 3)).unwrap(),
+            vec![
+                Address::from((vec![NE], 3)),
+                Address::from((vec![SW], 3)),
+                Address::from((vec![NW, NE], 3)),
+                Address::from((vec![NW, SW], 3)),
             ],
         );
     }
