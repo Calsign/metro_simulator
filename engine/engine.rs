@@ -126,10 +126,7 @@ impl Engine {
         highway_segments: Option<HashSet<u64>>,
     ) -> Result<route::Graph, Error> {
         let graph = route::construct_base_graph(route::BaseGraphInput {
-            metro_lines: &self.state.metro_lines,
-            highways: &self.state.highways,
-            tile_size: self.state.config.min_tile_size as f64,
-            max_depth: self.state.qtree.max_depth(),
+            state: &self.state,
             filter_metro_lines: metro_lines,
             filter_highway_segments: highway_segments,
             add_inferred_edges: true,

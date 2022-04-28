@@ -4,11 +4,8 @@ use crate::common::{Edge, Error, Mode, Node, MODES};
 use crate::fast_graph_wrapper::FastGraphWrapper;
 use crate::traffic::WorldState;
 
-pub struct BaseGraphInput<'a, 'b> {
-    pub metro_lines: &'a HashMap<u64, metro::MetroLine>,
-    pub highways: &'b highway::Highways,
-    pub tile_size: f64,
-    pub max_depth: u32,
+pub struct BaseGraphInput<'a> {
+    pub state: &'a state::State,
 
     pub filter_metro_lines: Option<HashSet<u64>>,
     pub filter_highway_segments: Option<HashSet<u64>>,
@@ -79,17 +76,22 @@ where
     Ok(())
 }
 
-pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Graph, Error> {
+pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Error> {
     use itertools::Itertools;
 
+    let tile_size = input.state.config.min_tile_size as f64;
+
     if input.validate_highways {
-        input.highways.validate();
+        input.state.highways.validate();
     }
 
     let mut graph = InnerGraph::new();
     let mut neighbors = HashMap::new();
     for mode in MODES {
-        neighbors.insert(*mode, quadtree::NeighborsStore::new(4, input.max_depth));
+        neighbors.insert(
+            *mode,
+            quadtree::NeighborsStore::new(4, input.state.config.max_depth),
+        );
     }
     let mut parking = HashMap::new();
 
@@ -127,7 +129,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
     };
 
     let mut station_map = HashMap::new();
-    for metro_line in input.metro_lines.values() {
+    for metro_line in input.state.metro_lines.values() {
         if let Some(ref filter) = input.filter_metro_lines {
             if !filter.contains(&metro_line.id) {
                 continue;
@@ -141,7 +143,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
 
         let mut stop_map = HashMap::new();
 
-        let speed_keys = metro::timing::speed_keys(metro_line.get_keys(), input.tile_size);
+        let speed_keys = metro::timing::speed_keys(metro_line.get_keys(), tile_size);
         let timetable = metro::timing::timetable(&speed_keys);
         for (station, _) in timetable.iter() {
             let station_id = *station_map
@@ -205,7 +207,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
     let mut junction_map = HashMap::new();
     let mut segment_map = HashMap::new();
 
-    for junction in input.highways.get_junctions().values() {
+    for junction in input.state.highways.get_junctions().values() {
         if let Some(ref filter) = input.filter_highway_segments {
             // TODO: filter on junctions
             // NOTE: print to stderr so that we can pipe dump output to xdot
@@ -216,7 +218,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
         }
 
         let (x, y) = junction.location;
-        let address = quadtree::Address::from_xy(x as u64, y as u64, input.max_depth);
+        let address = quadtree::Address::from_xy(x as u64, y as u64, input.state.config.max_depth);
         let node_id = if let Some(ramp) = &junction.ramp {
             let outer_id = graph.add_node(Node::HighwayRamp {
                 junction: junction.id,
@@ -250,7 +252,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
         junction_map.insert(junction.id, node_id);
     }
 
-    for segment in input.highways.get_segments().values() {
+    for segment in input.state.highways.get_segments().values() {
         if let Some(ref filter) = input.filter_highway_segments {
             if !filter.contains(&segment.id) {
                 continue;
@@ -272,7 +274,7 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
             Edge::Highway {
                 segment: segment.id,
                 data: segment.data.clone(),
-                time: highway::timing::travel_time(segment, input.tile_size),
+                time: highway::timing::travel_time(segment, tile_size),
             },
         );
 
@@ -289,10 +291,10 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
             neighbors[mode].visit_all_radius(
                 &mut AddEdgesVisitor {
                     graph: &mut graph,
-                    tile_size: input.tile_size,
+                    tile_size,
                     mode: *mode,
                 },
-                |_| mode.bridge_radius() / input.tile_size,
+                |_| mode.bridge_radius() / tile_size,
             )?;
         }
     }
@@ -304,8 +306,8 @@ pub fn construct_base_graph<'a, 'b>(input: BaseGraphInput<'a, 'b>) -> Result<Gra
         graph,
         neighbors,
         parking,
-        tile_size: input.tile_size,
-        max_depth: input.max_depth,
+        tile_size,
+        max_depth: input.state.config.max_depth,
     })
 }
 
@@ -382,13 +384,17 @@ mod highway_tests {
             speed_limit: Some(1), // easy math
         };
 
-        let metro_lines = HashMap::new();
-        let mut highways = Highways::new();
+        let mut state = state::State::new(state::Config {
+            max_depth: 5,
+            people_per_sim: 1,
+            min_tile_size: 1,
+        });
+
         for junction in &junctions {
-            highways.add_junction(junction.location, None);
+            state.highways.add_junction(junction.location, None);
         }
         for segment in &segments {
-            highways.add_segment(
+            state.highways.add_segment(
                 data.clone(),
                 segment.start,
                 segment.end,
@@ -400,10 +406,7 @@ mod highway_tests {
         }
 
         let input = BaseGraphInput {
-            metro_lines: &metro_lines,
-            highways: &highways,
-            tile_size: 1.0, // easy math
-            max_depth: 5,
+            state: &state,
             filter_metro_lines: None,
             filter_highway_segments: None,
             add_inferred_edges: false,
