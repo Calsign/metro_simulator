@@ -1,13 +1,31 @@
+use std::sync::{Arc, Mutex};
+
 use bencher::{benchmark_group, benchmark_main, Bencher};
+use once_cell::sync::Lazy;
+
+// NOTE: we setup the problem twice because I couldn't figure out how to split the borrow on the
+// tuple
+static ENGINE: Lazy<Mutex<engine::Engine>> = Lazy::new(|| Mutex::new(sf_routes::setup().0));
+static GRAPH: Lazy<Mutex<route::Graph>> = Lazy::new(|| Mutex::new(sf_routes::setup().1));
 
 fn no_car_benchmark(bench: &mut Bencher) {
-    let (state, mut graph) = sf_routes::setup();
-    bench.iter(|| sf_routes::perform_query(&state, &mut graph, &sf_routes::TESTS[0]));
+    bench.iter(|| {
+        sf_routes::perform_query(
+            &ENGINE.lock().unwrap(),
+            &mut GRAPH.lock().unwrap(),
+            &sf_routes::TESTS[0],
+        )
+    });
 }
 
 fn with_car_benchmark(bench: &mut Bencher) {
-    let (state, mut graph) = sf_routes::setup();
-    bench.iter(|| sf_routes::perform_query(&state, &mut graph, &sf_routes::TESTS[4]));
+    bench.iter(|| {
+        sf_routes::perform_query(
+            &ENGINE.lock().unwrap(),
+            &mut GRAPH.lock().unwrap(),
+            &sf_routes::TESTS[3],
+        )
+    });
 }
 
 benchmark_group!(benches, no_car_benchmark, with_car_benchmark);

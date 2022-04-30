@@ -22,7 +22,10 @@ rust_binary(
     srcs = ["sf_routes_benchmark.rs"],
     deps = [
         ":sf_routes",
+        "//engine",
+        "//engine/route",
         "@crates//:bencher",
+        "@crates//:once_cell",
     ],
 )
 
