@@ -52,6 +52,18 @@ maps["sf"] = struct(
     longitude = "122.4194W",
 )
 
+maps["albany"] = struct(
+    datasets = {
+        "terrain": esa_globcover,
+        "population": meta_population_density,
+        "employment": census_lodes.states(["ny"]),
+        "osm": open_street_map.regions(["ny"]),
+    },
+    engine_config = ":mini_config",
+    latitude = "42.7334N",
+    longitude = "73.8479W",
+)
+
 ALL_MAPS = {name: Label("//maps:{}".format(name)) for name in maps.keys()}
 
 def create_maps():

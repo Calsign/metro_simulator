@@ -35,6 +35,10 @@ TILES = {
         garbage = "619aef38-7ab3-4dff-bcc6-35d4ddef0a26",
         hash = "d81298dc5a975d299ec30bbf16e20c6bdff8d6850b7c06ab352ea263475efd8c",
     ),
+    (38, -70): struct(
+        garbage = "6f0b12da-ba9c-4a54-8dc9-f6c3beb71547",
+        hash = "98c06e56f7f66bb6e76d3ddcc5931d0023f0f4b42915d77ab37a6f95c6cd69bd",
+    ),
     (38, -80): struct(
         garbage = "35a6f8c3-4234-4143-9016-103af7c50876",
         hash = "3c534c9759c1d9b9eaa033cafaa9a49ed657003c7bb458d9a649b32df5418b2d",

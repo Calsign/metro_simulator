@@ -14,4 +14,11 @@ engine_config(
     people_per_sim = 100,
 )
 
+engine_config(
+    name = "mini_config",
+    max_depth = 10,
+    min_tile_size = 40,
+    people_per_sim = 100,
+)
+
 create_maps()
