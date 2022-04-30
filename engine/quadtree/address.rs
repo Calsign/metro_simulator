@@ -112,6 +112,11 @@ impl Address {
         (x + w / 2, y + w / 2)
     }
 
+    pub fn to_xy_f64(&self) -> (f64, f64) {
+        let (x, y) = self.to_xy();
+        (x as f64, y as f64)
+    }
+
     pub fn from_xy(x: u64, y: u64, max_depth: u32) -> Self {
         Self::from_xy_depth(x, y, max_depth, max_depth)
     }
@@ -135,7 +140,7 @@ impl Address {
             if right {
                 min_x = mid_x;
             } else {
-                max_x = mid_y;
+                max_x = mid_x;
             }
             if bottom {
                 min_y = mid_y;
@@ -253,6 +258,10 @@ mod tests {
         assert_eq!(
             Address::from_xy(6, 2, 3),
             Address::from_vec(vec![NE, SE, NW], 3),
+        );
+        assert_eq!(
+            Address::from_xy(3088, 1372, 12),
+            (vec![NE, SE, NW, SW, NW, SW, NW, SE, SW, SW, NW, NW], 12).into(),
         );
     }
 
