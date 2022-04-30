@@ -6,8 +6,6 @@ from dataclasses import dataclass
 
 from shapely.geometry import Point
 
-import engine
-
 from generate.data import MapConfig
 from generate.layer import Layer, Tile
 from generate.quadtree import Quadtree, ConvolveData
@@ -130,8 +128,20 @@ class Highways(Layer):
         # round to 6 decimal places, which is way more precision than we need
         return (round(x, 6), round(y, 6))
 
-    def post_init(self, dataset: osm.OsmData, qtree: Quadtree, state: T.Any) -> None:
+    def post_init(self, dataset: osm.OsmData, qtree: Quadtree) -> None:
         self.osm = dataset
+
+    def merge(self, node: Quadtree, convolve: ConvolveData) -> None:
+        pass
+
+    def finalize(self, data: T.Any) -> Tile:
+        raise NotImplementedError()
+
+    def fuse(self, entities: T.List[T.Any]) -> T.Any:
+        assert False, entities
+
+    def modify_state(self, state: T.Any, qtree: Quadtree) -> None:
+        import engine
 
         # each item is a (incoming, outgoing) tuple
         coord_map: T.Dict[
@@ -284,15 +294,3 @@ class Highways(Layer):
 
         if VALIDATE:
             state.validate_highways()
-
-    def merge(self, node: Quadtree, convolve: ConvolveData) -> None:
-        pass
-
-    def finalize(self, data: T.Any) -> Tile:
-        raise NotImplementedError()
-
-    def fuse(self, entities: T.List[T.Any]) -> T.Any:
-        assert False, entities
-
-    def modify_state(self, state: T.Any, qtree: Quadtree) -> None:
-        pass

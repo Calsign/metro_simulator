@@ -1,5 +1,6 @@
 import typing as T
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from enum import Enum
@@ -7,8 +8,6 @@ from enum import Enum
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import nearest_points
 from matplotlib.colors import to_rgba
-
-import engine
 
 from generate.data import MapConfig
 from generate.layer import Layer, Tile
@@ -85,12 +84,49 @@ class Station:
     metro_lines: T.List[int]
 
 
+class MetroKeyBase(ABC):
+    @abstractmethod
+    def to_engine(self):
+        pass
+
+
+@dataclass
+class MetroKey(MetroKeyBase):
+    x: float
+    y: float
+
+    def to_engine(self):
+        import engine
+
+        return engine.MetroKey.key(self.x, self.y)
+
+
+@dataclass
+class MetroStop(MetroKeyBase):
+    x: float
+    y: float
+    station_name: str
+    station_address: T.List[int]
+    max_depth: int
+
+    def to_engine(self):
+        import engine
+
+        return engine.MetroKey.stop(
+            self.x,
+            self.y,
+            engine.MetroStation(
+                self.station_name, engine.Address(self.station_address, self.max_depth)
+            ),
+        )
+
+
 @dataclass
 class MetroLine:
     id: int
     name: str
     color: T.Tuple[int, int, int]
-    keys: T.List[T.Any]
+    keys: T.List[MetroKeyBase]
     stations: T.List[Station]
 
 
@@ -183,7 +219,7 @@ class Metros(Layer):
             keys: T.List[T.Any] = []
 
             for x, y in spline_all_coords:
-                keys.append(engine.MetroKey.key(x, y))
+                keys.append(MetroKey(x, y))
 
             stations_multipoint = MultiPoint(stations_all_coords)
             spline_linestring = LineString(spline_all_coords)
@@ -221,13 +257,8 @@ class Metros(Layer):
                 line_stations.append(station_data)
 
                 x, y = stop.location
-                to_insert[index] = engine.MetroKey.stop(
-                    x,
-                    y,
-                    engine.MetroStation(
-                        station_data.name,
-                        engine.Address(station_address, self.max_depth),
-                    ),
+                to_insert[index] = MetroStop(
+                    x, y, station_data.name, station_address, self.max_depth
                 )
 
             # NOTE: traverse in reverse order so that we don't mess up the indices
@@ -259,17 +290,8 @@ class Metros(Layer):
     def initialize(self, data: int, node: Quadtree, convolve: ConvolveData) -> None:
         assert False
 
-    def post_init(self, dataset: osm.OsmData, qtree: Quadtree, state: T.Any) -> None:
+    def post_init(self, dataset: osm.OsmData, qtree: Quadtree) -> None:
         self.osm = dataset
-
-        # add metro lines
-        for metro_line in self.metro_lines:
-            line_id = state.add_metro_line(
-                metro_line.name, metro_line.color, metro_line.keys
-            )
-
-            for station in metro_line.stations:
-                station.metro_lines.append(line_id)
 
         # add stations
         for station in self.stations:
@@ -293,4 +315,13 @@ class Metros(Layer):
         assert False, entities
 
     def modify_state(self, state: T.Any, qtree: Quadtree) -> None:
-        pass
+        # add metro lines
+        for metro_line in self.metro_lines:
+            line_id = state.add_metro_line(
+                metro_line.name,
+                metro_line.color,
+                [k.to_engine() for k in metro_line.keys],
+            )
+
+            for station in metro_line.stations:
+                station.metro_lines.append(line_id)

@@ -23,8 +23,10 @@ engine_config = rule(
 def _generate_map_impl(ctx):
     real_name = ctx.attr.real_name
 
-    output_name = "{}.json".format(real_name)
-    output_file = ctx.actions.declare_file(output_name)
+    baker_data_file = ctx.actions.declare_file("{}.pickle".format(real_name))
+    plot_dir = ctx.actions.declare_directory("{}/plots".format(real_name))
+    profile_file = ctx.actions.declare_file("{}/profile".format(real_name))
+    output_file = ctx.actions.declare_file("{}.json".format(real_name))
 
     engine_config = ctx.attr.engine_config[EngineConfigProvider].data
 
@@ -52,44 +54,57 @@ def _generate_map_impl(ctx):
         ),
     ))
 
-    plot_dir = ctx.actions.declare_directory("{}/plots".format(real_name))
-    profile_file = ctx.actions.declare_file("{}/profile".format(real_name))
-
-    save_args = ctx.actions.args()
-    save_args.add(map_file)
-    save_args.add("--save", output_file)
+    generator_save_args = ctx.actions.args()
+    generator_save_args.add("generate")
+    generator_save_args.add(map_file)
+    generator_save_args.add("-o", baker_data_file)
 
     ctx.actions.run(
-        outputs = [output_file],
+        outputs = [baker_data_file],
         inputs = [map_file] + dataset_deps,
-        executable = ctx.executable._generate,
-        arguments = [save_args],
+        executable = ctx.executable._generator,
+        arguments = [generator_save_args],
         progress_message = "Generating map '{}'".format(real_name),
     )
 
-    plot_args = ctx.actions.args()
-    plot_args.add(map_file)
-    plot_args.add("--plot-dir", plot_dir.path)
-    plot_args.add("--plot", "all")
+    generator_plot_args = ctx.actions.args()
+    generator_plot_args.add("generate")
+    generator_plot_args.add(map_file)
+    generator_plot_args.add("--plot-dir", plot_dir.path)
+    generator_plot_args.add("--plot", "all")
 
     ctx.actions.run(
         outputs = [plot_dir],
         inputs = [map_file] + dataset_deps,
-        executable = ctx.executable._generate,
-        arguments = [plot_args],
+        executable = ctx.executable._generator,
+        arguments = [generator_plot_args],
         progress_message = "Generating plots for map '{}'".format(real_name),
     )
 
-    profile_args = ctx.actions.args()
-    profile_args.add(map_file)
-    profile_args.add("--profile-file", profile_file)
+    generator_profile_args = ctx.actions.args()
+    generator_profile_args.add("generate")
+    generator_profile_args.add(map_file)
+    generator_profile_args.add("--profile-file", profile_file)
 
     ctx.actions.run(
         outputs = [profile_file],
         inputs = [map_file] + dataset_deps,
-        executable = ctx.executable._generate,
-        arguments = [profile_args],
+        executable = ctx.executable._generator,
+        arguments = [generator_profile_args],
         progress_message = "Profiling generation of map '{}'".format(real_name),
+    )
+
+    baker_args = ctx.actions.args()
+    baker_args.add("bake")
+    baker_args.add(baker_data_file)
+    baker_args.add(output_file)
+
+    ctx.actions.run(
+        outputs = [output_file],
+        inputs = [baker_data_file],
+        executable = ctx.executable._baker,
+        arguments = [baker_args],
+        progress_message = "Baking map '{}'".format(real_name),
     )
 
     return [
@@ -106,8 +121,13 @@ def _generate_map_impl(ctx):
 _generate_map = rule(
     implementation = _generate_map_impl,
     attrs = {
-        "_generate": attr.label(
-            default = "//generate",
+        "_generator": attr.label(
+            default = "//generate:generator",
+            executable = True,
+            cfg = "exec",
+        ),
+        "_baker": attr.label(
+            default = "//generate:baker",
             executable = True,
             cfg = "exec",
         ),

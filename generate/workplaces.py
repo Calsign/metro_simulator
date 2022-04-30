@@ -1,7 +1,5 @@
 import typing as T
 
-import engine
-
 from generate.common import random
 from generate.data import MapConfig
 from generate.quadtree import Quadtree
@@ -17,6 +15,10 @@ class Workplaces(SimpleDensity):
         return self.map_config.datasets["employment"]
 
     def modify_state(self, state: T.Any, qtree: Quadtree):
+        super().modify_state(state, qtree)
+
+        import engine
+
         # TODO: use LODES data to generate actual commutes
         # for now, we just assign commutes randomly
         housing = []

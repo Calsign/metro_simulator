@@ -17,7 +17,7 @@ class Terrain(Layer):
             # priority -100: empty tiles should be replaced by everything else
             self.set_node_data(node, [False], -100)
 
-    def post_init(self, dataset: T.Any, qtree: Quadtree, state: T.Any):
+    def post_init(self, dataset: T.Any, qtree: Quadtree):
         pass
 
     def node_has_water(self, node: Quadtree) -> bool:

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from collections import defaultdict
 import json
 import functools
+import pickle
 
 import typing as T
 
@@ -15,8 +16,6 @@ import numpy as np
 
 import toml
 import argh
-
-import engine
 
 from generate.common import random
 from generate.quadtree import Quadtree, ConvolveData
@@ -30,7 +29,7 @@ from generate.osm import read_osm
 from generate import terrain, housing, workplaces, metros, highways
 
 
-LAYERS = [
+LAYERS: T.List[T.Type[Layer]] = [
     terrain.Terrain,
     housing.Housing,
     workplaces.Workplaces,
@@ -90,6 +89,17 @@ class Plotter:
             p.show()
 
 
+@dataclass
+class BakerData:
+    """
+    Data passed from the generator to the baker.
+    """
+
+    layers: T.List[Layer]
+    map_config: MapConfig
+    qtree: Quadtree
+
+
 def parse_lat_lon(lat, lon):
     assert lat[-1] in ["N", "S"]
     assert lon[-1] in ["W", "E"]
@@ -114,6 +124,8 @@ def check_input_grid(grid):
 
 
 def write_qtree(state, qtree):
+    import engine
+
     def write(node, data):
         address = engine.Address(data.address, qtree.max_depth)
         if len(node.children) > 0:
@@ -168,12 +180,14 @@ def min_or_none(vals):
 
 
 @argh.arg("--plot", action="append", type=str)
-def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
+def generate(
+    map_path, output_path=None, plot=[], plot_dir=None, profile_file=None
+) -> None:
     if map_path.endswith(".toml"):
         map_config = MapConfig(**toml.load(map_path))
     elif map_path.endswith(".json"):
-        with open(map_path) as f:
-            map_config = MapConfig(**json.load(f))
+        with open(map_path) as mf:
+            map_config = MapConfig(**json.load(mf))
     else:
         print("Unrecognized map file extension: {}".format(map_path))
 
@@ -181,8 +195,6 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         profile().enable()
 
     report_timestamp("start")
-
-    state = engine.Engine(engine.Config.from_json(json.dumps(map_config.engine_config)))
 
     max_depth = map_config.engine_config["max_depth"]
     (lat, lon) = parse_lat_lon(map_config.latitude, map_config.longitude)
@@ -234,11 +246,11 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
 
         report_timestamp("post-init - {}".format(layer.get_name()))
 
-        layer.post_init(dataset, qtree, state)
+        layer.post_init(dataset, qtree)
 
-    if save is not None or profile_file is not None:
+    if output_path is not None or profile_file is not None:
         # remove all entities in children with lower priority than the highest parent entity priority
-        priority_stack = []
+        priority_stack: T.List[int] = []
 
         def bubble_priority_down(node, convolve):
             nonlocal priority_stack
@@ -447,15 +459,10 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
         report_timestamp("split")
         qtree.convolve(split, post=False)
 
-        report_timestamp("write qtree")
-        write_qtree(state, qtree)
-
-        for layer in layers:
-            layer.modify_state(state, qtree)
-
-        if save is not None:
-            report_timestamp("save")
-            state.save(save)
+        if output_path is not None:
+            baker_data = BakerData(layers, map_config, qtree)
+            with open(output_path, "wb") as of:
+                pickle.dump(baker_data, of)
 
     if profile_file is not None:
         profile().disable()
@@ -464,12 +471,33 @@ def main(map_path, save=None, plot=[], plot_dir=None, profile_file=None):
     report_timestamp("done")
 
 
+def bake(baker_data_path: str, output_path: str) -> None:
+    import engine
+
+    with open(baker_data_path, "rb") as f:
+        baker_data = pickle.load(f)
+
+    state = engine.Engine(
+        engine.Config.from_json(json.dumps(baker_data.map_config.engine_config))
+    )
+
+    report_timestamp("write qtree")
+    write_qtree(state, baker_data.qtree)
+
+    for layer in baker_data.layers:
+        report_timestamp("modify state - {}".format(layer.get_name()))
+        layer.modify_state(state, baker_data.qtree)
+
+    report_timestamp("save")
+    state.save(output_path)
+
+
 if __name__ == "__main__":
     try:
         # if invoked through bazel, use the natural working directory
         if "BUILD_WORKING_DIRECTORY" in os.environ:
             os.chdir(os.environ["BUILD_WORKING_DIRECTORY"])
 
-        argh.dispatch_command(main)
+        argh.dispatch_commands([generate, bake])
     except KeyboardInterrupt:
         pass

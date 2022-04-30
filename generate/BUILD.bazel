@@ -1,8 +1,16 @@
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@pip_pkgs//:requirements.bzl", "requirement")
 
-py_binary(
-    name = "generate",
+# We don't want to have to re-generate the entire map whenever we update the engine. So we split the
+# generation into two steps: the generator and the baker. The generator processes the input data and
+# pickles the information needed to generate the actual map, but crucially does not depend on the
+# engine library. Then the baker takes the baker data produced by the generator and uses the engine
+# library to produce the final map. The baking step is pretty quick, which makes it reasonable to
+# iterate and re-bake the map. The code is shared, so places that need to use the engine library
+# should use a deferred import.
+
+py_library(
+    name = "generate_lib",
     srcs = [
         "common.py",
         "data.py",
@@ -11,7 +19,6 @@ py_binary(
         "housing.py",
         "layer.py",
         "lodes.py",
-        "main.py",
         "metros.py",
         "osm.py",
         "quadtree.py",
@@ -19,8 +26,6 @@ py_binary(
         "terrain.py",
         "workplaces.py",
     ],
-    main = "main.py",
-    visibility = ["//visibility:public"],
     deps = [
         requirement("gdal"),
         requirement("numpy"),
@@ -29,11 +34,32 @@ py_binary(
         requirement("toml"),
         requirement("pyshp"),
         requirement("shapely"),
-        "//ffi/python",
         "@rules_python//python/runfiles",
 
         # type stubs
         requirement("types-toml"),
         requirement("data-science-types"),
+    ],
+)
+
+# NOTE: Does not depend on on //ffi/python!
+py_binary(
+    name = "generator",
+    srcs = ["main.py"],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":generate_lib",
+    ],
+)
+
+py_binary(
+    name = "baker",
+    srcs = ["main.py"],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":generate_lib",
+        "//ffi/python",
     ],
 )
