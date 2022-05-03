@@ -15,6 +15,7 @@ CRATES = {
         git = "https://github.com/mikedilger/float-cmp",
         rev = "418c5d9d339268f355363ea7cf6c546e69d63b7b",
     ),
+    "ordered-float": "3.0.0",
     "bencher": "0.1.5",
     "rand": "0.8.5",
     "uom": dict(

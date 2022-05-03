@@ -1,3 +1,7 @@
+use std::collections::BTreeMap;
+
+use ordered_float::OrderedFloat;
+
 use crate::quadrant::{QuadMap, QUADRANTS};
 use crate::quadtree::{Error, Quadtree, VisitData};
 use crate::rect::Rect;
@@ -116,24 +120,29 @@ impl<T> NeighborsStore<T>
 where
     T: Clone,
 {
-    pub fn find_nearest(&self, x: f64, y: f64) -> Option<T> {
+    pub fn find_nearest_k(&self, x: f64, y: f64, k: usize) -> Vec<T> {
         // idea: start by searching a small neighborhood, expanding outward until we find at least
         // one neighbor
 
-        // TODO: test different values
+        // TODO: test different starting values besides 100
         let mut radius = ((self.qtree.width() / 100) as u64).max(1);
         return loop {
             let mut visitor = NearestNeighborsVisitor::new();
             self.visit_radius(&mut visitor, x, y, radius as f64)
                 .unwrap();
-            if let Some((entry, _)) = visitor.nearest {
-                break Some(entry);
+            if visitor.nearest.len() >= k {
+                break visitor.nearest.into_values().take(k).collect();
+            }
+
+            if radius >= self.qtree.width() {
+                break visitor.nearest.into_values().collect();
             }
             radius *= 2;
-            if radius >= self.qtree.width() {
-                break None;
-            }
         };
+    }
+
+    pub fn find_nearest(&self, x: f64, y: f64) -> Option<T> {
+        self.find_nearest_k(x, y, 1).into_iter().next()
     }
 }
 
@@ -234,7 +243,7 @@ struct NearestNeighborsVisitor<T>
 where
     T: Clone,
 {
-    nearest: Option<(T, f64)>,
+    nearest: BTreeMap<OrderedFloat<f64>, T>,
 }
 
 impl<T> NearestNeighborsVisitor<T>
@@ -242,7 +251,9 @@ where
     T: Clone,
 {
     fn new() -> Self {
-        Self { nearest: None }
+        Self {
+            nearest: BTreeMap::new(),
+        }
     }
 }
 
@@ -253,11 +264,7 @@ where
     fn visit(&mut self, entry: &T, x: f64, y: f64, distance: f64) -> Result<(), ()> {
         // TODO: don't need distance here, just need squared distance
         // TODO: should be possible to implement this with references instead of cloning
-        match self.nearest {
-            None => self.nearest = Some((entry.clone(), distance)),
-            Some((_, dist)) if distance < dist => self.nearest = Some((entry.clone(), distance)),
-            _ => (),
-        }
+        self.nearest.insert(OrderedFloat(distance), entry.clone());
         Ok(())
     }
 }
@@ -356,6 +363,20 @@ mod tests {
         assert_eq!(neighbors.find_nearest(0.0, 3.0), Some(2));
         assert_eq!(neighbors.find_nearest(1.0, 1.0), Some(0));
         assert_eq!(neighbors.find_nearest(1.0, 4.0), Some(2));
+
+        Ok(())
+    }
+
+    #[test]
+    fn nearest_k() -> Result<(), quadtree::Error> {
+        let mut neighbors = NeighborsStore::new(1, 2);
+        neighbors.insert(0, 0.0, 0.0)?;
+        neighbors.insert(1, 3.0, 0.0)?;
+        neighbors.insert(2, 0.0, 2.0)?;
+
+        assert_eq!(neighbors.find_nearest_k(0.0, 0.0, 0), vec![]);
+        assert_eq!(neighbors.find_nearest_k(0.0, 0.0, 3), vec![0, 2, 1]);
+        assert_eq!(neighbors.find_nearest_k(0.0, 0.0, 2), vec![0, 2]);
 
         Ok(())
     }
