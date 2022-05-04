@@ -282,11 +282,6 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
     }
 
     if input.add_inferred_edges {
-        // TODO: cost to walk/drive should depend on the local density.
-        // For example, it should take longer to drive across San Francisco
-        // than across Palo Alto.
-        // But maybe this should just be based on local traffic?
-
         for mode in MODES {
             neighbors[mode].visit_all_radius(
                 &mut AddEdgesVisitor {
@@ -329,32 +324,6 @@ impl<'a> quadtree::AllNeighborsVisitor<NodeIndex, Error> for AddEdgesVisitor<'a>
                 },
             );
         }
-        Ok(())
-    }
-}
-
-struct AddStartEndEdgesVisitor<'a, F>
-where
-    F: Fn((f64, f64), f64) -> Edge,
-{
-    graph: &'a mut InnerGraph,
-    base: NodeIndex,
-    edge_fn: F,
-    direction: petgraph::Direction,
-}
-
-impl<'a, F> quadtree::NeighborsVisitor<NodeIndex, Error> for AddStartEndEdgesVisitor<'a, F>
-where
-    F: Fn((f64, f64), f64) -> Edge,
-{
-    fn visit(&mut self, entry: &NodeIndex, x: f64, y: f64, distance: f64) -> Result<(), Error> {
-        let (first, second) = match self.direction {
-            petgraph::Direction::Outgoing => (self.base, *entry),
-            petgraph::Direction::Incoming => (*entry, self.base),
-        };
-        let edge_id = self
-            .graph
-            .add_edge(first, second, (self.edge_fn)((x, y), distance));
         Ok(())
     }
 }

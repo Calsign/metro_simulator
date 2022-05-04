@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use fast_paths::{FastGraph, InputGraph, NodeId, Params, PathCalculator, ShortestPath, Weight};
+use fast_paths::{
+    FastGraph, InputGraph, NodeId, Params, ParamsWithOrder, PathCalculator, ShortestPath, Weight,
+};
 
 use crate::common::{Edge, Node, QueryInput};
 use crate::traffic::WorldState;
@@ -75,8 +77,12 @@ impl FastGraphWrapper {
         &self.edge_map
     }
 
-    fn get_params() -> Params {
+    fn get_prepare_params() -> Params {
         Params::new(0.1, 10, 100, 100)
+    }
+
+    fn get_update_params() -> ParamsWithOrder {
+        ParamsWithOrder::new(100)
     }
 
     pub fn prepare(&mut self) {
@@ -85,7 +91,7 @@ impl FastGraphWrapper {
         // NOTE: the number of nodes may not align if there are orphaned nodes that don't belong to any edges
         // TODO: for some reason this assertion is failing
         // debug_assert_eq!(self.input.get_num_edges(), self.edge_map.len());
-        let fast_graph = fast_paths::prepare_with_params(&self.input, &Self::get_params());
+        let fast_graph = fast_paths::prepare_with_params(&self.input, &Self::get_prepare_params());
         let node_ordering = fast_graph.get_node_ordering();
         let path_calculator = fast_paths::create_calculator(&fast_graph);
         self.node_ordering = Some(node_ordering);
@@ -115,7 +121,12 @@ impl FastGraphWrapper {
             self.node_ordering.as_ref().unwrap().len()
         );
         let node_ordering = &self.node_ordering.as_ref().unwrap();
-        let fast_graph = fast_paths::prepare_with_order(&input_graph, node_ordering).unwrap();
+        let fast_graph = fast_paths::prepare_with_order_with_params(
+            &input_graph,
+            node_ordering,
+            &Self::get_update_params(),
+        )
+        .unwrap();
         let path_calculator = fast_paths::create_calculator(&fast_graph);
         self.fast_graph = Some(fast_graph);
         self.path_calculator = Some(path_calculator);
