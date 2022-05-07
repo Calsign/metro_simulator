@@ -38,13 +38,13 @@ STATES = {
     ),
     "ma": struct(
         ansi_code = 25,
-        shapefile_hash = None,
-        lodes_hash = None,
+        shapefile_hash = "62163f87af9646d7e74d37d739568b5903aa5bf4350024f8d18c2bf70d9bf6ab",
+        lodes_hash = "ed276e9a90e16bc7bbb851fdb599ab711c33252e0701e2db5e031380209e309d",
     ),
     "nh": struct(
         ansi_code = 33,
-        shapefile_hash = None,
-        lodes_hash = None,
+        shapefile_hash = "476909ef7095b4f9abb68743ce6ac6971329aa9e40fd4310c566af669f9435a1",
+        lodes_hash = "55b45a4dc652664eed34917ad4798cecfaae620ff1bea6e38064c22d5f78cdb8",
     ),
     "nj": struct(
         ansi_code = 34,
@@ -63,8 +63,8 @@ STATES = {
     ),
     "ri": struct(
         ansi_code = 44,
-        shapefile_hash = None,
-        lodes_hash = None,
+        shapefile_hash = "0cf793febe8a610622aad8b8038948b0c0c2fb916c6149bc238febd5d4902ac7",
+        lodes_hash = "41534e17b1a4d4814c02b4c453c2a078623b60c45e0cd16658919e929c353892",
     ),
     "va": struct(
         ansi_code = 51,

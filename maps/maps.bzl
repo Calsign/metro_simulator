@@ -52,6 +52,18 @@ maps["sf"] = struct(
     longitude = "122.4194W",
 )
 
+maps["boston"] = struct(
+    datasets = {
+        "terrain": esa_globcover,
+        "population": meta_population_density,
+        "employment": census_lodes.states(["ma", "nh", "ri"]),
+        "osm": open_street_map.regions(["ma", "nh", "ri"]),
+    },
+    engine_config = ":config",
+    latitude = "42.3601N",
+    longitude = "71.0589W",
+)
+
 maps["albany"] = struct(
     datasets = {
         "terrain": esa_globcover,
