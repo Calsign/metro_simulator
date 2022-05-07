@@ -65,12 +65,16 @@ impl splines::Interpolate<f32> for RouteKey {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Splines {
-    dist_spline: splines::Spline<f32, RouteKey>,
-    time_spline: splines::Spline<f32, RouteKey>,
+struct ConstructedSplines {
+    keys: Vec<RouteKey>,
     total_dist: f32,
     total_time: f32,
+}
+
+#[derive(Debug, Clone)]
+struct SplineData {
+    spline: splines::Spline<f32, RouteKey>,
+    total: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,8 +83,12 @@ pub struct Route {
     pub edges: Vec<Edge>,
     pub query_input: QueryInput,
     pub cost: f32,
+    // NOTE: we store time and dist splines separately because dist spline is rarely used and this
+    // saves a ton of memory.
     #[serde(skip)]
-    splines: OnceCell<Splines>,
+    time_spline: OnceCell<SplineData>,
+    #[serde(skip)]
+    dist_spline: OnceCell<SplineData>,
 }
 
 /**
@@ -105,7 +113,8 @@ impl Route {
             edges,
             cost,
             query_input,
-            splines: OnceCell::new(),
+            time_spline: OnceCell::new(),
+            dist_spline: OnceCell::new(),
         }
     }
 
@@ -133,9 +142,8 @@ impl Route {
         }
     }
 
-    fn construct_splines(&self, input: &SplineConstructionInput) -> Splines {
+    fn construct_splines(&self, input: &SplineConstructionInput) -> ConstructedSplines {
         use cgmath::MetricSpace;
-        use splines::{Interpolation, Key, Spline};
 
         let mut keys = Vec::new();
 
@@ -236,24 +244,51 @@ impl Route {
             t += dt;
         }
 
-        Splines {
-            dist_spline: Spline::from_vec(
-                keys.iter()
-                    .map(|key| Key::new(key.dist, key.clone(), Interpolation::Linear))
-                    .collect(),
-            ),
-            time_spline: Spline::from_vec(
-                keys.iter()
-                    .map(|key| Key::new(key.time, key.clone(), Interpolation::Linear))
-                    .collect(),
-            ),
+        ConstructedSplines {
+            keys,
             total_dist: d,
             total_time: t,
         }
     }
 
-    fn get_splines(&self, input: &SplineConstructionInput) -> &Splines {
-        self.splines.get_or_init(|| self.construct_splines(input))
+    fn construct_time_spline(&self, input: &SplineConstructionInput) -> SplineData {
+        use splines::{Interpolation, Key, Spline};
+        let constructed = self.construct_splines(input);
+        SplineData {
+            spline: Spline::from_vec(
+                constructed
+                    .keys
+                    .iter()
+                    .map(|key| Key::new(key.time, key.clone(), Interpolation::Linear))
+                    .collect(),
+            ),
+            total: constructed.total_time,
+        }
+    }
+
+    fn construct_dist_spline(&self, input: &SplineConstructionInput) -> SplineData {
+        use splines::{Interpolation, Key, Spline};
+        let constructed = self.construct_splines(input);
+        SplineData {
+            spline: Spline::from_vec(
+                constructed
+                    .keys
+                    .iter()
+                    .map(|key| Key::new(key.dist, key.clone(), Interpolation::Linear))
+                    .collect(),
+            ),
+            total: constructed.total_dist,
+        }
+    }
+
+    fn get_time_spline(&self, input: &SplineConstructionInput) -> &SplineData {
+        self.time_spline
+            .get_or_init(|| self.construct_time_spline(input))
+    }
+
+    fn get_dist_spline(&self, input: &SplineConstructionInput) -> &SplineData {
+        self.dist_spline
+            .get_or_init(|| self.construct_dist_spline(input))
     }
 
     pub fn visit_spline<V, E>(
@@ -266,11 +301,11 @@ impl Route {
     where
         V: SplineVisitor<Route, RouteKey, E>,
     {
-        let splines = self.get_splines(input);
+        let spline = self.get_dist_spline(input);
         spline_util::visit_spline(
             self,
-            &splines.dist_spline,
-            splines.total_dist,
+            &spline.spline,
+            spline.total,
             visitor,
             step,
             rect,
@@ -282,8 +317,8 @@ impl Route {
      * Get the route key at the given time, relative to the start of the route.
      */
     pub fn sample_time(&self, time: f32, input: &SplineConstructionInput) -> Option<RouteKey> {
-        let splines = self.get_splines(input);
-        splines.time_spline.sample(time)
+        let spline = self.get_time_spline(input);
+        spline.spline.sample(time)
     }
 
     /**
@@ -299,8 +334,8 @@ impl Route {
     }
 
     pub fn total_dist(&self, input: &SplineConstructionInput) -> f32 {
-        let splines = self.get_splines(input);
-        splines.total_dist
+        let spline = self.get_dist_spline(input);
+        spline.total
     }
 
     pub fn total_time(&self) -> f32 {
