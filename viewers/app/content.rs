@@ -34,6 +34,7 @@ impl App {
 
         self.diagnostics.metro_vertices = 0;
         self.diagnostics.highway_vertices = 0;
+        self.diagnostics.agents = 0;
 
         // TODO: don't sort every iteration!!
         for (id, metro_line) in self.engine.state.metro_lines.iter().sorted() {
@@ -48,7 +49,7 @@ impl App {
             self.diagnostics.highway_vertices += spline_visitor.visited;
         }
 
-        if self.pan.scale >= 5.0 {
+        if self.pan.scale >= 4.0 {
             for (id, highway_junction) in self.engine.state.highways.get_junctions().iter().sorted()
             {
                 if let Some(_) = highway_junction.ramp {
@@ -56,7 +57,7 @@ impl App {
                     let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
                     painter.circle(
                         pos,
-                        2.0,
+                        self.scale_point(4.0, 2.0),
                         egui::Color32::from_gray(255),
                         egui::Stroke::none(),
                     );
@@ -64,53 +65,63 @@ impl App {
             }
         }
 
-        // only render routes if the simulation is slow enough to see them
-        if self.engine.time_state.should_render_motion() {
-            let route_input = &self.engine.get_spline_construction_input();
+        let route_input = &self.engine.get_spline_construction_input();
 
-            // draw route from the query interface
-            for route in &self.route_query.current_routes {
-                let mut route_visitor = DrawSplineVisitor::new(self, &painter, traffic);
-                route.visit_spline(
-                    &mut route_visitor,
-                    spline_scale,
-                    &bounding_box,
-                    &route_input,
-                )?;
-                if let Some(key) = route
-                    .sample_engine_time(self.engine.time_state.current_time as f32, &route_input)
-                {
-                    let (x, y) = key.position;
-                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                    painter.circle(
-                        pos,
-                        6.0,
-                        egui::Color32::from_rgb(0, 0, 255),
-                        egui::Stroke::none(),
-                    );
-                }
+        // draw route from the query interface
+        for route in &self.route_query.current_routes {
+            let mut route_visitor = DrawSplineVisitor::new(self, &painter, traffic);
+            route.visit_spline(
+                &mut route_visitor,
+                spline_scale,
+                &bounding_box,
+                &route_input,
+            )?;
+            if let Some(key) =
+                route.sample_engine_time(self.engine.time_state.current_time as f32, &route_input)
+            {
+                let (x, y) = key.position;
+                let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                painter.circle(
+                    pos,
+                    5.0,
+                    egui::Color32::from_rgb(0, 0, 255),
+                    egui::Stroke::none(),
+                );
             }
+        }
 
+        // only render routes if the simulation is slow enough to see them and we are zoomed in
+        // sufficiently far
+        if self.engine.time_state.should_render_motion() && self.pan.scale >= 2.0 {
             for agent in self.engine.agents.values() {
                 if let agent::AgentState::Route(route) = &agent.state {
-                    if let Some(key) = route.sample_engine_time(
-                        self.engine.time_state.current_time as f32,
-                        &route_input,
-                    ) {
-                        let (x, y) = key.position;
-                        let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                        painter.circle(
-                            pos,
-                            5.0,
-                            egui::Color32::from_rgb(0, 0, 255),
-                            egui::Stroke::none(),
-                        );
+                    // NOTE: this draws a lot more than needed, but it also avoids computing the
+                    // time spline for each route unless necessary
+                    if bounding_box.intersects(&route.bounds) {
+                        if let Some(key) = route.sample_engine_time(
+                            self.engine.time_state.current_time as f32,
+                            &route_input,
+                        ) {
+                            let (x, y) = key.position;
+                            let pos = egui::Pos2::from(self.pan.to_screen_ff((x, y)));
+                            painter.circle(
+                                pos,
+                                self.scale_point(2.0, 5.0),
+                                egui::Color32::from_rgb(0, 0, 255),
+                                egui::Stroke::none(),
+                            );
+                            self.diagnostics.agents += 1;
+                        }
                     }
                 }
             }
         }
 
         Ok(())
+    }
+
+    fn scale_point(&self, scale_cutoff: f32, max_size: f32) -> f32 {
+        max_size.min(self.pan.scale / scale_cutoff)
     }
 
     fn update_scale(&mut self, scale: f32, mx: f32, my: f32) {

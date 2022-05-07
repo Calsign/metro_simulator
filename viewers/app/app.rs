@@ -245,6 +245,7 @@ pub(crate) struct Diagnostics {
     pub tiles: u64,
     pub metro_vertices: u64,
     pub highway_vertices: u64,
+    pub agents: u64,
 }
 
 impl Diagnostics {
@@ -253,6 +254,7 @@ impl Diagnostics {
         ui.label(format!("Tiles: {}", self.tiles));
         ui.label(format!("Metro vertices: {}", self.metro_vertices));
         ui.label(format!("Highway vertices: {}", self.highway_vertices));
+        ui.label(format!("Agents: {}", self.agents));
     }
 }
 

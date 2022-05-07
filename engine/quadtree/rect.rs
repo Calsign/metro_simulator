@@ -24,4 +24,15 @@ impl Rect {
             max_y: bry,
         }
     }
+
+    pub fn contains(&self, x: u64, y: u64) -> bool {
+        x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
+    }
+
+    pub fn intersects(&self, other: &Self) -> bool {
+        self.max_x > other.min_x
+            && self.min_x < other.max_x
+            && self.max_y > other.min_y
+            && self.min_y < other.max_y
+    }
 }
