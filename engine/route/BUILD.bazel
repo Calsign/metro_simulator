@@ -37,6 +37,7 @@ rust_library(
         "@crates//:serde",
         "@crates//:splines",
         "@crates//:thiserror",
+        "@crates//:uom",
     ],
 )
 

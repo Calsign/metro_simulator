@@ -1,3 +1,6 @@
+use uom::si::time::hour;
+use uom::si::u64::Time;
+
 use crate::base_graph::{Graph, InnerGraph, Neighbors, NodeIndex};
 use crate::common::{CarConfig, Edge, Error, Mode, Node, QueryInput};
 use crate::route::Route;
@@ -173,19 +176,22 @@ pub fn best_route<'a>(
     }
 
     Ok(
-        fastest.map(|(cost, path, start_mode, end_mode, start_dist, end_dist)| {
-            construct_route(
-                inner,
-                input,
-                cost,
-                &path,
-                input.start,
-                input.end,
-                start_mode,
-                end_mode,
-                start_dist,
-                end_dist,
-            )
+        fastest.and_then(|(cost, path, start_mode, end_mode, start_dist, end_dist)| {
+            // only
+            (cost < Time::new::<hour>(4).value as f64).then(|| {
+                construct_route(
+                    inner,
+                    input,
+                    cost,
+                    &path,
+                    input.start,
+                    input.end,
+                    start_mode,
+                    end_mode,
+                    start_dist,
+                    end_dist,
+                )
+            })
         }),
     )
 }

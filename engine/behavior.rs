@@ -159,7 +159,11 @@ impl TriggerType for AgentRouteEnd {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         let dest = match &agent.state {
             agent::AgentState::Route(route) => route.start(),
-            _ => panic!("agent in unexpected engine: {:?}", agent.state),
+            _ => {
+                // this should only happen if there are routes that take an inordinate amount of
+                // time
+                panic!("agent in unexpected engine: {:?}", agent.state);
+            }
         };
         agent.state = agent::AgentState::Tile(dest);
     }
