@@ -239,10 +239,22 @@ impl Engine {
     }
 
     pub fn update(&mut self, elapsed: f64, time_budget: f64) {
-        if !self.time_state.paused {
+        // try to jump forward an amount dictated by the playback rate
+        let rate_step = (self.time_state.playback_rate as f64 * elapsed) as u64;
+        // if we have recently skipped forward, try to catch up to the skip target time
+        let target_step = (self.time_state.target_time as i64 - self.time_state.current_time as i64)
+            .max(0) as u64;
+
+        let time_step = if self.time_state.paused {
+            // allow skipping to work even if we are paused
+            target_step
+        } else {
             // always advance at least one interval if unpaused
-            // NOTE: a small loss of precision, but shouldn't be noticeable
-            let time_step = ((self.time_state.playback_rate as f64 * elapsed) as u64).max(1);
+            // NOTE: enforces a minimum playback rate equal to the frame rate
+            rate_step.max(target_step).max(1)
+        };
+
+        if time_step > 0 {
             self.advance_trigger_queue(time_step, time_budget);
         }
     }

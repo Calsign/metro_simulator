@@ -8,6 +8,8 @@ pub struct TimeState {
     pub current_time: u64,
     /// number of simulated seconds advanced per real-world second
     pub playback_rate: u64,
+    /// time that we want to jump forward to, used for skipping forward
+    pub target_time: u64,
     /// whether the simulation is currently paused
     pub paused: bool,
     /// the number of seconds since the epoch for the beginning of the simulation
@@ -19,6 +21,7 @@ impl TimeState {
         Self {
             current_time: 0,
             playback_rate: 300, // 5 minutes per second
+            target_time: 0,
             paused: true,
             // TODO: make this configurable in the map
             engine_start_time: chrono::NaiveDate::from_ymd(2020, 1, 1)
@@ -41,5 +44,20 @@ impl TimeState {
     pub fn should_render_motion(&self) -> bool {
         // NOTE: could use some tweaking?
         self.playback_rate < Time::new::<hour>(2).value
+    }
+
+    /**
+     * Skip forward by [delta]. May not happen immediately since we have to maintain the frame rate.
+     * Multiple skips in series stack. [self.is_caught_up()] will be true once we have caught up.
+     */
+    pub fn skip_by(&mut self, delta: u64) {
+        self.target_time = self.current_time.max(self.target_time) + delta;
+    }
+
+    /**
+     * Whether the time has caught up with the most recent skip.
+     */
+    pub fn is_caught_up(&self) -> bool {
+        self.current_time >= self.target_time
     }
 }

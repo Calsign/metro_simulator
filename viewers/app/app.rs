@@ -1,3 +1,15 @@
+use uom::si::time::{day, hour, minute};
+use uom::si::u64::Time;
+
+lazy_static::lazy_static! {
+    static ref TIME_SKIPS: [(u64, &'static str); 4] = [
+        (Time::new::<minute>(1).value, "+1min"),
+        (Time::new::<hour>(1).value, "+1hr"),
+        (Time::new::<hour>(6).value, "+6hrs"),
+        (Time::new::<day>(1).value, "+1day"),
+    ];
+}
+
 pub struct App {
     pub(crate) engine: engine::Engine,
     pub(crate) overlay: Overlay,
@@ -78,6 +90,13 @@ impl App {
         {
             time.paused = !time.paused;
         }
+        ui.horizontal(|ui| {
+            for (skip, label) in *TIME_SKIPS {
+                if ui.button(label).clicked() {
+                    time.skip_by(skip);
+                }
+            }
+        });
     }
 
     fn draw_stats(&mut self, ui: &mut egui::Ui) {
