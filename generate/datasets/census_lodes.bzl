@@ -4,17 +4,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file"
 # Download (LODES): https://lehd.ces.census.gov/data/
 # Download (shapefiles): https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html
 
-# Codes available here: https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html
-ANSI_STATE_CODE_MAP = {
-    "ca": 6,
-    "ct": 9,
-    "dc": 11,
-    "md": 24,
-    "nj": 34,
-    "ny": 36,
-    "va": 51,
-}
-
+# ANSI state codes available here: https://www.census.gov/library/reference/code-lists/ansi/ansi-codes-for-states.html
 STATES = {
     "ca": struct(
         ansi_code = 6,
