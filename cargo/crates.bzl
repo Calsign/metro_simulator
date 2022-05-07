@@ -22,6 +22,7 @@ CRATES = {
         version = "0.32.0",
         features = ["u64", "serde"],
     ),
+    "num": "0.4.0",
 
     # serde
     "serde": dict(

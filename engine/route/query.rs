@@ -81,7 +81,7 @@ fn construct_route(
             distance: end_dist,
         }))
         .collect(),
-        cost,
+        cost as f32,
         input,
     )
 }

@@ -21,6 +21,7 @@ rust_library(
     deps = [
         "//engine/quadtree",
         "@crates//:cgmath",
+        "@crates//:num",
         "@crates//:splines",
     ],
 )

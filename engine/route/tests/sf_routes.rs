@@ -46,8 +46,8 @@ pub enum RoutePredicate {
     HasMetroLine(u64),
     HasHighwaySegmentName(StringPredicate),
     HasHighwaySegmentRef(StringPredicate),
-    CostInRangeSeconds(f64, f64),
-    CostInRangeMinutes(f64, f64),
+    CostInRangeSeconds(f32, f32),
+    CostInRangeMinutes(f32, f32),
 }
 
 impl RoutePredicate {

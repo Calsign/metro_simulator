@@ -78,7 +78,7 @@ impl App {
                     &route_input,
                 )?;
                 if let Some(key) = route
-                    .sample_engine_time(self.engine.time_state.current_time as f64, &route_input)
+                    .sample_engine_time(self.engine.time_state.current_time as f32, &route_input)
                 {
                     let (x, y) = key.position;
                     let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
@@ -94,7 +94,7 @@ impl App {
             for agent in self.engine.agents.values() {
                 if let agent::AgentState::Route(route) = &agent.state {
                     if let Some(key) = route.sample_engine_time(
-                        self.engine.time_state.current_time as f64,
+                        self.engine.time_state.current_time as f32,
                         &route_input,
                     ) {
                         let (x, y) = key.position;
@@ -430,11 +430,12 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
     for DrawSplineVisitor<'a, 'b, 'c>
 {
     fn visit(&mut self, route: &route::Route, key: route::RouteKey, t: f64) -> Result<()> {
+        let (x, y) = key.position.into();
         self.visit(
             &egui::Color32::from_rgb(0, 0, 255),
             5.0,
             None,
-            key.position.into(),
+            (x as f64, y as f64).into(),
             t,
         )
     }

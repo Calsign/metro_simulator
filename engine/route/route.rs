@@ -15,62 +15,62 @@ use crate::traffic::WorldState;
 
 #[derive(Debug, Copy, Clone, derive_more::Constructor, Serialize, Deserialize)]
 pub struct RouteKey {
-    pub position: (f64, f64),
-    pub dist: f64,
-    pub time: f64,
+    pub position: (f32, f32),
+    pub dist: f32,
+    pub time: f32,
     pub mode: Mode,
 }
 
-impl splines::Interpolate<f64> for RouteKey {
-    fn step(t: f64, threshold: f64, a: Self, b: Self) -> Self {
+impl splines::Interpolate<f32> for RouteKey {
+    fn step(t: f32, threshold: f32, a: Self, b: Self) -> Self {
         unimplemented!()
     }
 
-    fn lerp(t: f64, a: Self, b: Self) -> Self {
+    fn lerp(t: f32, a: Self, b: Self) -> Self {
         Self {
             position: (
-                f64::lerp(t, a.position.0, b.position.0),
-                f64::lerp(t, a.position.1, b.position.1),
+                f32::lerp(t, a.position.0, b.position.0),
+                f32::lerp(t, a.position.1, b.position.1),
             ),
-            dist: f64::lerp(t, a.dist, b.dist),
-            time: f64::lerp(t, a.time, b.time),
+            dist: f32::lerp(t, a.dist, b.dist),
+            time: f32::lerp(t, a.time, b.time),
             mode: a.mode,
         }
     }
 
-    fn cosine(t: f64, a: Self, b: Self) -> Self {
+    fn cosine(t: f32, a: Self, b: Self) -> Self {
         unimplemented!()
     }
 
     fn cubic_hermite(
-        t: f64,
-        x: (f64, Self),
-        a: (f64, Self),
-        b: (f64, Self),
-        y: (f64, Self),
+        t: f32,
+        x: (f32, Self),
+        a: (f32, Self),
+        b: (f32, Self),
+        y: (f32, Self),
     ) -> Self {
         unimplemented!()
     }
 
-    fn quadratic_bezier(t: f64, a: Self, u: Self, b: Self) -> Self {
+    fn quadratic_bezier(t: f32, a: Self, u: Self, b: Self) -> Self {
         unimplemented!()
     }
 
-    fn cubic_bezier(t: f64, a: Self, u: Self, v: Self, b: Self) -> Self {
+    fn cubic_bezier(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
         unimplemented!()
     }
 
-    fn cubic_bezier_mirrored(t: f64, a: Self, u: Self, v: Self, b: Self) -> Self {
+    fn cubic_bezier_mirrored(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
         unimplemented!()
     }
 }
 
 #[derive(Debug, Clone)]
 struct Splines {
-    dist_spline: splines::Spline<f64, RouteKey>,
-    time_spline: splines::Spline<f64, RouteKey>,
-    total_dist: f64,
-    total_time: f64,
+    dist_spline: splines::Spline<f32, RouteKey>,
+    time_spline: splines::Spline<f32, RouteKey>,
+    total_dist: f32,
+    total_time: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,7 +78,7 @@ pub struct Route {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
     pub query_input: QueryInput,
-    pub cost: f64,
+    pub cost: f32,
     #[serde(skip)]
     splines: OnceCell<Splines>,
 }
@@ -94,8 +94,12 @@ pub struct SplineConstructionInput<'a, 'b, 'c> {
     pub tile_size: f64,
 }
 
+fn f64p_f32p((x, y): (f64, f64)) -> (f32, f32) {
+    (x as f32, y as f32)
+}
+
 impl Route {
-    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f64, query_input: QueryInput) -> Self {
+    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f32, query_input: QueryInput) -> Self {
         Self {
             nodes,
             edges,
@@ -135,16 +139,17 @@ impl Route {
 
         let mut keys = Vec::new();
 
-        let mut d = 0.0; // total distance
-        let mut t = 0.0; // total elapsed time
+        let mut d: f32 = 0.0; // total distance
+        let mut t: f32 = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
-            let dt = edge.cost(input.state);
+            let dt = edge.cost(input.state) as f32;
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
-            let start_location = start.location();
-            let end_location = end.location();
-            let default_dd = cgmath::Vector2::from(start_location).distance(end_location.into());
-            let dd: f64;
+            let start_location = f64p_f32p(start.location());
+            let end_location = f64p_f32p(end.location());
+            let default_dd =
+                cgmath::Vector2::from(start_location).distance(end_location.into()) as f32;
+            let dd: f32;
             match &edge {
                 Edge::MetroSegment {
                     metro_line,
@@ -173,8 +178,8 @@ impl Route {
                     let stop_key = dist_spline.keys()[stop_index];
 
                     for key in &dist_spline.keys()[start_index..=stop_index] {
-                        let time = key.t - start_key.t;
-                        let dist = key.value - start_key.value;
+                        let time = (key.t - start_key.t) as f32;
+                        let dist = (key.value - start_key.value) as f32;
 
                         assert!(time >= 0.0, "{}", time);
                         assert!(dist >= 0.0, "{}", dist);
@@ -186,14 +191,14 @@ impl Route {
                             .unwrap();
                         // TODO: it is probably insufficient to describe this as walking
                         keys.push(RouteKey::new(
-                            location.into(),
+                            f64p_f32p(location.into()),
                             d + dist,
                             t + time,
                             Mode::Walking,
                         ));
                     }
 
-                    dd = stop_key.value - start_key.value;
+                    dd = (stop_key.value - start_key.value) as f32;
                 }
                 Edge::MetroEmbark { .. } | Edge::MetroDisembark { .. } => {
                     dd = default_dd;
@@ -205,13 +210,13 @@ impl Route {
                         .expect("missing highway segment");
                     for key in segment.get_spline_keys() {
                         keys.push(RouteKey::new(
-                            key.value.into(),
-                            d + key.t,
-                            t + dt * key.t / segment.length(),
+                            f64p_f32p(key.value.into()),
+                            d + key.t as f32,
+                            t + dt * (key.t / segment.length()) as f32,
                             Mode::Driving,
                         ));
                     }
-                    dd = segment.length();
+                    dd = segment.length() as f32;
                 }
                 Edge::HighwayRamp { .. } => {
                     dd = default_dd;
@@ -276,7 +281,7 @@ impl Route {
     /**
      * Get the route key at the given time, relative to the start of the route.
      */
-    pub fn sample_time(&self, time: f64, input: &SplineConstructionInput) -> Option<RouteKey> {
+    pub fn sample_time(&self, time: f32, input: &SplineConstructionInput) -> Option<RouteKey> {
         let splines = self.get_splines(input);
         splines.time_spline.sample(time)
     }
@@ -287,18 +292,18 @@ impl Route {
      */
     pub fn sample_engine_time(
         &self,
-        time: f64,
+        time: f32,
         input: &SplineConstructionInput,
     ) -> Option<RouteKey> {
-        self.sample_time(time - self.query_input.start_time as f64, input)
+        self.sample_time(time - self.query_input.start_time as f32, input)
     }
 
-    pub fn total_dist(&self, input: &SplineConstructionInput) -> f64 {
+    pub fn total_dist(&self, input: &SplineConstructionInput) -> f32 {
         let splines = self.get_splines(input);
         splines.total_dist
     }
 
-    pub fn total_time(&self) -> f64 {
+    pub fn total_time(&self) -> f32 {
         self.cost
     }
 
