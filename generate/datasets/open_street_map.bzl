@@ -93,6 +93,7 @@ def _preprocess():
             cmd = '$(location open_street_map_preprocess) "$<" "$@"',
             exec_tools = [":open_street_map_preprocess"],
             message = "Preprocessing OSM data for {}".format(region),
+            tags = ["manual"],
             visibility = ["//visibility:public"],
         )
 
