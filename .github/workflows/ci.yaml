@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tmate_debug:
+        description: 'Run tmate for debugging'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  ci:
+    runs-on: ubuntu-20.04
+
+    # needed for python gdal to build correctly
+    env:
+      CPLUS_INCLUDE_PATH: /usr/include/gdal
+      C_INCLUDE_PATH: /usr/include/gdal
+
+    steps:
+      - name: setup python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          architecture: x64
+
+      # github actions doesn't put python3.10 in a standard location
+      - name: symlink python3.10
+        run: 'sudo ln -s $(which python3.10) /usr/bin/python3.10'
+
+      - name: setup java
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: 11
+
+      - name: install apt packages
+        run: |
+          sudo add-apt-repository ppa:ubuntugis/ubuntugis-unstable &&
+          sudo apt-get update &&
+          sudo apt-get install libgdal-dev libgtk-3-dev libexpat1-dev
+
+      - name: bazel cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/bazelisk
+            ~/.cache/bazel
+          key: ${{ runner.os }}-${{ github.ref }}
+
+      - name: checkout
+        uses: actions/checkout@v2
+
+      # bazel-mypy-integration seems to use system-installed typing packages instead of the ones
+      # actually in bazel. This is dumb, but to get around it we just install typing packages on the
+      # system. We also need to install numpy so that gdal will build against it correctly. To avoid
+      # packages getting out of sync, we just install the entire requirements file.
+      - name: install pip packages
+        run: |
+          pip install -r python/pip/requirements.txt
+
+      - name: tmate debugging
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tmate_debug && always() }}
+
+      - name: build and test
+        run: bazel test //... --config ci
+
+      - name: upload map artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: maps
+          path: build/bazel-out/*/bin/maps/*.json
+
+      - name: build optimized binaries
+        run: bazel build -c opt //viewers/app:desktop //mobile/android:app_all_cpus --config ci
+
+      - name: upload binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: |
+            build/bazel-out/k8-opt/bin/viewers/app/desktop
+            build/bazel-out/*/bin/mobile/android/app.apk

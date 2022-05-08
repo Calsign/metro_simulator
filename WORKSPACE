@@ -135,12 +135,15 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_python/releases/download/0.5.0/rules_python-0.5.0.tar.gz",
 )
 
+register_toolchains("//python:python_toolchain")
+
 # PIP
 
 load("@rules_python//python:pip.bzl", "pip_install")
 
 pip_install(
     name = "pip_pkgs",
+    python_interpreter = "python3.10",
     requirements = "//python/pip:requirements.txt",
 )
 

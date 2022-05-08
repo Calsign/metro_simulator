@@ -25,3 +25,5 @@ build --platform_mappings=mobile/platform/platform_mappings
 build --incompatible_strict_action_env
 
 run:flamegraph --run_under "@crates__flamegraph-0.6.1//:flamegraph__bin -o /tmp/flamegraph.svg --"
+
+build:ci --keep_going --experimental_scale_timeouts=3

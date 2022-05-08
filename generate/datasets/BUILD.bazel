@@ -9,6 +9,7 @@ py_binary(
     srcs = ["open_street_map_preprocess.py"],
     main = "open_street_map_preprocess.py",
     deps = [
+        requirement("argh"),
         requirement("shapely"),
         requirement("osmium"),
     ],
