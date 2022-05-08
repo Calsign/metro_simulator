@@ -5,7 +5,6 @@ py_binary(
     name = "debug",
     srcs = ["main.py"],
     data = [
-        "//configs",
         "//maps",
     ],
     main = "main.py",

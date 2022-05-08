@@ -4,9 +4,6 @@ load("//viewers:util.bzl", "all_maps")
 rust_binary(
     name = "editor",
     srcs = ["main.rs"],
-    data = [
-        "//configs",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//engine",
