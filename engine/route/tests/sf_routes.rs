@@ -135,13 +135,6 @@ lazy_static! {
                 HasMetroStop("Daly City".into()),
                 HasMetroStation("Montgomery Street".into()),
                 Not(HasMetroStop(StringPredicate::ContainsStr("Oakland")).into()),
-                Or(vec![
-                    HasMetroLine(1),
-                    HasMetroLine(2),
-                    HasMetroLine(6),
-                    HasMetroLine(11),
-                    HasMetroLine(12)
-                ]),
                 Not(Or(vec![HasMetroLine(3), HasMetroLine(4)]).into()),
             ],
             None,

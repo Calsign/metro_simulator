@@ -36,6 +36,7 @@ fn main() {
         current_leaf: None,
         current_field: FieldType::None,
         show_metro_keys: false,
+        show_metro_directions: false,
         show_highway_keys: false,
         show_highway_directions: false,
     };
@@ -53,6 +54,7 @@ struct State {
     current_leaf: Option<CurrentLeafState>,
     current_field: FieldType,
     show_metro_keys: bool,
+    show_metro_directions: bool,
     show_highway_keys: bool,
     show_highway_directions: bool,
 }
@@ -280,6 +282,11 @@ fn build_menu_panel() -> impl druid::Widget<State> {
         )
         .with_default_spacer()
         .with_child(druid::widget::Checkbox::new("Show metro keys").lens(State::show_metro_keys))
+        .with_default_spacer()
+        .with_child(
+            druid::widget::Checkbox::new("Show metro directions")
+                .lens(State::show_metro_directions),
+        )
         .with_default_spacer()
         .with_child(
             druid::widget::Checkbox::new("Show highway keys").lens(State::show_highway_keys),
@@ -657,7 +664,8 @@ impl druid::Widget<State> for Content {
 
         for (id, metro_line) in engine.state.metro_lines.iter().sorted() {
             if state.metro_lines.states[id].visible {
-                let mut spline_visitor = PaintSplineVisitor::new(ctx, env, state, false);
+                let mut spline_visitor =
+                    PaintSplineVisitor::new(ctx, env, state, state.show_metro_directions);
                 metro_line
                     .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
                     .unwrap();
