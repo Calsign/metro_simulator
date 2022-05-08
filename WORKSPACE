@@ -4,8 +4,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # RUST
 
-# 0.2.1, 2022-04-14
-RULES_RUST_REF = "4144ddeb9c5290a15e5ec1cf8df31393744f6005"
+# 0.3.1, 2022-05-07
+RULES_RUST_REF = "612f4362bc2b5d9aa7d9307ecaf3346faba285af"
 
 RUST_VERSION = "1.60.0"
 
@@ -16,8 +16,9 @@ http_archive(
         "//patches:rules_rust__compile_one_dependency.patch",
         "//patches:rules_rust__android_armeabi-v7a.patch",
         "//patches:rules_rust__alias_deduplicate.patch",
+        "//patches:rules_rust__issue_1265.patch",
     ],
-    sha256 = "47c38978866a63b0a95d3805d7565e092463b21f583c9d3b58dcb987e3f5b051",
+    sha256 = "79633aebfdae69e88659833c2a64cba51895da007e8e14502bd3e77abb95c33f",
     strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),
     urls = ["https://github.com/bazelbuild/rules_rust/archive/{}.tar.gz".format(RULES_RUST_REF)],
 )

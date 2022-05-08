@@ -20,14 +20,14 @@ fn main() {
         .window_size(DEFAULT_WINDOW_SIZE);
 
     let engine = Arc::new(Mutex::new(match args.load {
-        Some(path) => engine::state::State::load_file(&path).unwrap(),
-        None => engine::state::State::new(
-            engine::config::Config::load_file(&std::path::PathBuf::from(DEFAULT_CONFIG)).unwrap(),
+        Some(path) => engine::Engine::load_file(&path).unwrap(),
+        None => engine::Engine::new(
+            state::Config::load_file(&std::path::PathBuf::from(DEFAULT_CONFIG)).unwrap(),
         ),
     }));
 
     // TODO: re-run this when the qtree updates
-    engine.lock().unwrap().update_fields().unwrap();
+    engine.lock().unwrap().state.update_fields().unwrap();
 
     let state = State {
         engine: engine.clone(),
@@ -47,7 +47,7 @@ fn main() {
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct State {
-    engine: Arc<Mutex<engine::state::State>>,
+    engine: Arc<Mutex<engine::Engine>>,
     metro_lines: MetroLinesState,
     content: ContentState,
     current_leaf: Option<CurrentLeafState>,
@@ -95,11 +95,23 @@ fn tile_types() -> Vec<(&'static str, std::mem::Discriminant<tiles::Tile>)> {
         ("Empty", discriminant(&tiles::EmptyTile {}.into())),
         (
             "Housing",
-            discriminant(&tiles::HousingTile { density: 1 }.into()),
+            discriminant(
+                &tiles::HousingTile {
+                    density: 1,
+                    agents: vec![],
+                }
+                .into(),
+            ),
         ),
         (
             "Workplace",
-            discriminant(&tiles::WorkplaceTile { density: 1 }.into()),
+            discriminant(
+                &tiles::WorkplaceTile {
+                    density: 1,
+                    agents: vec![],
+                }
+                .into(),
+            ),
         ),
     ]
 }
@@ -142,10 +154,10 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
                 let mut update = false;
                 {
                     let mut engine = state.engine.lock().unwrap();
-                    match engine.set_leaf_data(
+                    match engine.state.set_leaf_data(
                         (*state.address).clone(),
                         &state.edited_data,
-                        engine::state::SerdeFormat::Toml,
+                        state::SerdeFormat::Toml,
                     ) {
                         Ok(()) => {
                             // update with new state
@@ -174,7 +186,10 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                 .on_click(
                     |ctx: &mut druid::EventCtx, state: &mut MetroLinesState, env: &druid::Env| {
                         let mut engine = state.engine.lock().unwrap();
-                        let id = engine.add_metro_line(String::from("Metro Line"), None, None);
+                        let id =
+                            engine
+                                .state
+                                .add_metro_line(String::from("Metro Line"), None, None);
 
                         state.states.insert(id, MetroLineState::new());
 
@@ -323,17 +338,17 @@ impl MetroLineState {
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct MetroLinesState {
-    engine: Arc<Mutex<engine::state::State>>,
+    engine: Arc<Mutex<engine::Engine>>,
     states: druid::im::HashMap<u64, MetroLineState>,
 }
 
 impl MetroLinesState {
-    fn new(engine: Arc<Mutex<engine::state::State>>) -> Self {
+    fn new(engine: Arc<Mutex<engine::Engine>>) -> Self {
         let mut states = druid::im::HashMap::new();
 
         {
             let engine = engine.lock().unwrap();
-            for (id, metro_line) in engine.metro_lines.iter() {
+            for (id, metro_line) in engine.state.metro_lines.iter() {
                 states.insert(*id, MetroLineState::new());
             }
         }
@@ -367,7 +382,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
         let engine = self.engine.lock().unwrap();
 
         // NOTE: sorted because HashMap doesn't have a sorted guarantee
-        for (i, (id, metro_line)) in engine.metro_lines.iter().sorted().enumerate() {
+        for (i, (id, metro_line)) in engine.state.metro_lines.iter().sorted().enumerate() {
             // TODO: this clone is disgusting
             let data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&data, i);
@@ -380,7 +395,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
         let mut engine = self.engine.lock().unwrap();
 
         // NOTE: sorted because HashMap doesn't have a sorted guarantee
-        for (i, (id, metro_line)) in engine.metro_lines.iter_mut().sorted().enumerate() {
+        for (i, (id, metro_line)) in engine.state.metro_lines.iter_mut().sorted().enumerate() {
             // TODO: this double clone is even more disgusting
             let mut data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&mut data, i);
@@ -390,30 +405,31 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
     }
 
     fn data_len(&self) -> usize {
-        self.engine.lock().unwrap().metro_lines.len()
+        self.engine.lock().unwrap().state.metro_lines.len()
     }
 }
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct CurrentLeafState {
     address: Rc<quadtree::Address>,
-    leaf: Rc<engine::state::LeafState>,
+    leaf: Rc<state::LeafState>,
     tile_type: std::mem::Discriminant<tiles::Tile>,
     data: String,
     edited_data: String,
 
-    engine: Arc<Mutex<engine::state::State>>,
+    engine: Arc<Mutex<engine::Engine>>,
 }
 
 impl CurrentLeafState {
     fn new(
         address: quadtree::Address,
-        engine: &engine::state::State,
-        engine_clone: Arc<Mutex<engine::state::State>>,
+        engine: &engine::Engine,
+        engine_clone: Arc<Mutex<engine::Engine>>,
     ) -> Self {
-        let leaf = engine.qtree.get_leaf(address.clone()).unwrap();
+        let leaf = engine.state.qtree.get_leaf(address.clone()).unwrap();
         let data = engine
-            .get_leaf_data(address.clone(), engine::state::SerdeFormat::Toml)
+            .state
+            .get_leaf_data(address.clone(), state::SerdeFormat::Toml)
             .unwrap();
         Self {
             address: Rc::new(address),
@@ -439,14 +455,14 @@ struct ContentState {
 }
 
 impl ContentState {
-    pub fn new(engine: Arc<Mutex<engine::state::State>>) -> Self {
+    pub fn new(engine: Arc<Mutex<engine::Engine>>) -> Self {
         let (mut width, height) = DEFAULT_WINDOW_SIZE as (f64, f64);
         // account for the two side panels
         // TODO: make this less gross
         width -= 600.0;
 
         let min_dim = f64::min(width, height);
-        let model_width = engine.lock().unwrap().qtree.width() as f64;
+        let model_width = engine.lock().unwrap().state.qtree.width() as f64;
 
         let scale = min_dim / model_width / 2.0;
         let tx = width / 2.0 - model_width * scale / 2.0;
@@ -530,12 +546,13 @@ impl druid::Widget<State> for Content {
             MouseDown(mouse) if mouse.buttons.has_right() => {
                 let mut engine = state.engine.lock().unwrap();
                 let (mx, my) = content.to_model(mouse.pos.into());
-                let w = engine.qtree.width();
+                let w = engine.state.qtree.width();
                 if mx > 0 && mx < w && my > 0 && my < w {
-                    let address = engine.qtree.get_address(mx, my).unwrap();
-                    if address.depth() < engine.qtree.max_depth() as usize {
-                        use engine::state::{BranchState, LeafState};
+                    let address = engine.state.qtree.get_address(mx, my).unwrap();
+                    if address.depth() < engine.state.qtree.max_depth() as usize {
+                        use state::{BranchState, LeafState};
                         engine
+                            .state
                             .qtree
                             .split(
                                 address.clone(),
@@ -560,9 +577,9 @@ impl druid::Widget<State> for Content {
             MouseDown(mouse) if mouse.buttons.has_middle() => {
                 let engine = state.engine.lock().unwrap();
                 let (mx, my) = content.to_model(mouse.pos.into());
-                let w = engine.qtree.width();
+                let w = engine.state.qtree.width();
                 if mx > 0 && mx < w && my > 0 && my < w {
-                    let address = engine.qtree.get_address(mx, my).unwrap();
+                    let address = engine.state.qtree.get_address(mx, my).unwrap();
                     state.current_leaf = Some(CurrentLeafState::new(
                         address,
                         &engine,
@@ -627,6 +644,7 @@ impl druid::Widget<State> for Content {
             visited: 0,
         };
         engine
+            .state
             .qtree
             .visit_rect(&mut qtree_visitor, &bounding_box)
             .unwrap();
@@ -637,7 +655,7 @@ impl druid::Widget<State> for Content {
         let qtree_visited = qtree_visitor.visited;
         let mut metro_total_visited = 0;
 
-        for (id, metro_line) in engine.metro_lines.iter().sorted() {
+        for (id, metro_line) in engine.state.metro_lines.iter().sorted() {
             if state.metro_lines.states[id].visible {
                 let mut spline_visitor = PaintSplineVisitor::new(ctx, env, state, false);
                 metro_line
@@ -657,7 +675,7 @@ impl druid::Widget<State> for Content {
 
         let mut highway_total_visited = 0;
 
-        for (id, highway_segment) in engine.highways.get_segments().iter().sorted() {
+        for (id, highway_segment) in engine.state.highways.get_segments().iter().sorted() {
             let mut spline_visitor =
                 PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
             highway_segment
@@ -748,13 +766,12 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     }
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f>
-    quadtree::Visitor<engine::state::BranchState, engine::state::LeafState, anyhow::Error>
+impl<'a, 'b, 'c, 'd, 'e, 'f> quadtree::Visitor<state::BranchState, state::LeafState, anyhow::Error>
     for PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &engine::state::BranchState,
+        branch: &state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
         let should_descend = data.width as f64 * self.state.content.scale >= 5.0;
@@ -772,7 +789,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
     fn visit_leaf(
         &mut self,
-        leaf: &engine::state::LeafState,
+        leaf: &state::LeafState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
         use druid::RenderContext;
@@ -792,11 +809,11 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
             WaterTile(tiles::WaterTile {}) => {
                 self.ctx.fill(full_rect, &druid::Color::rgb8(0, 0, 150));
             }
-            HousingTile(tiles::HousingTile { density }) => {
+            HousingTile(tiles::HousingTile { density, agents: _ }) => {
                 let circle = druid::kurbo::Circle::new(rect.center(), width / 8.0);
                 self.ctx.fill(circle, &druid::Color::grey8(255));
             }
-            WorkplaceTile(tiles::WorkplaceTile { density }) => {
+            WorkplaceTile(tiles::WorkplaceTile { density, agents: _ }) => {
                 let triangle = triangle(
                     rect.center().into(),
                     width / 6.0,
@@ -821,7 +838,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
     fn visit_branch_post(
         &mut self,
-        branch: &engine::state::BranchState,
+        branch: &state::BranchState,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
         self.maybe_draw_field(&branch.fields, data, false);

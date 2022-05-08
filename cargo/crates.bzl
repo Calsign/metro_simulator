@@ -75,12 +75,12 @@ CRATES = {
 
     # druid graphics
     # NOTE: rules_rust 0.1.0 chokes trying to generate build files for druid.
-    # "druid": dict(
-    #     git = "https://github.com/linebender/druid",
-    #     # master as of 2022-01-03
-    #     rev = "3790463cf4e724719dc0c1867afe59c3f2d22b3b",
-    #     features = ["im"],
-    # ),
+    "druid": dict(
+        git = "https://github.com/linebender/druid",
+        # master as of 2022-01-03
+        rev = "3790463cf4e724719dc0c1867afe59c3f2d22b3b",
+        features = ["im"],
+    ),
 
     # wgpu graphics
     "wgpu": "0.12.0",
