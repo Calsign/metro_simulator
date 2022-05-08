@@ -1,7 +1,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # Meta/Facebook population density dataset.
-# Download: https://data.humdata.org/organization/facebook?q=high%20resolution%20population%20density
+# Download: https://data.humdata.org/dataset/united-states-high-resolution-population-density-maps-demographic-estimates
 
 MIN_LAT = 38
 MIN_LON = -170
@@ -46,6 +46,10 @@ TILES = {
     (38, -90): struct(
         garbage = "2f888946-e654-4c17-8885-fa1c09992fc2",
         hash = "475046c768a8a8f3b42b97ec26ff0c4a1b17e0c23a4331c195f2205ee6da62c3",
+    ),
+    (38, -100): struct(
+        garbage = "5432da52-fe0c-4817-98ad-f315d64b7f46",
+        hash = "864a452dd60300adff85eab7fe25264131fe2ca4bea99796b1ccf77c36f17f80",
     ),
     (38, -120): struct(
         garbage = "d68537c2-c0d3-41b1-9c9d-3aabd59ef783",

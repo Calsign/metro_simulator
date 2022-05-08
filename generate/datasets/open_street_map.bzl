@@ -51,6 +51,22 @@ REGIONS = {
         path = "north-america/us/rhode-island-220101",
         hash = "2cfdb76b717b2529423089ca96d92d287c170918dced6db2fc3801dfe5168605",
     ),
+    "il": struct(
+        path = "north-america/us/illinois-220101",
+        hash = "8bbb229fa173569ecaab24b8cd5386a823699d192eedee542303f9a4ceda9dd6",
+    ),
+    "wi": struct(
+        path = "north-america/us/wisconsin-220101",
+        hash = "55f4b7352474ea4c45675b4585675e38fba1cbda346f31ec91c97cb6c62580dd",
+    ),
+    "in": struct(
+        path = "north-america/us/indiana-220101",
+        hash = "5f6c2106194147620535914d55146f3797c90e11add1c2c2856f916c17ac66b3",
+    ),
+    "mi": struct(
+        path = "north-america/us/michigan-220101",
+        hash = "e2c3702986fb6a919df501861ed9c6dc626370b6b9cd895f819f4e17d23f0be6",
+    ),
 }
 
 def _build_name(region):

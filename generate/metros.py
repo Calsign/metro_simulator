@@ -153,7 +153,9 @@ class Metros(Layer):
 
         for station in self.osm.stations:
             name = station.tags.get("name")
-            assert name is not None
+            if name is None:
+                print("Warning: station {} is missing name".format(station.id))
+                name = ""
 
             stations_all_coords.append(station.location)
             rx, ry = round_station_location(station.location)
@@ -215,6 +217,10 @@ class Metros(Layer):
                     x, y = stop.location
                     if 0 <= x <= self.max_dim and 0 <= y <= self.max_dim:
                         stops.append(stop)
+
+            # empty for whatever reason, so don't attempt to generate
+            if len(stations_all_coords) == 0 or len(spline_all_coords) == 0:
+                continue
 
             keys: T.List[T.Any] = []
 

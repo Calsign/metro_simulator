@@ -26,6 +26,16 @@ STATES = {
         shapefile_hash = "bbd8b283cec8b56c336cd79c1de6b2868f9f3ad48ecd20a098fee9d0a6bcb15b",
         lodes_hash = "7cdf15d16bc20d859078bcde10e1bc513c19a7a8c883e8f0065638d7d5472d2f",
     ),
+    "il": struct(
+        ansi_code = 17,
+        shapefile_hash = "21a2a9f4b83b406a8aa9775dbee9bbf6cd417cef638ff270aacbeb3f2a3cca34",
+        lodes_hash = "a0bd9d04dc6f18b65b2902cf98a8cc8f198f63d1f141564a4be8680d0320611a",
+    ),
+    "in": struct(
+        ansi_code = 18,
+        shapefile_hash = "42a46c32d85f6980e5ec58ad079260735c540500b24b811253dec904855ea250",
+        lodes_hash = "18a2ce41c4a609ba1969dbd31be32c3b7aba25edf674e7037d74f8856822fa53",
+    ),
     "me": struct(
         ansi_code = 23,
         shapefile_hash = None,
@@ -35,6 +45,11 @@ STATES = {
         ansi_code = 24,
         shapefile_hash = "daa4baca6f3cb5b6760498df74dcbae9f14f9e370e877d37c236209d5b410e5b",
         lodes_hash = "c9fc8f14f35d2c8aca62867f27e76e4bde4f951b88bbd28bfc33ed69a7affeff",
+    ),
+    "mi": struct(
+        ansi_code = 26,
+        shapefile_hash = "337240a754339f41617791b33e356c7878ff4d900a9811b68cdbad1a0cb76a80",
+        lodes_hash = "dfafceafa5435e7d2b310c9d975cd4cf1e3d80236091ac619d4c2ed00d6f8a21",
     ),
     "ma": struct(
         ansi_code = 25,
@@ -75,6 +90,11 @@ STATES = {
         ansi_code = 54,
         shapefile_hash = "53641d3d31de90a58dea7b95d9fec3a324ab605eb87fda46c04d3c4441ffa883",
         lodes_hash = "6164771269e1fe1218a80db39520f579140a28619eb80687f58bf19788218e90",
+    ),
+    "wi": struct(
+        ansi_code = 55,
+        shapefile_hash = "7f235bf3ace2dd998fa6c17963ae48017375a0b991933754e672a4101dccca93",
+        lodes_hash = "9aea10879d29010a011c2134c3ccc672d4a373f076bfc6f68f8be8db26e2a76e",
     ),
 }
 
