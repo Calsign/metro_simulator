@@ -213,7 +213,7 @@ def main(config=DEFAULT_CONFIG, load_file=None):
         elif event.type == pygame.MOUSEWHEEL:
             nonlocal scale
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            new_scale = max(min(scale * 1.2 ** event.y, max_scale), min_scale)
+            new_scale = max(min(scale * 1.2**event.y, max_scale), min_scale)
 
             # Zoom centered on the mouse
             # Invariant: (mouse_x - tx) / scale = (mouse_x - tx') / scale'

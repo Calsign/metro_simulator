@@ -50,6 +50,7 @@ maps["sf"] = struct(
     engine_config = ":config",
     latitude = "37.7749N",
     longitude = "122.4194W",
+    cleaner = "cleaners/sf.py",
 )
 
 maps["boston"] = struct(
@@ -98,4 +99,6 @@ def create_maps():
             engine_config = data.engine_config,
             latitude = data.latitude,
             longitude = data.longitude,
+            cleaner = getattr(data, "cleaner", None),
+            cleaner_deps = getattr(data, "cleaner_deps", []),
         )

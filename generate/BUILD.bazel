@@ -1,6 +1,11 @@
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@pip_pkgs//:requirements.bzl", "requirement")
 
+exports_files(
+    srcs = ["main.py"],
+    visibility = ["//maps:__pkg__"],
+)
+
 # We don't want to have to re-generate the entire map whenever we update the engine. So we split the
 # generation into two steps: the generator and the baker. The generator processes the input data and
 # pickles the information needed to generate the actual map, but crucially does not depend on the
@@ -26,6 +31,7 @@ py_library(
         "terrain.py",
         "workplaces.py",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         requirement("gdal"),
         requirement("numpy"),

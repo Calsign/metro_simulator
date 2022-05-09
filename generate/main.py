@@ -9,6 +9,7 @@ from collections import defaultdict
 import json
 import functools
 import pickle
+import importlib
 
 import typing as T
 
@@ -181,7 +182,12 @@ def min_or_none(vals):
 
 @argh.arg("--plot", action="append", type=str)
 def generate(
-    map_path, output_path=None, plot=[], plot_dir=None, profile_file=None
+    map_path,
+    output_path=None,
+    plot=[],
+    plot_dir=None,
+    profile_file=None,
+    clean_script=None,
 ) -> None:
     if map_path.endswith(".toml"):
         map_config = MapConfig(**toml.load(map_path))
@@ -209,6 +215,12 @@ def generate(
 
     qtree = Quadtree(max_depth=max_depth)
 
+    if clean_script is not None:
+        report_timestamp("load cleaner script")
+        cleaner = importlib.import_module(clean_script)
+    else:
+        cleaner = None
+
     for layer in layers:
         report_timestamp("read dataset - {}".format(layer.get_name()))
 
@@ -223,6 +235,10 @@ def generate(
             dataset = read_osm(dataset_info, coords, max_dim)
         else:
             raise Exception("Unrecognized dataset type: {}".format(dataset_type))
+
+        if cleaner is not None and hasattr(cleaner, layer.get_name()):
+            report_timestamp("cleaning - {}".format(layer.get_name()))
+            getattr(cleaner, layer.get_name())(dataset)
 
         report_timestamp("plot - {}".format(layer.get_name()))
         plotter.plot(layer.get_name(), dataset)

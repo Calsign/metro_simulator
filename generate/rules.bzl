@@ -1,3 +1,5 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@bazel_skylib//lib:paths.bzl", "paths")
 load(":transitions.bzl", "reset_configuration")
 
 EngineConfigProvider = provider(fields = ["data"])
@@ -58,11 +60,13 @@ def _generate_map_impl(ctx):
     generator_save_args.add("generate")
     generator_save_args.add(map_file)
     generator_save_args.add("-o", baker_data_file)
+    if ctx.attr.cleaner != "":
+        generator_save_args.add("--clean-script", ctx.attr.cleaner)
 
     ctx.actions.run(
         outputs = [baker_data_file],
         inputs = [map_file] + dataset_deps,
-        executable = ctx.executable._generator,
+        executable = ctx.executable.generator,
         arguments = [generator_save_args],
         progress_message = "Generating map '{}'".format(real_name),
     )
@@ -72,11 +76,13 @@ def _generate_map_impl(ctx):
     generator_plot_args.add(map_file)
     generator_plot_args.add("--plot-dir", plot_dir.path)
     generator_plot_args.add("--plot", "all")
+    if ctx.attr.cleaner != "":
+        generator_plot_args.add("--clean-script", ctx.attr.cleaner)
 
     ctx.actions.run(
         outputs = [plot_dir],
         inputs = [map_file] + dataset_deps,
-        executable = ctx.executable._generator,
+        executable = ctx.executable.generator,
         arguments = [generator_plot_args],
         progress_message = "Generating plots for map '{}'".format(real_name),
     )
@@ -85,11 +91,13 @@ def _generate_map_impl(ctx):
     generator_profile_args.add("generate")
     generator_profile_args.add(map_file)
     generator_profile_args.add("--profile-file", profile_file)
+    if ctx.attr.cleaner != "":
+        generator_profile_args.add("--clean-script", ctx.attr.cleaner)
 
     ctx.actions.run(
         outputs = [profile_file],
         inputs = [map_file] + dataset_deps,
-        executable = ctx.executable._generator,
+        executable = ctx.executable.generator,
         arguments = [generator_profile_args],
         progress_message = "Profiling generation of map '{}'".format(real_name),
     )
@@ -121,7 +129,7 @@ def _generate_map_impl(ctx):
 _generate_map = rule(
     implementation = _generate_map_impl,
     attrs = {
-        "_generator": attr.label(
+        "generator": attr.label(
             default = "//generate:generator",
             executable = True,
             cfg = "exec",
@@ -143,6 +151,7 @@ _generate_map = rule(
             providers = [EngineConfigProvider],
         ),
         "real_name": attr.string(mandatory = True),
+        "cleaner": attr.string(mandatory = True),
     },
 )
 
@@ -167,7 +176,27 @@ def _parse_lat_lon(lat, lon):
 
     return (latf, lonf)
 
-def map(name, latitude, longitude, engine_config, datasets, visibility = ["//visibility:public"]):
+def map(
+        name,
+        latitude,
+        longitude,
+        engine_config,
+        datasets,
+        cleaner_deps = [],
+        cleaner = None,
+        visibility = ["//visibility:public"]):
+    """
+    Generate a map.
+
+    Args:
+      latitude: latitude of the center of the map, e.g. "45.5N"
+      longitude: longitude of the center of the map, e.g. "45.5W"
+      engine_config: label of the engine_config target to use as config
+      datasets: dict mapping dataset type to dataset structs
+      cleaner_deps (optional): py_library dependencies for the cleaner
+      cleaner (optional): cleaner file (.py)
+    """
+
     (lat, lon) = _parse_lat_lon(latitude, longitude)
 
     dataset_map = {}
@@ -177,8 +206,25 @@ def map(name, latitude, longitude, engine_config, datasets, visibility = ["//vis
             dataset_map[dep] = key
         dataset_data_map[key] = json.encode(dataset.data)
 
+    if cleaner != None:
+        if not cleaner.endswith(".py"):
+            fail("cleaner must be a .py file")
+        generator = "_{}__generator".format(name)
+        py_binary(
+            name = generator,
+            srcs = ["//generate:main.py", cleaner],
+            main = "//generate:main.py",
+            visibility = ["//visibility:private"],
+            deps = ["//generate:generate_lib"] + cleaner_deps,
+        )
+        cleaner_module = paths.join(native.package_name(), cleaner[:-3]).replace("/", ".")
+    else:
+        generator = "//generate:generator"
+        cleaner_module = ""
+
     inner_name = "_{}__inner".format(name)
     _generate_map(
+        generator = generator,
         name = inner_name,
         real_name = name,
         latitude = latitude,
@@ -186,6 +232,7 @@ def map(name, latitude, longitude, engine_config, datasets, visibility = ["//vis
         datasets = dataset_map,
         dataset_data = dataset_data_map,
         engine_config = engine_config,
+        cleaner = cleaner_module,
         # don't build this automatically since it will be in the wrong configuration
         tags = ["manual"],
     )
