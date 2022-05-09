@@ -35,8 +35,11 @@ fn main() {
         content: ContentState::new(engine.clone()),
         current_leaf: None,
         current_field: FieldType::None,
+        show_qtree: true,
+        show_metros: true,
         show_metro_keys: false,
         show_metro_directions: false,
+        show_highways: true,
         show_highway_keys: false,
         show_highway_directions: false,
     };
@@ -53,8 +56,11 @@ struct State {
     content: ContentState,
     current_leaf: Option<CurrentLeafState>,
     current_field: FieldType,
+    show_qtree: bool,
+    show_metros: bool,
     show_metro_keys: bool,
     show_metro_directions: bool,
+    show_highways: bool,
     show_highway_keys: bool,
     show_highway_directions: bool,
 }
@@ -281,12 +287,18 @@ fn build_menu_panel() -> impl druid::Widget<State> {
             .lens(State::current_field),
         )
         .with_default_spacer()
+        .with_child(druid::widget::Checkbox::new("Show qtree").lens(State::show_qtree))
+        .with_default_spacer()
+        .with_child(druid::widget::Checkbox::new("Show metros").lens(State::show_metros))
+        .with_default_spacer()
         .with_child(druid::widget::Checkbox::new("Show metro keys").lens(State::show_metro_keys))
         .with_default_spacer()
         .with_child(
             druid::widget::Checkbox::new("Show metro directions")
                 .lens(State::show_metro_directions),
         )
+        .with_default_spacer()
+        .with_child(druid::widget::Checkbox::new("Show highways").lens(State::show_highways))
         .with_default_spacer()
         .with_child(
             druid::widget::Checkbox::new("Show highway keys").lens(State::show_highway_keys),
@@ -339,7 +351,7 @@ struct MetroLineState {
 
 impl MetroLineState {
     fn new() -> Self {
-        MetroLineState { visible: true }
+        MetroLineState { visible: false }
     }
 }
 
@@ -650,11 +662,13 @@ impl druid::Widget<State> for Content {
             state,
             visited: 0,
         };
-        engine
-            .state
-            .qtree
-            .visit_rect(&mut qtree_visitor, &bounding_box)
-            .unwrap();
+        if state.show_qtree {
+            engine
+                .state
+                .qtree
+                .visit_rect(&mut qtree_visitor, &bounding_box)
+                .unwrap();
+        }
 
         // 5 pixel resolution
         let spline_scale = f64::max(5.0 / state.content.scale, 0.2);
@@ -662,58 +676,65 @@ impl druid::Widget<State> for Content {
         let qtree_visited = qtree_visitor.visited;
         let mut metro_total_visited = 0;
 
-        for (id, metro_line) in engine.state.metro_lines.iter().sorted() {
-            if state.metro_lines.states[id].visible {
-                let mut spline_visitor =
-                    PaintSplineVisitor::new(ctx, env, state, state.show_metro_directions);
-                metro_line
-                    .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
-                    .unwrap();
-                metro_total_visited += &spline_visitor.visited;
-
-                if state.show_metro_keys {
-                    let mut key_visitor = PaintMetroKeysVisitor { ctx, env, state };
-
+        if state.show_metros {
+            for (id, metro_line) in engine.state.metro_lines.iter().sorted() {
+                if state.metro_lines.states[id].visible {
+                    let mut spline_visitor =
+                        PaintSplineVisitor::new(ctx, env, state, state.show_metro_directions);
                     metro_line
-                        .visit_keys(&mut key_visitor, &bounding_box)
+                        .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
                         .unwrap();
+                    metro_total_visited += &spline_visitor.visited;
+
+                    if state.show_metro_keys {
+                        let mut key_visitor = PaintMetroKeysVisitor { ctx, env, state };
+
+                        metro_line
+                            .visit_keys(&mut key_visitor, &bounding_box)
+                            .unwrap();
+                    }
                 }
             }
         }
 
         let mut highway_total_visited = 0;
 
-        for (id, highway_segment) in engine.state.highways.get_segments().iter().sorted() {
-            let mut spline_visitor =
-                PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
-            highway_segment
-                .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
-                .unwrap();
-            highway_total_visited += &spline_visitor.visited;
-
-            if state.show_highway_keys {
-                let mut key_visitor = PaintHighwayKeysVisitor { ctx, env, state };
-
+        if state.show_highways {
+            for (id, highway_segment) in engine.state.highways.get_segments().iter().sorted() {
+                let mut spline_visitor =
+                    PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
                 highway_segment
-                    .visit_keys(&mut key_visitor, &bounding_box)
+                    .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
                     .unwrap();
+                highway_total_visited += &spline_visitor.visited;
 
-                // draw start and end
-                let keys = highway_segment.get_keys();
-                if let (Some(first), Some(last)) = (keys.first(), keys.last()) {
-                    use druid::RenderContext;
+                if state.show_highway_keys {
+                    let mut key_visitor = PaintHighwayKeysVisitor { ctx, env, state };
 
-                    ctx.fill(
-                        druid::kurbo::Circle::new(
-                            state.content.to_screenf((first.x, first.y)),
-                            4.0,
-                        ),
-                        &druid::Color::grey8(255),
-                    );
-                    ctx.fill(
-                        druid::kurbo::Circle::new(state.content.to_screenf((last.x, last.y)), 4.0),
-                        &druid::Color::grey8(255),
-                    );
+                    highway_segment
+                        .visit_keys(&mut key_visitor, &bounding_box)
+                        .unwrap();
+
+                    // draw start and end
+                    let keys = highway_segment.get_keys();
+                    if let (Some(first), Some(last)) = (keys.first(), keys.last()) {
+                        use druid::RenderContext;
+
+                        ctx.fill(
+                            druid::kurbo::Circle::new(
+                                state.content.to_screenf((first.x, first.y)),
+                                4.0,
+                            ),
+                            &druid::Color::grey8(255),
+                        );
+                        ctx.fill(
+                            druid::kurbo::Circle::new(
+                                state.content.to_screenf((last.x, last.y)),
+                                4.0,
+                            ),
+                            &druid::Color::grey8(255),
+                        );
+                    }
                 }
             }
         }
