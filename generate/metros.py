@@ -240,6 +240,18 @@ class Metros(Layer):
                 pt, _ = nearest_points(spline_multipoint, loc)
                 index = spline_coord_map[pt.coords[0]]
 
+                # Sometimes stops aren't actually on the line due to data errors. It's unclear which
+                # is correct (the line or the stop), but we don't have a good way of recovering, so
+                # we just ignore this stop.
+                max_stop_offset = 500 / self.map_config.engine_config["min_tile_size"]
+                if loc.distance(pt) > max_stop_offset:
+                    print(
+                        "Warning: stop is too far from line, stop: {}, distance: {}".format(
+                            stop, loc.distance(pt)
+                        )
+                    )
+                    continue
+
                 # Put stop into the correct slot between neighboring keys in the spline.
                 # TODO: This is only relevant if the stop location isn't one of the key points.
                 # For everything I've tested so far, the stop is also a key point, so this
