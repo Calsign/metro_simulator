@@ -897,7 +897,6 @@ struct PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     env: &'b druid::Env,
     state: &'f State,
 
-    last_point: Option<(f64, f64)>,
     visited: u64,
 
     draw_arrows: bool,
@@ -915,7 +914,6 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
             ctx,
             env,
             state,
-            last_point: None,
             visited: 0,
             draw_arrows,
             last_arrow: None,
@@ -928,6 +926,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
         line_width: f64,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<(), anyhow::Error> {
         use druid::RenderContext;
 
@@ -936,7 +935,12 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
             vertex.y * self.state.content.scale + self.state.content.ty,
         );
 
-        if let Some(last_point) = self.last_point {
+        if let Some(prev) = prev {
+            let last_point = (
+                prev.x * self.state.content.scale + self.state.content.tx,
+                prev.y * self.state.content.scale + self.state.content.ty,
+            );
+
             self.ctx.stroke(
                 druid::kurbo::Line::new(last_point, point),
                 color,
@@ -966,7 +970,6 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
 
         self.visited += 1;
 
-        self.last_point = Some(point);
         Ok(())
     }
 }
@@ -980,9 +983,10 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         line: &metro::MetroLine,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<(), anyhow::Error> {
         let color = druid::Color::rgb8(line.color.red, line.color.green, line.color.blue);
-        self.visit(&color, 2.0, vertex, t)
+        self.visit(&color, 2.0, vertex, t, prev)
     }
 }
 
@@ -995,8 +999,9 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         segment: &highway::HighwaySegment,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<(), anyhow::Error> {
-        self.visit(&druid::Color::grey8(204), 1.0, vertex, t)
+        self.visit(&druid::Color::grey8(204), 1.0, vertex, t, prev)
     }
 }
 

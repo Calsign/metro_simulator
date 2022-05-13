@@ -494,6 +494,7 @@ impl metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, PyErr> for PyS
         line: &metro::MetroLine,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        _prev: Option<cgmath::Vector2<f64>>,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
             let line = MetroLine::from(line.clone());

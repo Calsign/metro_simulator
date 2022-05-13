@@ -34,6 +34,7 @@ pub struct HighwaySegment {
     pub id: u64,
     pub data: HighwayData,
     keys: Vec<HighwayKey>,
+    pub bounds: quadtree::Rect,
     spline: splines::Spline<f64, HighwayKey>,
     length: f64,
     start_junction: u64,
@@ -66,6 +67,7 @@ impl HighwaySegment {
             id,
             data,
             keys: vec![],
+            bounds: quadtree::Rect::xywh(0, 0, 0, 0),
             spline: splines::Spline::from_vec(vec![]),
             length: 0.0,
             start_junction,
@@ -93,6 +95,7 @@ impl HighwaySegment {
             spline_keys.push(splines::Key::new(t, *key, splines::Interpolation::Linear));
         }
 
+        self.bounds = spline_util::compute_bounds(&keys, |key| (key.x, key.y));
         self.keys = keys;
         self.spline = splines::Spline::from_vec(spline_keys);
         self.length = t;

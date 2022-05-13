@@ -50,6 +50,7 @@ pub struct MetroLine {
     tile_size: f64,
     /// the MetroKeys defining the metro line
     keys: Vec<MetroKey>,
+    pub bounds: quadtree::Rect,
     /// this is fully determined by the keys
     #[serde(skip)]
     splines: OnceCell<Splines>,
@@ -83,6 +84,7 @@ impl MetroLine {
             name,
             tile_size,
             keys: Vec::new(),
+            bounds: quadtree::Rect::xywh(0, 0, 0, 0),
             splines: OnceCell::new(),
         }
     }
@@ -92,6 +94,9 @@ impl MetroLine {
     }
 
     pub fn set_keys(&mut self, keys: Vec<MetroKey>) {
+        self.bounds = spline_util::compute_bounds(&keys, |key| match key {
+            MetroKey::Key(vec) | MetroKey::Stop(vec, _) => (vec.x, vec.y),
+        });
         self.keys = keys;
     }
 

@@ -38,15 +38,19 @@ impl App {
 
         // TODO: don't sort every iteration!!
         for (id, metro_line) in self.engine.state.metro_lines.iter().sorted() {
-            let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
-            metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
-            self.diagnostics.metro_vertices += spline_visitor.visited;
+            if bounding_box.intersects(&metro_line.bounds) {
+                let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
+                metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
+                self.diagnostics.metro_vertices += spline_visitor.visited;
+            }
         }
 
         for (id, highway_segment) in self.engine.state.highways.get_segments().iter().sorted() {
-            let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
-            highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
-            self.diagnostics.highway_vertices += spline_visitor.visited;
+            if bounding_box.intersects(&highway_segment.bounds) {
+                let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
+                highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
+                self.diagnostics.highway_vertices += spline_visitor.visited;
+            }
         }
 
         if self.pan.scale >= 4.0 {
@@ -54,13 +58,15 @@ impl App {
             {
                 if let Some(_) = highway_junction.ramp {
                     let (x, y) = highway_junction.location;
-                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                    painter.circle(
-                        pos,
-                        self.scale_point(4.0, 2.0),
-                        egui::Color32::from_gray(255),
-                        egui::Stroke::none(),
-                    );
+                    if bounding_box.contains(x as u64, y as u64) {
+                        let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                        painter.circle(
+                            pos,
+                            self.scale_point(4.0, 2.0),
+                            egui::Color32::from_gray(255),
+                            egui::Stroke::none(),
+                        );
+                    }
                 }
             }
         }
@@ -69,24 +75,26 @@ impl App {
 
         // draw route from the query interface
         for route in &self.route_query.current_routes {
-            let mut route_visitor = DrawSplineVisitor::new(self, &painter, traffic);
-            route.visit_spline(
-                &mut route_visitor,
-                spline_scale,
-                &bounding_box,
-                &route_input,
-            )?;
-            if let Some(key) =
-                route.sample_engine_time(self.engine.time_state.current_time as f32, &route_input)
-            {
-                let (x, y) = key.position;
-                let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                painter.circle(
-                    pos,
-                    5.0,
-                    egui::Color32::from_rgb(0, 0, 255),
-                    egui::Stroke::none(),
-                );
+            if bounding_box.intersects(&route.bounds) {
+                let mut route_visitor = DrawSplineVisitor::new(self, &painter, traffic);
+                route.visit_spline(
+                    &mut route_visitor,
+                    spline_scale,
+                    &bounding_box,
+                    &route_input,
+                )?;
+                if let Some(key) = route
+                    .sample_engine_time(self.engine.time_state.current_time as f32, &route_input)
+                {
+                    let (x, y) = key.position;
+                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                    painter.circle(
+                        pos,
+                        5.0,
+                        egui::Color32::from_rgb(0, 0, 255),
+                        egui::Stroke::none(),
+                    );
+                }
             }
         }
 
@@ -349,7 +357,6 @@ struct DrawSplineVisitor<'a, 'b, 'c> {
 
     traffic: Option<&'c route::WorldState>,
 
-    last_point: Option<(f32, f32)>,
     visited: u64,
 }
 
@@ -363,7 +370,6 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
             app,
             painter,
             traffic,
-            last_point: None,
             visited: 0,
         }
     }
@@ -375,6 +381,7 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
         traffic: Option<u64>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
         let point = self
             .app
@@ -391,12 +398,12 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
             None => (*color, line_width),
         };
 
-        if let Some(last_point) = self.last_point {
+        if let Some(prev) = prev {
+            let prev_point = self.app.pan.to_screen_ff((prev.x as f32, prev.y as f32));
             self.painter
-                .line_segment([last_point.into(), point.into()], (line_width, color));
+                .line_segment([prev_point.into(), point.into()], (line_width, color));
         }
         self.visited += 1;
-        self.last_point = Some(point);
 
         Ok(())
     }
@@ -410,9 +417,10 @@ impl<'a, 'b, 'c> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, an
         line: &metro::MetroLine,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
         let color = egui::Color32::from_rgb(line.color.red, line.color.green, line.color.blue);
-        self.visit(&color, 2.0, None, vertex, t)
+        self.visit(&color, 2.0, None, vertex, t, prev)
     }
 }
 
@@ -425,6 +433,7 @@ impl<'a, 'b, 'c>
         segment: &highway::HighwaySegment,
         vertex: cgmath::Vector2<f64>,
         t: f64,
+        prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
         self.visit(
             &egui::Color32::from_gray(204),
@@ -433,6 +442,7 @@ impl<'a, 'b, 'c>
                 .map(|t| t.get_highway_segment_travelers(segment.id)),
             vertex,
             t,
+            prev,
         )
     }
 }
@@ -440,7 +450,13 @@ impl<'a, 'b, 'c>
 impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Error>
     for DrawSplineVisitor<'a, 'b, 'c>
 {
-    fn visit(&mut self, route: &route::Route, key: route::RouteKey, t: f64) -> Result<()> {
+    fn visit(
+        &mut self,
+        route: &route::Route,
+        key: route::RouteKey,
+        t: f64,
+        prev: Option<route::RouteKey>,
+    ) -> Result<()> {
         let (x, y) = key.position.into();
         self.visit(
             &egui::Color32::from_rgb(0, 0, 255),
@@ -448,6 +464,10 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
             None,
             (x as f64, y as f64).into(),
             t,
+            prev.map(|prev| {
+                let (x, y) = prev.position.into();
+                (x as f64, y as f64).into()
+            }),
         )
     }
 }

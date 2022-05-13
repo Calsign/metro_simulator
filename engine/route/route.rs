@@ -110,7 +110,7 @@ fn f64p_f32p((x, y): (f64, f64)) -> (f32, f32) {
 impl Route {
     pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f32, query_input: QueryInput) -> Self {
         Self {
-            bounds: Self::compute_bounds(&nodes),
+            bounds: spline_util::compute_bounds(&nodes, |node| node.location()),
             nodes,
             edges,
             cost,
@@ -118,26 +118,6 @@ impl Route {
             time_spline: OnceCell::new(),
             dist_spline: OnceCell::new(),
         }
-    }
-
-    fn compute_bounds(nodes: &Vec<Node>) -> quadtree::Rect {
-        let mut bounds = quadtree::Rect {
-            min_x: u64::MAX,
-            max_x: u64::MIN,
-            min_y: u64::MAX,
-            max_y: u64::MIN,
-        };
-
-        for node in nodes {
-            let (xf, yf) = node.location();
-            let (x, y) = (xf as u64, yf as u64);
-            bounds.min_x = u64::min(bounds.min_x, x);
-            bounds.max_x = u64::max(bounds.max_x, x);
-            bounds.min_y = u64::min(bounds.min_y, y);
-            bounds.max_y = u64::max(bounds.max_y, y);
-        }
-
-        bounds
     }
 
     /**
