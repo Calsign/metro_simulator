@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::junction::{HighwayJunction, RampDirection};
 use crate::segment::{HighwayData, HighwayKey, HighwaySegment};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Highways {
-    junctions: HashMap<u64, HighwayJunction>,
-    segments: HashMap<u64, HighwaySegment>,
+    junctions: BTreeMap<u64, HighwayJunction>,
+    segments: BTreeMap<u64, HighwaySegment>,
     junction_counter: u64,
     segment_counter: u64,
 }
@@ -15,8 +15,8 @@ pub struct Highways {
 impl Highways {
     pub fn new() -> Self {
         Self {
-            junctions: HashMap::new(),
-            segments: HashMap::new(),
+            junctions: BTreeMap::new(),
+            segments: BTreeMap::new(),
             junction_counter: 0,
             segment_counter: 0,
         }
@@ -96,11 +96,11 @@ impl Highways {
             .expect("missing end junction")
     }
 
-    pub fn get_junctions(&self) -> &HashMap<u64, HighwayJunction> {
+    pub fn get_junctions(&self) -> &BTreeMap<u64, HighwayJunction> {
         &self.junctions
     }
 
-    pub fn get_segments(&self) -> &HashMap<u64, HighwaySegment> {
+    pub fn get_segments(&self) -> &BTreeMap<u64, HighwaySegment> {
         &self.segments
     }
 

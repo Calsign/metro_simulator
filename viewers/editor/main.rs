@@ -400,8 +400,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
 
         let engine = self.engine.lock().unwrap();
 
-        // NOTE: sorted because HashMap doesn't have a sorted guarantee
-        for (i, (id, metro_line)) in engine.state.metro_lines.iter().sorted().enumerate() {
+        for (i, (id, metro_line)) in engine.state.metro_lines.iter().enumerate() {
             // TODO: this clone is disgusting
             let data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&data, i);
@@ -413,8 +412,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
 
         let mut engine = self.engine.lock().unwrap();
 
-        // NOTE: sorted because HashMap doesn't have a sorted guarantee
-        for (i, (id, metro_line)) in engine.state.metro_lines.iter_mut().sorted().enumerate() {
+        for (i, (id, metro_line)) in engine.state.metro_lines.iter_mut().enumerate() {
             // TODO: this double clone is even more disgusting
             let mut data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&mut data, i);

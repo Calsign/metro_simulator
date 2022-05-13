@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::iter::Zip;
 use std::slice::Iter;
 
@@ -97,7 +97,7 @@ pub struct Route {
  * used to construct the base graph from which this route was derived.
  */
 pub struct SplineConstructionInput<'a, 'b, 'c> {
-    pub metro_lines: &'a HashMap<u64, MetroLine>,
+    pub metro_lines: &'a BTreeMap<u64, MetroLine>,
     pub highways: &'b Highways,
     pub state: &'c WorldState,
     pub tile_size: f64,

@@ -36,8 +36,7 @@ impl App {
         self.diagnostics.highway_vertices = 0;
         self.diagnostics.agents = 0;
 
-        // TODO: don't sort every iteration!!
-        for (id, metro_line) in self.engine.state.metro_lines.iter().sorted() {
+        for (id, metro_line) in &self.engine.state.metro_lines {
             if bounding_box.intersects(&metro_line.bounds) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
@@ -45,7 +44,7 @@ impl App {
             }
         }
 
-        for (id, highway_segment) in self.engine.state.highways.get_segments().iter().sorted() {
+        for (id, highway_segment) in self.engine.state.highways.get_segments() {
             if bounding_box.intersects(&highway_segment.bounds) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
@@ -54,8 +53,7 @@ impl App {
         }
 
         if self.pan.scale >= 4.0 {
-            for (id, highway_junction) in self.engine.state.highways.get_junctions().iter().sorted()
-            {
+            for (id, highway_junction) in self.engine.state.highways.get_junctions() {
                 if let Some(_) = highway_junction.ramp {
                     let (x, y) = highway_junction.location;
                     if bounding_box.contains(x as u64, y as u64) {

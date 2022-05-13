@@ -1,6 +1,6 @@
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use crate::config::Config;
 
@@ -60,7 +60,7 @@ pub enum SerdeFormat {
 pub struct State {
     pub config: Config,
     pub qtree: Quadtree<BranchState, LeafState>,
-    pub metro_lines: HashMap<u64, metro::MetroLine>,
+    pub metro_lines: BTreeMap<u64, metro::MetroLine>,
     metro_line_counter: u64,
     pub highways: highway::Highways,
     #[serde(skip)]
@@ -73,7 +73,7 @@ impl State {
         Self {
             config,
             qtree,
-            metro_lines: HashMap::new(),
+            metro_lines: BTreeMap::new(),
             metro_line_counter: 0,
             highways: highway::Highways::new(),
             collect_tiles: CollectTilesVisitor::default(),
