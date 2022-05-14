@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from shapely.geometry import Point
 
+from generate.common import parse_speed
 from generate.data import MapConfig
 from generate.layer import Layer, Tile
 from generate.quadtree import Quadtree, ConvolveData
@@ -65,15 +66,7 @@ def parse_speed_limit(tags: T.Dict[str, str]) -> T.Optional[int]:
         return None
 
     try:
-        if maxspeed.endswith(" mph"):
-            kph = float(maxspeed[:-4]) * 1.61
-        else:
-            kph = float(maxspeed)
-
-        if kph > 0:
-            return round(kph / 3.6)
-        else:
-            raise ValueError()
+        return parse_speed(maxspeed)
     except ValueError:
         print("Warning: failed to parse maxspeed '{}'".format(maxspeed))
         return None

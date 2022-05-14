@@ -9,6 +9,7 @@ from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import nearest_points
 from matplotlib.colors import to_rgba
 
+from generate.common import parse_speed
 from generate.data import MapConfig
 from generate.layer import Layer, Tile
 from generate.quadtree import Quadtree, ConvolveData
@@ -126,6 +127,7 @@ class MetroLine:
     id: int
     name: str
     color: T.Tuple[int, int, int]
+    speed_limit: int
     keys: T.List[MetroKeyBase]
     stations: T.List[Station]
 
@@ -141,6 +143,15 @@ class Metros(Layer):
     @cached_property
     def max_dim(self) -> int:
         return 2**self.max_depth
+
+    @cached_property
+    def speed_limits(self) -> T.Dict[str, int]:
+        return {
+            network: parse_speed(speed_limit)
+            for network, speed_limit in self.get_dataset()["data"][
+                "subway_speeds"
+            ].items()
+        }
 
     @cached_property
     def metro_lines_stations(self) -> T.Tuple[T.List[MetroLine], T.List[Station]]:
@@ -291,8 +302,17 @@ class Metros(Layer):
 
             # only add line if it has some in-bounds data
             if len(keys) > 0:
+                network = route.tags["network"]
+                if network not in self.speed_limits:
+                    raise Exception(
+                        "Missing speed limit for metro network {}".format(network)
+                    )
+                speed_limit = self.speed_limits[network]
+
                 metro_lines.append(
-                    MetroLine(route.id, name, parsed_color, keys, line_stations)
+                    MetroLine(
+                        route.id, name, parsed_color, speed_limit, keys, line_stations
+                    )
                 )
 
         return (metro_lines, stations)
@@ -338,6 +358,7 @@ class Metros(Layer):
             line_id = state.add_metro_line(
                 metro_line.name,
                 metro_line.color,
+                metro_line.speed_limit,
                 [k.to_engine() for k in metro_line.keys],
             )
 

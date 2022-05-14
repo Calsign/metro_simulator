@@ -11,3 +11,15 @@ def random(seed):
     import random
 
     return random.Random(seed)
+
+
+def parse_speed(speed: str) -> int:
+    if speed.endswith(" mph"):
+        kph = float(speed[:-4]) * 1.61
+    else:
+        kph = float(speed)
+
+    if kph > 0:
+        return round(kph / 3.6)
+    else:
+        raise ValueError()

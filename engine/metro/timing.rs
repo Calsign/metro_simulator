@@ -2,8 +2,6 @@ use cgmath as cg;
 
 use crate::types;
 
-// 70 mph, maximum speed of BART
-pub const MAX_SPEED: f64 = 31.0;
 // recommended by https://link.springer.com/article/10.1007/s40864-015-0012-y
 pub const MAX_ACCEL: f64 = 1.5;
 // time that a train waits at a station
@@ -106,7 +104,7 @@ impl PartialOrd for SqrtPair {
 /**
  * Convert each metro key into a speed bound, a SqrtPair.
  */
-pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64) -> Vec<SqrtPair> {
+pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64) -> Vec<SqrtPair> {
     use cg::Angle;
     use cg::InnerSpace;
     use cg::MetricSpace;
@@ -136,7 +134,7 @@ pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64) -> Vec<SqrtPair
                 let angle_diff = (key.vec(tile_size) - prev_key.vec(tile_size))
                     .angle(next_key.vec(tile_size) - key.vec(tile_size));
                 // NOTE: approximation
-                let top_speed = MAX_SPEED * (1.0 - angle_diff.sin().abs());
+                let top_speed = max_speed * (1.0 - angle_diff.sin().abs());
                 assert!(
                     top_speed > 0.0,
                     "turns must be less than 90 degrees: {:?} => {:?} => {:?}, angle: {:?}",
@@ -225,7 +223,7 @@ pub struct SpeedKey {
  * Converts from a sequence of SqrtPairs in speed-distance space to a
  * sequence of SpeedKeys in speed-time space.
  */
-fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>) -> Vec<SpeedKey> {
+fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>, max_speed: f64) -> Vec<SpeedKey> {
     use itertools::Itertools;
 
     let mut speed_keys = Vec::new();
@@ -254,21 +252,21 @@ fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>) -> Vec<SpeedKey> {
             });
         }
 
-        if intersection.b > MAX_SPEED {
-            let (_, l_int) = left.intersect_bound(MAX_SPEED).unwrap();
-            let (r_int, _) = right.intersect_bound(MAX_SPEED).unwrap();
+        if intersection.b > max_speed {
+            let (_, l_int) = left.intersect_bound(max_speed).unwrap();
+            let (r_int, _) = right.intersect_bound(max_speed).unwrap();
             // t += (l_int - left.t) / left.average_speed(l_int);
             t += left.travel_time(l_int);
             speed_keys.push(SpeedKey {
                 station: None,
                 t,
-                v: MAX_SPEED,
+                v: max_speed,
             });
-            t += (r_int - l_int) / MAX_SPEED;
+            t += (r_int - l_int) / max_speed;
             speed_keys.push(SpeedKey {
                 station: None,
                 t,
-                v: MAX_SPEED,
+                v: max_speed,
             });
             t += right.travel_time(r_int);
             speed_keys.push(SpeedKey {
@@ -349,15 +347,15 @@ fn distance_spline(speed_keys: &Vec<SpeedKey>) -> Vec<splines::Key<f64, f64>> {
     dist_keys
 }
 
-pub fn speed_keys(keys: &Vec<types::MetroKey>, tile_size: f64) -> Vec<SpeedKey> {
+pub fn speed_keys(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64) -> Vec<SpeedKey> {
     // convert each key into a speed bound
-    let speed_bounds = speed_bounds(keys, tile_size);
+    let speed_bounds = speed_bounds(keys, tile_size, max_speed);
 
     // identify the minima in the speed bound partial order; only these turn into keys in the final speed curve
     let minima = sqrt_pair_minima(speed_bounds);
 
     // rectify from speed-distance space to distance-time space
-    time_rectify(minima)
+    time_rectify(minima, max_speed)
 }
 
 pub fn timetable(speed_keys: &Vec<SpeedKey>) -> Vec<(types::Station, f64)> {

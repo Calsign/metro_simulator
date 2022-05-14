@@ -150,7 +150,7 @@ def _preprocess():
 
 def _get_deps(latitude, longitude, states = None):
     if states == None:
-        fail("Must specify states using census_lodes.states")
+        fail("Must specify states using census_lodes.construct")
 
     deps = []
 
@@ -161,7 +161,7 @@ def _get_deps(latitude, longitude, states = None):
 
     return deps
 
-def _states(states):
+def _construct(states):
     def get_deps(latitude, longitude):
         return _get_deps(latitude, longitude, states)
 
@@ -169,7 +169,7 @@ def _states(states):
         workspace_deps = census_lodes.workspace_deps,
         get_deps = get_deps,
         data = census_lodes.data,
-        states = census_lodes.states,
+        construct = census_lodes.construct,
     )
 
 census_lodes = struct(
@@ -180,5 +180,5 @@ census_lodes = struct(
         "type": "lodes",
         "downsample": 3,
     },
-    states = _states,
+    construct = _construct,
 )

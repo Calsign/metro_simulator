@@ -123,6 +123,7 @@ impl State {
         &mut self,
         name: String,
         color: Option<metro::Color>,
+        speed_limit: u32,
         keys: Option<Vec<metro::MetroKey>>,
     ) -> u64 {
         let id = self.metro_line_counter;
@@ -133,8 +134,13 @@ impl State {
             None => metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into(),
         };
 
-        let mut metro_line =
-            metro::MetroLine::new(id, color, name, self.config.min_tile_size as f64);
+        let mut metro_line = metro::MetroLine::new(
+            id,
+            color,
+            speed_limit,
+            name,
+            self.config.min_tile_size as f64,
+        );
 
         if let Some(keys) = keys {
             metro_line.set_keys(keys);

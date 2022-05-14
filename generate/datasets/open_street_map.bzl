@@ -99,19 +99,22 @@ def _preprocess():
 
 def _get_deps(latitude, longitude, regions = None):
     if regions == None:
-        fail("Must specify regions with open_street_map.regions")
+        fail("Must specify regions with open_street_map.construct")
 
     return ["//generate/datasets:{}".format(_build_name(region)) for region in regions]
 
-def _regions(regions):
+def _construct(regions, subway_speeds = {}):
     def get_deps(latitude, longitude):
         return _get_deps(latitude, longitude, regions)
+
+    data = {k: v for k, v in open_street_map.data.items()}
+    data["subway_speeds"] = subway_speeds
 
     return struct(
         workspace_deps = open_street_map.workspace_deps,
         get_deps = get_deps,
-        data = open_street_map.data,
-        regions = open_street_map.regions,
+        data = data,
+        construct = open_street_map.construct,
     )
 
 open_street_map = struct(
@@ -122,5 +125,5 @@ open_street_map = struct(
         "type": "open_street_map",
         "downsample": 3,
     },
-    regions = _regions,
+    construct = _construct,
 )

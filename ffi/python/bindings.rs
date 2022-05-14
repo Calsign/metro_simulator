@@ -196,11 +196,13 @@ impl Engine {
         &mut self,
         name: String,
         color: Option<(u8, u8, u8)>,
+        speed_limit: u32,
         keys: Option<Vec<pyo3::PyRef<MetroKey>>>,
     ) -> u64 {
         self.engine.state.add_metro_line(
             name,
             color.map(|c| c.into()),
+            speed_limit,
             keys.map(|v| v.iter().map(|k| k.key.clone()).collect()),
         )
     }

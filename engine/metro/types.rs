@@ -46,6 +46,7 @@ pub struct Splines {
 pub struct MetroLine {
     pub id: u64,
     pub color: color::Color,
+    pub speed_limit: u32,
     pub name: String,
     tile_size: f64,
     /// the MetroKeys defining the metro line
@@ -77,10 +78,17 @@ impl PartialOrd for MetroLine {
 }
 
 impl MetroLine {
-    pub fn new(id: u64, color: color::Color, name: String, tile_size: f64) -> Self {
+    pub fn new(
+        id: u64,
+        color: color::Color,
+        speed_limit: u32,
+        name: String,
+        tile_size: f64,
+    ) -> Self {
         Self {
             id,
             color,
+            speed_limit,
             name,
             tile_size,
             keys: Vec::new(),
@@ -124,7 +132,8 @@ impl MetroLine {
             }
         }
 
-        let speed_keys = crate::timing::speed_keys(&self.keys, self.tile_size);
+        let speed_keys =
+            crate::timing::speed_keys(&self.keys, self.tile_size, self.speed_limit as f64);
         let dist_spline = crate::timing::dist_spline(&speed_keys);
         let timetable = crate::timing::timetable(&speed_keys);
 

@@ -52,6 +52,7 @@ fn main() {
     let speed_keys = metro::timing::speed_keys(
         metro_line.get_keys(),
         engine.state.config.min_tile_size as f64,
+        metro_line.speed_limit as f64,
     );
 
     match args.operation {
@@ -72,6 +73,7 @@ fn main() {
             let speed_bounds = metro::timing::speed_bounds(
                 metro_line.get_keys(),
                 engine.state.config.min_tile_size as f64,
+                metro_line.speed_limit as f64,
             );
             plot(
                 &speed_bounds

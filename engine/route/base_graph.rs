@@ -143,7 +143,11 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
 
         let mut stop_map = HashMap::new();
 
-        let speed_keys = metro::timing::speed_keys(metro_line.get_keys(), tile_size);
+        let speed_keys = metro::timing::speed_keys(
+            metro_line.get_keys(),
+            tile_size,
+            metro_line.speed_limit as f64,
+        );
         let timetable = metro::timing::timetable(&speed_keys);
         for (station, _) in timetable.iter() {
             let station_id = *station_map
