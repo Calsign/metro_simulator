@@ -1,0 +1,12 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "simulation_timer",
+    srcs = ["simulation_timer.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+        "//engine/route",
+        "@crates//:uom",
+    ],
+)
