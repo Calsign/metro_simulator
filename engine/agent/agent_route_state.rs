@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+use uom::si::time::minute;
+use uom::si::u64::Time;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum AgentRoutePhase {
     InProgress {
@@ -45,7 +48,7 @@ impl AgentRouteState {
                     AgentRoutePhase::InProgress {
                         current_edge: 0,
                         current_edge_start: 0.0,
-                        current_edge_total: first.cost(world_state) as f32,
+                        current_edge_total: first.cost(world_state, state) as f32,
                         current_mode: route.start_mode,
                     }
                 }
@@ -67,7 +70,8 @@ impl AgentRouteState {
                 current_edge_total,
                 current_mode,
             } => {
-                world_state.decrement_edge(&self.route.edges[current_edge as usize], state);
+                let old_edge = &self.route.edges[current_edge as usize];
+                world_state.decrement_edge(old_edge, state);
 
                 let new_edge_index = current_edge + 1;
                 self.phase = if new_edge_index as usize == self.route.edges.len() {
@@ -76,13 +80,34 @@ impl AgentRouteState {
                     }
                 } else {
                     let new_edge = &self.route.edges[new_edge_index as usize];
-                    world_state.increment_edge(new_edge, state);
 
-                    AgentRoutePhase::InProgress {
-                        current_edge: new_edge_index,
-                        current_edge_start: current_edge_start + current_edge_total,
-                        current_edge_total: new_edge.cost(world_state) as f32,
-                        current_mode: new_edge.mode_transition().unwrap_or(current_mode),
+                    if new_edge.is_jammed(world_state, state) {
+                        // the next edge is jammed, so we can't advance!
+                        world_state.increment_edge(old_edge, state);
+
+                        // wait five minutes before trying to advance
+                        // TODO: would be better to wait precisely until the first car leaves the
+                        // next edge
+                        let wait = Time::new::<minute>(5).value as f32;
+
+                        AgentRoutePhase::InProgress {
+                            current_edge,
+                            current_edge_start,
+                            current_edge_total: current_edge_total + wait,
+                            current_mode,
+                        }
+                    } else {
+                        world_state.increment_edge(new_edge, state);
+
+                        let cost = new_edge.cost(world_state, state) as f32;
+                        assert!(cost >= 0.0);
+
+                        AgentRoutePhase::InProgress {
+                            current_edge: new_edge_index,
+                            current_edge_start: current_edge_start + current_edge_total,
+                            current_edge_total: cost,
+                            current_mode: new_edge.mode_transition().unwrap_or(current_mode),
+                        }
                     }
                 };
             }
@@ -102,7 +127,9 @@ impl AgentRouteState {
                 ..
             } => {
                 // NOTE: trigger at the first second after the end of this segment
-                Some(self.start_time + (current_edge_start + current_edge_total).ceil() as u64)
+                let extra_time = (current_edge_start + current_edge_total).ceil() as u64;
+                assert!(extra_time >= 0);
+                Some(self.start_time + extra_time)
             }
             AgentRoutePhase::Finished { .. } => None,
         }

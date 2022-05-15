@@ -58,9 +58,9 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn update_weights(&mut self, state: &WorldState) {
+    pub fn update_weights(&mut self, world_state: &WorldState, state: &state::State) {
         #[cfg(feature = "fast_paths")]
-        self.graph.update_weights(state);
+        self.graph.update_weights(world_state, state);
     }
 }
 
@@ -280,7 +280,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
             Edge::Highway {
                 segment: segment.id,
                 data: segment.data.clone(),
-                time: highway::timing::travel_time(segment, tile_size),
+                time: segment.travel_time(tile_size),
             },
         );
 

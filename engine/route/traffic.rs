@@ -6,7 +6,7 @@ use crate::edge::Edge;
 use crate::node::Node;
 use crate::route::Route;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct WorldState {
     /// map from highway segment IDs to number of travelers
@@ -18,7 +18,10 @@ pub struct WorldState {
 
 impl WorldState {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            highway_segments: HashMap::new(),
+            metro_segments: HashMap::new(),
+        }
     }
 
     fn edge_entry(&mut self, edge: &Edge, state: &state::State) -> Option<&mut u64> {

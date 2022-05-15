@@ -1,7 +1,7 @@
 mod highways;
 mod junction;
 mod segment;
-pub mod timing;
+mod timing;
 
 pub use highways::Highways;
 pub use junction::{HighwayJunction, RampDirection};

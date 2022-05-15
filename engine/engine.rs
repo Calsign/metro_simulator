@@ -182,7 +182,7 @@ impl Engine {
         self.base_route_graph
             .as_mut()
             .unwrap()
-            .update_weights(predicted_state);
+            .update_weights(predicted_state, &self.state);
     }
 
     /**

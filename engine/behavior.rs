@@ -5,7 +5,7 @@ use uom::si::u64::Time;
 use crate::engine::Engine;
 
 #[enum_dispatch::enum_dispatch]
-pub trait TriggerType: PartialEq + Eq + PartialOrd + Ord {
+pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
     fn execute(self, state: &mut Engine, time: u64);
 }
 
@@ -149,6 +149,13 @@ pub struct AgentRouteStart {
 impl TriggerType for AgentRouteStart {
     fn execute(self, engine: &mut Engine, time: u64) {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
+
+        if let agent::AgentState::Route(_) = agent.state {
+            // the agent hasn't finished their previous route yet.
+            // looks like they're sleeping at the office!
+            return;
+        }
+
         let route_state = agent::AgentRouteState::new(
             *self.route,
             engine.time_state.current_time,
@@ -179,6 +186,7 @@ impl TriggerType for AgentRouteAdvance {
                 route_state.advance(&mut engine.route_state, &engine.state);
                 match route_state.next_trigger() {
                     Some(next_trigger) => {
+                        assert!(next_trigger >= engine.time_state.current_time);
                         engine.trigger_queue.push(self, next_trigger);
                     }
                     None => {

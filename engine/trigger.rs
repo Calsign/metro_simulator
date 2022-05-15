@@ -54,9 +54,16 @@ impl TriggerQueue {
      * The trigger time must be after the current time.
      */
     pub fn push<T: Into<Trigger>>(&mut self, trigger: T, time: u64) {
-        assert!(time >= self.current_time);
+        let trigger = trigger.into();
+        assert!(
+            time >= self.current_time,
+            "time: {}, current time: {}, trigger: {:?}",
+            time,
+            self.current_time,
+            trigger
+        );
         self.heap.push(TriggerEntry {
-            trigger: trigger.into(),
+            trigger: trigger,
             time,
         });
     }

@@ -62,7 +62,10 @@ impl Edge {
             MetroEmbark {
                 metro_line,
                 station,
-            } => EMBARK_TIME,
+            } => {
+                // TODO: return average waiting time based on metro schedules
+                EMBARK_TIME
+            }
             MetroDisembark {
                 metro_line,
                 station,
@@ -78,7 +81,7 @@ impl Edge {
     /**
      * The time to traverse this edge under the congestion conditions given by the world state.
      */
-    pub fn cost(&self, world_state: &WorldState) -> f64 {
+    pub fn cost(&self, world_state: &WorldState, state: &state::State) -> f64 {
         use Edge::*;
         let cost = match self {
             MetroSegment { time, .. } => *time,
@@ -93,7 +96,22 @@ impl Edge {
                 metro_line,
                 station,
             } => 0.0,
-            Highway { time, .. } => *time,
+            Highway {
+                segment: segment_id,
+                ..
+            } => {
+                let travelers = world_state.get_highway_segment_travelers(*segment_id);
+                let segment = state
+                    .highways
+                    .get_segment(*segment_id)
+                    .expect("missing highway segment");
+
+                segment.congested_travel_time(
+                    state.config.min_tile_size,
+                    state.config.people_per_sim,
+                    travelers as u32,
+                )
+            }
             HighwayRamp { .. } => RAMP_TIME,
             ModeSegment { mode, distance } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
@@ -179,6 +197,27 @@ impl Edge {
         match self {
             Edge::ModeTransition { to, .. } => Some(*to),
             _ => None,
+        }
+    }
+
+    pub fn is_jammed(&self, world_state: &WorldState, state: &state::State) -> bool {
+        match self {
+            Edge::Highway {
+                segment: segment_id,
+                ..
+            } => {
+                let travelers = world_state.get_highway_segment_travelers(*segment_id);
+                let segment = state
+                    .highways
+                    .get_segment(*segment_id)
+                    .expect("missing highway segment");
+                segment.is_jammed(
+                    state.config.min_tile_size,
+                    state.config.people_per_sim,
+                    travelers as u32,
+                )
+            }
+            _ => false,
         }
     }
 }

@@ -36,14 +36,6 @@ impl App {
         self.diagnostics.highway_vertices = 0;
         self.diagnostics.agents = 0;
 
-        for (id, metro_line) in &self.engine.state.metro_lines {
-            if bounding_box.intersects(&metro_line.bounds) {
-                let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
-                metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
-                self.diagnostics.metro_vertices += spline_visitor.visited;
-            }
-        }
-
         for (id, highway_segment) in self.engine.state.highways.get_segments() {
             if bounding_box.intersects(&highway_segment.bounds) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
@@ -66,6 +58,14 @@ impl App {
                         );
                     }
                 }
+            }
+        }
+
+        for (id, metro_line) in &self.engine.state.metro_lines {
+            if bounding_box.intersects(&metro_line.bounds) {
+                let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
+                metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
+                self.diagnostics.metro_vertices += spline_visitor.visited;
             }
         }
 
@@ -361,7 +361,7 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
         &mut self,
         color: &egui::Color32,
         line_width: f32,
-        traffic: Option<u64>,
+        traffic_factor: Option<f64>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
@@ -371,12 +371,13 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
             .pan
             .to_screen_ff((vertex.x as f32, vertex.y as f32));
 
-        let (color, line_width) = match traffic {
-            Some(traffic) => {
-                let scaled = ((traffic as f32).log2() / 12.0).min(1.0);
-                let hue = (2.0 + scaled) / 3.0;
-                let color = egui::color::Hsva::new(hue, 1.0, 1.0, 1.0).into();
-                (color, 3.0)
+        let (color, line_width) = match traffic_factor {
+            Some(traffic_factor) => {
+                let scaled = (traffic_factor - 1.0).min(5.0) / 5.0;
+                let hue = 1.0 / 3.0 - (scaled * 1.0 / 3.0);
+                let color = egui::color::Hsva::new(hue as f32, 1.0, 1.0, 1.0).into();
+                let line_width_factor = 2.0 + 2.0 * scaled as f32;
+                (color, line_width * line_width_factor)
             }
             None => (*color, line_width),
         };
@@ -402,7 +403,14 @@ impl<'a, 'b, 'c> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, an
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
-        let color = egui::Color32::from_rgb(line.color.red, line.color.green, line.color.blue);
+        let color = match self.traffic {
+            None => egui::Color32::from_rgb(line.color.red, line.color.green, line.color.blue),
+            Some(_) => {
+                // when we're drawing traffic, make all metro lines white so that we can distinguish
+                // traffic colors from metro line colors
+                egui::Color32::from_gray(255)
+            }
+        };
         self.visit(&color, 2.0, None, vertex, t, prev)
     }
 }
@@ -421,8 +429,13 @@ impl<'a, 'b, 'c>
         self.visit(
             &egui::Color32::from_gray(204),
             1.0,
-            self.traffic
-                .map(|t| t.get_highway_segment_travelers(segment.id)),
+            self.traffic.map(|t| {
+                segment.congested_travel_factor(
+                    self.app.engine.state.config.min_tile_size,
+                    self.app.engine.state.config.people_per_sim,
+                    t.get_highway_segment_travelers(segment.id) as u32,
+                )
+            }),
             vertex,
             t,
             prev,
