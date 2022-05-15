@@ -186,12 +186,7 @@ impl App {
                 } else {
                     None
                 };
-                match self.engine.query_route(
-                    start,
-                    stop,
-                    car_config,
-                    self.engine.time_state.current_time,
-                ) {
+                match self.engine.query_route(start, stop, car_config) {
                     Ok(Some(route)) => self.route_query.current_routes = vec![route],
                     Ok(None) => (),
                     Err(err) => eprintln!("Error querying route: {}", err),

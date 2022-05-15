@@ -30,7 +30,7 @@ impl App {
             0.2,
         );
 
-        let traffic = self.overlay.traffic.then(|| self.engine.get_route_state());
+        let traffic = self.overlay.traffic.then(|| &self.engine.route_state);
 
         self.diagnostics.metro_vertices = 0;
         self.diagnostics.highway_vertices = 0;
@@ -69,8 +69,6 @@ impl App {
             }
         }
 
-        let route_input = &self.engine.get_spline_construction_input();
-
         // draw route from the query interface
         for route in &self.route_query.current_routes {
             if bounding_box.intersects(&route.bounds) {
@@ -79,20 +77,8 @@ impl App {
                     &mut route_visitor,
                     spline_scale,
                     &bounding_box,
-                    &route_input,
+                    &self.engine.state,
                 )?;
-                if let Some(key) = route
-                    .sample_engine_time(self.engine.time_state.current_time as f32, &route_input)
-                {
-                    let (x, y) = key.position;
-                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
-                    painter.circle(
-                        pos,
-                        5.0,
-                        egui::Color32::from_rgb(0, 0, 255),
-                        egui::Stroke::none(),
-                    );
-                }
             }
         }
 
@@ -100,14 +86,13 @@ impl App {
         // sufficiently far
         if self.engine.time_state.should_render_motion() && self.pan.scale >= 2.0 {
             for agent in self.engine.agents.values() {
-                if let agent::AgentState::Route(route) = &agent.state {
+                if let agent::AgentState::Route(route_state) = &agent.state {
                     // NOTE: this draws a lot more than needed, but it also avoids computing the
                     // time spline for each route unless necessary
-                    if bounding_box.intersects(&route.bounds) {
-                        if let Some(key) = route.sample_engine_time(
-                            self.engine.time_state.current_time as f32,
-                            &route_input,
-                        ) {
+                    if bounding_box.intersects(&route_state.route.bounds) {
+                        if let Some(key) = route_state
+                            .sample(self.engine.time_state.current_time, &self.engine.state)
+                        {
                             let (x, y) = key.position;
                             let pos = egui::Pos2::from(self.pan.to_screen_ff((x, y)));
                             painter.circle(

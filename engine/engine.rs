@@ -28,8 +28,8 @@ pub enum Error {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
     pub state: state::State,
-    #[serde(skip)]
-    route_state: route::WorldState,
+    // TODO: re-create this from active routes instead of (de)serializing it
+    pub route_state: route::WorldState,
     #[serde(skip)]
     base_route_graph: Option<route::Graph>,
     pub time_state: TimeState,
@@ -139,27 +139,16 @@ impl Engine {
         self.construct_base_route_graph_filter(None, None)
     }
 
-    pub fn get_base_route_graph(&mut self) -> &mut route::Graph {
-        // TODO: invalidate base graph when metros/highways change
-        // also want to have separate instances per thread
-        if let None = &self.base_route_graph {
-            self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
-        }
-        self.base_route_graph.as_mut().unwrap()
-    }
-
     pub fn query_route(
         &mut self,
         start: quadtree::Address,
         end: quadtree::Address,
         car_config: Option<route::CarConfig>,
-        start_time: u64,
     ) -> Result<Option<route::Route>, Error> {
         let query_input = route::QueryInput {
             start,
             end,
             car_config,
-            start_time,
         };
 
         // TODO: borrowing issues, de-duplicate these
@@ -177,47 +166,23 @@ impl Engine {
         )?)
     }
 
-    fn construct_route_state(&self) -> route::WorldState {
-        route::WorldState::from_routes(self.agents.values().filter_map(
-            |agent| match &agent.state {
-                agent::AgentState::Route(route) => Some(route),
-                _ => None,
-            },
-        ))
-    }
-
     /**
-     * Re-compute the current route state. This should be called periodically.
+     * Re-compute the weights on the fast graph used for querying routes.
+     * This makes newly computed routes use the predicted traffic conditions.
+     * Horizon is how far in the future we should try to predict.
      */
-    pub fn update_route_state(&mut self) {
-        let route_state = self.construct_route_state();
-        // TODO: only do this lazily?
-        self.get_base_route_graph().update_weights(&route_state);
-        self.route_state = route_state;
-    }
-
-    /**
-     * Returns the current route state.
-     */
-    pub fn get_route_state(&self) -> &route::WorldState {
-        &self.route_state
-    }
-
-    /**
-     * Returns a prediction of what the route state will be at the provided time.
-     */
-    pub fn predict_route_state(&self, time: u64) -> &route::WorldState {
-        // TODO: actually predict route state
-        &self.route_state
-    }
-
-    pub fn get_spline_construction_input(&self) -> route::SplineConstructionInput {
-        route::SplineConstructionInput {
-            metro_lines: &self.state.metro_lines,
-            highways: &self.state.highways,
-            state: &self.route_state,
-            tile_size: self.state.config.min_tile_size as f64,
+    pub fn update_route_weights(&mut self, horizon: u64) {
+        // TODO: invalidate base graph when metros/highways change
+        // also want to have separate instances per thread
+        if let None = &self.base_route_graph {
+            self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
         }
+        // TODO: implement prediction of future traffic
+        let predicted_state = &self.route_state;
+        self.base_route_graph
+            .as_mut()
+            .unwrap()
+            .update_weights(predicted_state);
     }
 
     /**
@@ -228,6 +193,8 @@ impl Engine {
     pub fn init_trigger_queue(&mut self) {
         if self.time_state.current_time == 0 {
             self.trigger_queue.push(crate::behavior::Tick {}, 0);
+            self.trigger_queue
+                .push(crate::behavior::UpdateTraffic {}, 0);
             for agent in self.agents.values() {
                 // start the day at 8 am
                 self.trigger_queue.push(

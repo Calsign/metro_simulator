@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::iter::Zip;
 use std::slice::Iter;
 
@@ -10,60 +9,10 @@ pub use spline_util::SplineVisitor;
 use highway::{HighwaySegment, Highways};
 use metro::MetroLine;
 
-use crate::common::{CarConfig, Edge, Mode, Node, QueryInput};
-use crate::traffic::WorldState;
-
-#[derive(Debug, Copy, Clone, derive_more::Constructor, Serialize, Deserialize)]
-pub struct RouteKey {
-    pub position: (f32, f32),
-    pub dist: f32,
-    pub time: f32,
-    pub mode: Mode,
-}
-
-impl splines::Interpolate<f32> for RouteKey {
-    fn step(t: f32, threshold: f32, a: Self, b: Self) -> Self {
-        unimplemented!()
-    }
-
-    fn lerp(t: f32, a: Self, b: Self) -> Self {
-        Self {
-            position: (
-                f32::lerp(t, a.position.0, b.position.0),
-                f32::lerp(t, a.position.1, b.position.1),
-            ),
-            dist: f32::lerp(t, a.dist, b.dist),
-            time: f32::lerp(t, a.time, b.time),
-            mode: a.mode,
-        }
-    }
-
-    fn cosine(t: f32, a: Self, b: Self) -> Self {
-        unimplemented!()
-    }
-
-    fn cubic_hermite(
-        t: f32,
-        x: (f32, Self),
-        a: (f32, Self),
-        b: (f32, Self),
-        y: (f32, Self),
-    ) -> Self {
-        unimplemented!()
-    }
-
-    fn quadratic_bezier(t: f32, a: Self, u: Self, b: Self) -> Self {
-        unimplemented!()
-    }
-
-    fn cubic_bezier(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
-        unimplemented!()
-    }
-
-    fn cubic_bezier_mirrored(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
-        unimplemented!()
-    }
-}
+use crate::common::{CarConfig, Mode, QueryInput};
+use crate::edge::Edge;
+use crate::node::Node;
+use crate::route_key::RouteKey;
 
 struct ConstructedSplines {
     keys: Vec<RouteKey>,
@@ -84,6 +33,8 @@ pub struct Route {
     pub query_input: QueryInput,
     pub cost: f32,
     pub bounds: quadtree::Rect,
+    pub start_mode: Mode,
+    pub end_mode: Mode,
     // NOTE: we store time and dist splines separately because dist spline is rarely used and this
     // saves a ton of memory.
     #[serde(skip)]
@@ -92,29 +43,27 @@ pub struct Route {
     dist_spline: OnceCell<SplineData>,
 }
 
-/**
- * Note: it is undefined behavior if the metro_lines and highways do not match those
- * used to construct the base graph from which this route was derived.
- */
-pub struct SplineConstructionInput<'a, 'b, 'c> {
-    pub metro_lines: &'a BTreeMap<u64, MetroLine>,
-    pub highways: &'b Highways,
-    pub state: &'c WorldState,
-    pub tile_size: f64,
-}
-
 fn f64p_f32p((x, y): (f64, f64)) -> (f32, f32) {
     (x as f32, y as f32)
 }
 
 impl Route {
-    pub fn new(nodes: Vec<Node>, edges: Vec<Edge>, cost: f32, query_input: QueryInput) -> Self {
+    pub fn new(
+        nodes: Vec<Node>,
+        edges: Vec<Edge>,
+        cost: f32,
+        query_input: QueryInput,
+        start_mode: Mode,
+        end_mode: Mode,
+    ) -> Self {
         Self {
             bounds: spline_util::compute_bounds(&nodes, |node| node.location()),
             nodes,
             edges,
             cost,
             query_input,
+            start_mode,
+            end_mode,
             time_spline: OnceCell::new(),
             dist_spline: OnceCell::new(),
         }
@@ -144,7 +93,7 @@ impl Route {
         }
     }
 
-    fn construct_splines(&self, input: &SplineConstructionInput) -> ConstructedSplines {
+    fn construct_splines(&self, state: &state::State) -> ConstructedSplines {
         use cgmath::MetricSpace;
 
         let mut keys = Vec::new();
@@ -153,7 +102,7 @@ impl Route {
         let mut t: f32 = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
-            let dt = edge.cost(input.state) as f32;
+            let dt = edge.base_cost() as f32;
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
             let start_location = f64p_f32p(start.location());
             let end_location = f64p_f32p(end.location());
@@ -167,7 +116,7 @@ impl Route {
                     stop,
                     ..
                 } => {
-                    let metro_line = input
+                    let metro_line = state
                         .metro_lines
                         .get(metro_line)
                         .expect("missing metro line");
@@ -197,7 +146,7 @@ impl Route {
                         let location = metro_line
                             .get_splines()
                             .spline
-                            .clamped_sample(key.value / input.tile_size)
+                            .clamped_sample(key.value / state.config.min_tile_size as f64)
                             .unwrap();
                         // TODO: it is probably insufficient to describe this as walking
                         keys.push(RouteKey::new(
@@ -214,7 +163,7 @@ impl Route {
                     dd = default_dd;
                 }
                 Edge::Highway { segment, .. } => {
-                    let segment = input
+                    let segment = state
                         .highways
                         .get_segment(*segment)
                         .expect("missing highway segment");
@@ -236,9 +185,7 @@ impl Route {
                     keys.push(RouteKey::new(start_location, d, t, *mode));
                     keys.push(RouteKey::new(end_location, d + dd, t + dt, *mode));
                 }
-                Edge::ModeTransition { .. }
-                // | Edge::ParkCarSegment {}
-                => {
+                Edge::ModeTransition { .. } => {
                     dd = default_dd;
                 }
             }
@@ -253,9 +200,9 @@ impl Route {
         }
     }
 
-    fn construct_time_spline(&self, input: &SplineConstructionInput) -> SplineData {
+    fn construct_time_spline(&self, state: &state::State) -> SplineData {
         use splines::{Interpolation, Key, Spline};
-        let constructed = self.construct_splines(input);
+        let constructed = self.construct_splines(state);
         SplineData {
             spline: Spline::from_vec(
                 constructed
@@ -268,9 +215,9 @@ impl Route {
         }
     }
 
-    fn construct_dist_spline(&self, input: &SplineConstructionInput) -> SplineData {
+    fn construct_dist_spline(&self, state: &state::State) -> SplineData {
         use splines::{Interpolation, Key, Spline};
-        let constructed = self.construct_splines(input);
+        let constructed = self.construct_splines(state);
         SplineData {
             spline: Spline::from_vec(
                 constructed
@@ -283,14 +230,14 @@ impl Route {
         }
     }
 
-    fn get_time_spline(&self, input: &SplineConstructionInput) -> &SplineData {
+    fn get_time_spline(&self, state: &state::State) -> &SplineData {
         self.time_spline
-            .get_or_init(|| self.construct_time_spline(input))
+            .get_or_init(|| self.construct_time_spline(state))
     }
 
-    fn get_dist_spline(&self, input: &SplineConstructionInput) -> &SplineData {
+    fn get_dist_spline(&self, state: &state::State) -> &SplineData {
         self.dist_spline
-            .get_or_init(|| self.construct_dist_spline(input))
+            .get_or_init(|| self.construct_dist_spline(state))
     }
 
     pub fn visit_spline<V, E>(
@@ -298,12 +245,12 @@ impl Route {
         visitor: &mut V,
         step: f64,
         rect: &quadtree::Rect,
-        input: &SplineConstructionInput,
+        state: &state::State,
     ) -> Result<(), E>
     where
         V: SplineVisitor<Route, RouteKey, E>,
     {
-        let spline = self.get_dist_spline(input);
+        let spline = self.get_dist_spline(state);
         spline_util::visit_spline(
             self,
             &spline.spline,
@@ -318,29 +265,17 @@ impl Route {
     /**
      * Get the route key at the given time, relative to the start of the route.
      */
-    pub fn sample_time(&self, time: f32, input: &SplineConstructionInput) -> Option<RouteKey> {
-        let spline = self.get_time_spline(input);
+    pub fn sample_time(&self, time: f32, state: &state::State) -> Option<RouteKey> {
+        let spline = self.get_time_spline(state);
         spline.spline.sample(time)
     }
 
-    /**
-     * Get the route key at the given time in engine time, i.e. subtract off this route's start
-     * time.
-     */
-    pub fn sample_engine_time(
-        &self,
-        time: f32,
-        input: &SplineConstructionInput,
-    ) -> Option<RouteKey> {
-        self.sample_time(time - self.query_input.start_time as f32, input)
-    }
-
-    pub fn total_dist(&self, input: &SplineConstructionInput) -> f32 {
-        let spline = self.get_dist_spline(input);
+    pub fn total_dist(&self, state: &state::State) -> f32 {
+        let spline = self.get_dist_spline(state);
         spline.total
     }
 
-    pub fn total_time(&self) -> f32 {
+    pub fn total_cost(&self) -> f32 {
         self.cost
     }
 
@@ -348,7 +283,7 @@ impl Route {
         self.query_input.start
     }
 
-    pub fn stop(&self) -> quadtree::Address {
+    pub fn end(&self) -> quadtree::Address {
         self.query_input.end
     }
 }

@@ -4,7 +4,9 @@ use fast_paths::{
     FastGraph, InputGraph, NodeId, Params, ParamsWithOrder, PathCalculator, ShortestPath, Weight,
 };
 
-use crate::common::{Edge, Node, QueryInput};
+use crate::common::QueryInput;
+use crate::edge::Edge;
+use crate::node::Node;
 use crate::traffic::WorldState;
 
 #[derive(derivative::Derivative)]

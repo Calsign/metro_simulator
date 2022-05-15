@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::agent_route_state::AgentRouteState;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentData {}
 
@@ -11,10 +13,10 @@ impl AgentData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentState {
-    /// Agent is currently at a tile with the given address.
+    /// agent is currently at a tile with the given address.
     Tile(quadtree::Address),
-    /// Agent is currently in transit along the given route.
-    Route(route::Route),
+    /// agent is currently in transit along the given route.
+    Route(AgentRouteState),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

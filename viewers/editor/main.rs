@@ -194,10 +194,11 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                 .on_click(
                     |ctx: &mut druid::EventCtx, state: &mut MetroLinesState, env: &druid::Env| {
                         let mut engine = state.engine.lock().unwrap();
+                        // TODO: default metro speed specified here as 35 m/s, or 79 mph
                         let id =
                             engine
                                 .state
-                                .add_metro_line(String::from("Metro Line"), None, None);
+                                .add_metro_line(String::from("Metro Line"), None, 35, None);
 
                         state.states.insert(id, MetroLineState::new());
 

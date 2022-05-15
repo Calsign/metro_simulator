@@ -113,6 +113,10 @@ impl HighwaySegment {
         self.end_junction
     }
 
+    pub fn get_spline(&self) -> &splines::Spline<f64, HighwayKey> {
+        &self.spline
+    }
+
     pub fn visit_spline<V, E>(
         &self,
         visitor: &mut V,

@@ -16,10 +16,11 @@ pub trait TriggerType: PartialEq + Eq + PartialOrd + Ord {
 #[non_exhaustive]
 pub enum Trigger {
     Tick,
+    UpdateTraffic,
     AgentPlanCommuteToWork,
     AgentPlanCommuteHome,
     AgentRouteStart,
-    AgentRouteEnd,
+    AgentRouteAdvance,
     #[cfg(debug_assertions)]
     DummyTrigger,
     #[cfg(debug_assertions)]
@@ -37,13 +38,25 @@ impl TriggerType for Tick {
         engine.state.update_fields().unwrap();
         engine.state.update_collect_tiles().unwrap();
 
-        // update traffic conditions
-        engine.update_route_state();
-
         // re-trigger every hour of simulated time
         engine
             .trigger_queue
             .push_rel(self, Time::new::<hour>(1).value);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct UpdateTraffic {}
+
+impl TriggerType for UpdateTraffic {
+    fn execute(self, engine: &mut Engine, time: u64) {
+        // try to predict traffic 30 minutes in the future
+        engine.update_route_weights(Time::new::<minute>(30).value);
+
+        // re-trigger every hour of simulated time
+        engine
+            .trigger_queue
+            .push_rel(self, Time::new::<minute>(30).value);
     }
 }
 
@@ -63,13 +76,11 @@ impl TriggerType for AgentPlanCommuteToWork {
             let id = agent.id;
 
             let start_time = engine.time_state.current_time;
-            if let Ok(Some(route)) = engine.query_route(
-                housing,
-                workplace,
-                Some(route::CarConfig::StartWithCar),
-                start_time,
-            ) {
-                let total_time = route.total_time();
+            if let Ok(Some(route)) =
+                engine.query_route(housing, workplace, Some(route::CarConfig::StartWithCar))
+            {
+                // TODO: do something better than using the estimated time
+                let estimated_total_time = route.total_cost();
                 engine.trigger_queue.push(
                     AgentRouteStart {
                         agent: id,
@@ -80,7 +91,7 @@ impl TriggerType for AgentPlanCommuteToWork {
                 // come home from work after 8 hours
                 engine.trigger_queue.push(
                     AgentPlanCommuteHome { agent: id },
-                    start_time + total_time.ceil() as u64 + Time::new::<hour>(8).value,
+                    start_time + estimated_total_time.ceil() as u64 + Time::new::<hour>(8).value,
                 );
             }
         }
@@ -112,7 +123,6 @@ impl TriggerType for AgentPlanCommuteHome {
                 housing,
                 // TODO: if a car is parked somewhere, account for it
                 Some(route::CarConfig::StartWithCar),
-                start_time,
             ) {
                 engine.trigger_queue.push(
                     AgentRouteStart {
@@ -138,34 +148,46 @@ pub struct AgentRouteStart {
 
 impl TriggerType for AgentRouteStart {
     fn execute(self, engine: &mut Engine, time: u64) {
-        let total_time = self.route.total_time().ceil() as u64;
-
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
-        agent.state = agent::AgentState::Route(*self.route);
+        let route_state = agent::AgentRouteState::new(
+            *self.route,
+            engine.time_state.current_time,
+            &mut engine.route_state,
+            &engine.state,
+        );
+        let next_trigger = route_state.next_trigger();
+        agent.state = agent::AgentState::Route(route_state);
 
-        engine
-            .trigger_queue
-            .push_rel(AgentRouteEnd { agent: self.agent }, total_time);
+        if let Some(next_trigger) = next_trigger {
+            engine
+                .trigger_queue
+                .push(AgentRouteAdvance { agent: self.agent }, next_trigger);
+        }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct AgentRouteEnd {
+pub struct AgentRouteAdvance {
     agent: u64,
 }
 
-impl TriggerType for AgentRouteEnd {
+impl TriggerType for AgentRouteAdvance {
     fn execute(self, engine: &mut Engine, time: u64) {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
-        let dest = match &agent.state {
-            agent::AgentState::Route(route) => route.start(),
-            _ => {
-                // this should only happen if there are routes that take an inordinate amount of
-                // time
-                panic!("agent in unexpected engine: {:?}", agent.state);
+        match &mut agent.state {
+            agent::AgentState::Route(route_state) => {
+                route_state.advance(&mut engine.route_state, &engine.state);
+                match route_state.next_trigger() {
+                    Some(next_trigger) => {
+                        engine.trigger_queue.push(self, next_trigger);
+                    }
+                    None => {
+                        agent.state = agent::AgentState::Tile(route_state.route.end());
+                    }
+                }
             }
-        };
-        agent.state = agent::AgentState::Tile(dest);
+            _ => panic!("agent not in route state"),
+        }
     }
 }
 

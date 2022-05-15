@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::common::{Edge, Error, Mode, Node, MODES};
+use crate::common::{Error, Mode, MODES};
+use crate::edge::Edge;
 use crate::fast_graph_wrapper::FastGraphWrapper;
+use crate::node::Node;
 use crate::traffic::WorldState;
 
 pub struct BaseGraphInput<'a> {

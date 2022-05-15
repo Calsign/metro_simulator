@@ -483,20 +483,23 @@ mod dist_spline_tests {
 
     #[test]
     fn time_rectify_test() {
-        let speed_keys = time_rectify(vec![
-            SqrtPair {
-                station: None,
-                t: 0.0,
-                b: 0.0,
-                a: 0.5,
-            },
-            SqrtPair {
-                station: None,
-                t: 2.0,
-                b: 0.0,
-                a: 0.5,
-            },
-        ]);
+        let speed_keys = time_rectify(
+            vec![
+                SqrtPair {
+                    station: None,
+                    t: 0.0,
+                    b: 0.0,
+                    a: 0.5,
+                },
+                SqrtPair {
+                    station: None,
+                    t: 2.0,
+                    b: 0.0,
+                    a: 0.5,
+                },
+            ],
+            1.0,
+        );
         assert_eq!(speed_keys.len(), 3);
         assert_approx_eq!(f64, speed_keys[0].t, 0.0);
         assert_approx_eq!(f64, speed_keys[0].v, 0.0);

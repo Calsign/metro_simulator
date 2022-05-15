@@ -4,12 +4,14 @@ rust_library(
     name = "agent",
     srcs = [
         "agent.rs",
+        "agent_route_state.rs",
         "lib.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
         "//engine/quadtree",
         "//engine/route",
+        "//engine/state",
         "@crates//:serde",
     ],
 )

@@ -193,7 +193,6 @@ pub fn perform_query(engine: &Engine, graph: &mut Graph, test: &RouteTest) -> Ro
             start,
             end,
             car_config: test.car_config.clone(),
-            start_time: 0,
         },
         &test.world_state,
     )

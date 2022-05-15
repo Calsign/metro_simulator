@@ -2,7 +2,9 @@ use uom::si::time::hour;
 use uom::si::u64::Time;
 
 use crate::base_graph::{Graph, InnerGraph, Neighbors, NodeIndex};
-use crate::common::{CarConfig, Edge, Error, Mode, Node, QueryInput};
+use crate::common::{CarConfig, Error, Mode, QueryInput};
+use crate::edge::Edge;
+use crate::node::Node;
 use crate::route::Route;
 use crate::traffic::WorldState;
 
@@ -83,6 +85,8 @@ fn construct_route(
         .collect(),
         cost as f32,
         input,
+        start_mode,
+        end_mode,
     )
 }
 

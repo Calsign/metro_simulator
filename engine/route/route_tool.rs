@@ -94,7 +94,6 @@ fn main() {
                     start,
                     end,
                     car_config,
-                    start_time: 0,
                 },
                 &world_state,
             )
