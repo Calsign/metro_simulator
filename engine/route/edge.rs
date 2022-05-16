@@ -55,16 +55,19 @@ impl Edge {
     /**
      * The time to traverse this edge in the absence of congestion, i.e. the idealized time.
      */
-    pub fn base_cost(&self) -> f64 {
+    pub fn base_cost(&self, state: &state::State) -> f64 {
         use Edge::*;
         let cost = match self {
             MetroSegment { time, .. } => *time,
             MetroEmbark {
-                metro_line,
-                station,
+                metro_line: metro_line_id,
+                ..
             } => {
-                // TODO: return average waiting time based on metro schedules
-                EMBARK_TIME
+                let metro_line = state
+                    .metro_lines
+                    .get(metro_line_id)
+                    .expect("missing metro line");
+                metro_line.schedule.expected_waiting_time() as f64
             }
             MetroDisembark {
                 metro_line,
@@ -79,18 +82,52 @@ impl Edge {
     }
 
     /**
-     * The time to traverse this edge under the congestion conditions given by the world state.
+     * The time to traverse this edge under the congestion conditions given by the world state. If
+     * the current time is specified, it is used to give a precise time cost where applicable (e.g.
+     * for metro schedules). If it is not specified, the cost is instead an estimate.
      */
-    pub fn cost(&self, world_state: &WorldState, state: &state::State) -> f64 {
+    pub fn cost(
+        &self,
+        world_state: &WorldState,
+        state: &state::State,
+        current_time: Option<u64>,
+    ) -> f64 {
         use Edge::*;
         let cost = match self {
             MetroSegment { time, .. } => *time,
             MetroEmbark {
-                metro_line,
+                metro_line: metro_line_id,
                 station,
             } => {
-                // TODO: properly account for train schedules
-                EMBARK_TIME
+                let metro_line = state
+                    .metro_lines
+                    .get(metro_line_id)
+                    .expect("missing metro line");
+                match current_time {
+                    None => metro_line.schedule.expected_waiting_time() as f64,
+                    Some(current_time) => {
+                        let current_time_f64 = current_time as f64;
+                        // TODO: agents for trains so that they can respond to congestion and get
+                        // delayed and stuff
+                        let station_time = metro_line
+                            .get_splines()
+                            .time_map
+                            .get(&station.address)
+                            .expect("station not found");
+                        let departure = metro_line
+                            .schedule
+                            .next_departure((current_time_f64 - station_time).floor() as u64)
+                            as f64
+                            + station_time;
+                        assert!(
+                            departure > current_time_f64,
+                            "{}, {}",
+                            departure,
+                            current_time
+                        );
+                        departure - current_time_f64
+                    }
+                }
             }
             MetroDisembark {
                 metro_line,

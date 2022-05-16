@@ -60,12 +60,12 @@ impl FastGraphWrapper {
         id
     }
 
-    pub fn add_edge(&mut self, from: NodeId, to: NodeId, edge: Edge) {
+    pub fn add_edge(&mut self, from: NodeId, to: NodeId, edge: Edge, state: &state::State) {
         debug_assert!(!self.is_prepared());
         debug_assert!(self.node_map.contains_key(&from));
         debug_assert!(self.node_map.contains_key(&to));
         // NOTE: fast_paths disallows negative weights...
-        let weight = edge.base_cost() as Weight;
+        let weight = edge.base_cost(state) as Weight;
         debug_assert!(weight > 0, "base weight for {} -> {} is 0", from, to);
         self.input.add_edge(from, to, weight);
         self.edge_map.insert((from, to), edge);
@@ -104,7 +104,7 @@ impl FastGraphWrapper {
     fn create_input(&self, world_state: &WorldState, state: &state::State) -> InputGraph {
         let mut input_graph = InputGraph::new();
         for ((from, to), edge) in self.edge_map.iter() {
-            let weight = edge.cost(world_state, state) as Weight;
+            let weight = edge.cost(world_state, state, None) as Weight;
             assert!(weight > 0, "weight for {} -> {} is 0", from, to);
             input_graph.add_edge(*from, *to, weight);
         }

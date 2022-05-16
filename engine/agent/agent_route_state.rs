@@ -48,7 +48,7 @@ impl AgentRouteState {
                     AgentRoutePhase::InProgress {
                         current_edge: 0,
                         current_edge_start: 0.0,
-                        current_edge_total: first.cost(world_state, state) as f32,
+                        current_edge_total: first.cost(world_state, state, Some(start_time)) as f32,
                         current_mode: route.start_mode,
                     }
                 }
@@ -99,12 +99,16 @@ impl AgentRouteState {
                     } else {
                         world_state.increment_edge(new_edge, state);
 
-                        let cost = new_edge.cost(world_state, state) as f32;
+                        let start_time = current_edge_start + current_edge_total;
+
+                        let cost =
+                            new_edge.cost(world_state, state, Some(start_time.floor() as u64))
+                                as f32;
                         assert!(cost >= 0.0);
 
                         AgentRoutePhase::InProgress {
                             current_edge: new_edge_index,
-                            current_edge_start: current_edge_start + current_edge_total,
+                            current_edge_start: start_time,
                             current_edge_total: cost,
                             current_mode: new_edge.mode_transition().unwrap_or(current_mode),
                         }

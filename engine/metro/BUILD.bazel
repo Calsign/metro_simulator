@@ -5,6 +5,7 @@ rust_library(
     srcs = [
         "color.rs",
         "lib.rs",
+        "schedule.rs",
         "timing.rs",
         "types.rs",
     ],
@@ -13,6 +14,7 @@ rust_library(
         "//engine/quadtree",
         "//util:spline_util",
         "@crates//:cgmath",
+        "@crates//:chrono",
         "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:serde",

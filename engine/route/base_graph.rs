@@ -127,6 +127,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
                 from: Mode::Driving,
                 to: Mode::Walking,
             },
+            &input.state,
         );
     };
 
@@ -185,6 +186,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
                     metro_line: metro_line.id,
                     station: station.clone(),
                 },
+                &input.state,
             );
 
             graph.add_edge(
@@ -194,6 +196,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
                     metro_line: metro_line.id,
                     station: station.clone(),
                 },
+                &input.state,
             );
         }
         for ((left, left_t), (right, right_t)) in timetable.iter().tuple_windows() {
@@ -206,6 +209,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
                     start: left.address,
                     stop: right.address,
                 },
+                &input.state,
             );
         }
     }
@@ -240,7 +244,12 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
                 highway::RampDirection::OnRamp => (outer_id, inner_id),
                 highway::RampDirection::OffRamp => (inner_id, outer_id),
             };
-            graph.add_edge(first, second, Edge::HighwayRamp { position: (x, y) });
+            graph.add_edge(
+                first,
+                second,
+                Edge::HighwayRamp { position: (x, y) },
+                &input.state,
+            );
             neighbors
                 .get_mut(&Mode::Driving)
                 .unwrap()
@@ -282,6 +291,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
                 data: segment.data.clone(),
                 time: segment.travel_time(tile_size),
             },
+            &input.state,
         );
 
         segment_map.insert(segment.id, edge_id);
@@ -292,6 +302,7 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
             neighbors[mode].visit_all_radius(
                 &mut AddEdgesVisitor {
                     graph: &mut graph,
+                    state: &input.state,
                     tile_size,
                     mode: *mode,
                 },
@@ -312,13 +323,14 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
     })
 }
 
-struct AddEdgesVisitor<'a> {
+struct AddEdgesVisitor<'a, 'b> {
     graph: &'a mut InnerGraph,
+    state: &'b state::State,
     tile_size: f64,
     mode: Mode,
 }
 
-impl<'a> quadtree::AllNeighborsVisitor<NodeIndex, Error> for AddEdgesVisitor<'a> {
+impl<'a, 'b> quadtree::AllNeighborsVisitor<NodeIndex, Error> for AddEdgesVisitor<'a, 'b> {
     fn visit(&mut self, base: &NodeIndex, entry: &NodeIndex, distance: f64) -> Result<(), Error> {
         if base != entry {
             self.graph.add_edge(
@@ -328,6 +340,7 @@ impl<'a> quadtree::AllNeighborsVisitor<NodeIndex, Error> for AddEdgesVisitor<'a>
                     mode: self.mode,
                     distance: distance * self.tile_size,
                 },
+                &self.state,
             );
         }
         Ok(())

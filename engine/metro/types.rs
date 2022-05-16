@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub use spline_util::SplineVisitor;
 
 use crate::color;
+use crate::schedule::Schedule;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Station {
@@ -48,6 +49,7 @@ pub struct MetroLine {
     pub color: color::Color,
     pub speed_limit: u32,
     pub name: String,
+    pub schedule: Schedule,
     tile_size: f64,
     /// the MetroKeys defining the metro line
     keys: Vec<MetroKey>,
@@ -90,6 +92,8 @@ impl MetroLine {
             color,
             speed_limit,
             name,
+            // TODO: generate metro schedules instead of hard-coding them like this
+            schedule: Schedule::fixed_frequency(60 * 15),
             tile_size,
             keys: Vec::new(),
             bounds: quadtree::Rect::xywh(0, 0, 0, 0),

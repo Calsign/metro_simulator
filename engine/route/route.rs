@@ -102,7 +102,7 @@ impl Route {
         let mut t: f32 = 0.0; // total elapsed time
 
         for ((start, end), edge) in self.iter() {
-            let dt = edge.base_cost() as f32;
+            let dt = edge.base_cost(state) as f32;
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
             let start_location = f64p_f32p(start.location());
             let end_location = f64p_f32p(end.location());
