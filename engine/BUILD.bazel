@@ -23,7 +23,6 @@ rust_library(
         "@crates//:cgmath",
         "@crates//:chrono",
         "@crates//:once_cell",
-        "@crates//:petgraph",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:splines",

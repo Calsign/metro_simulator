@@ -10,29 +10,12 @@ use crate::traffic::WorldState;
 
 fn perform_query<'a>(
     base_graph: &mut InnerGraph,
-    state: &WorldState,
     start_id: NodeIndex,
     end_id: NodeIndex,
 ) -> Result<Option<(f64, Vec<NodeIndex>)>, Error> {
     use cgmath::MetricSpace;
     use cgmath::Vector2;
 
-    #[cfg(feature = "petgraph")]
-    let path = {
-        let goal_vec = Vector2::from(base_graph.node_weight(end_id).unwrap().location());
-        let is_goal = |n| n == end_id;
-        let edge_cost = |e: petgraph::graph::EdgeReference<Edge>| e.weight().cost(state);
-
-        // This should be the fastest possible speed by any mode of transportation.
-        // TODO: There is probably a more principled way to approach this.
-        let top_speed = metro::timing::MAX_SPEED;
-        let estimate_cost =
-            |n| goal_vec.distance(base_graph.node_weight(n).unwrap().location().into()) / top_speed;
-
-        petgraph::algo::astar(&*base_graph, start_id, is_goal, edge_cost, estimate_cost)
-    };
-
-    #[cfg(feature = "fast_paths")]
     let path = {
         let shortest_path = base_graph.query(start_id, end_id);
         match shortest_path {
@@ -97,11 +80,7 @@ fn construct_route(
  * TODO: adjust the construction of the problem so that we can always
  * find a route.
  */
-pub fn best_route<'a>(
-    base_graph: &mut Graph,
-    input: QueryInput,
-    state: &'a WorldState,
-) -> Result<Option<Route>, Error> {
+pub fn best_route<'a>(base_graph: &mut Graph, input: QueryInput) -> Result<Option<Route>, Error> {
     use cgmath::MetricSpace;
 
     let inner = &mut base_graph.graph;
@@ -122,7 +101,7 @@ pub fn best_route<'a>(
         let end_id = base_graph.neighbors[&end_mode].find_nearest(end_x as f64, end_y as f64);
 
         if let (Some(start_id), Some(end_id)) = (start_id, end_id) {
-            let path = perform_query(inner, state, start_id, end_id)?;
+            let path = perform_query(inner, start_id, end_id)?;
             if let Some((cost, nodes)) = path {
                 // add in cost for reaching the start node and end node
                 let start_vec = cgmath::Vector2::from(

@@ -86,9 +86,9 @@ impl Edge {
      * the current time is specified, it is used to give a precise time cost where applicable (e.g.
      * for metro schedules). If it is not specified, the cost is instead an estimate.
      */
-    pub fn cost(
+    pub fn cost<W: WorldState>(
         &self,
-        world_state: &WorldState,
+        world_state: &W,
         state: &state::State,
         current_time: Option<u64>,
     ) -> f64 {
@@ -237,7 +237,7 @@ impl Edge {
         }
     }
 
-    pub fn is_jammed(&self, world_state: &WorldState, state: &state::State) -> bool {
+    pub fn is_jammed<W: WorldState>(&self, world_state: &W, state: &state::State) -> bool {
         match self {
             Edge::Highway {
                 segment: segment_id,

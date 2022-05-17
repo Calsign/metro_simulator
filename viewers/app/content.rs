@@ -30,7 +30,7 @@ impl App {
             0.2,
         );
 
-        let traffic = self.overlay.traffic.then(|| &self.engine.route_state);
+        let traffic = self.overlay.traffic.then(|| &self.engine.world_state);
 
         self.diagnostics.metro_vertices = 0;
         self.diagnostics.highway_vertices = 0;
@@ -338,7 +338,7 @@ struct DrawSplineVisitor<'a, 'b, 'c> {
     app: &'a App,
     painter: &'b egui::Painter,
 
-    traffic: Option<&'c route::WorldState>,
+    traffic: Option<&'c route::WorldStateImpl>,
 
     visited: u64,
 }
@@ -347,7 +347,7 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
     fn new(
         app: &'a App,
         painter: &'b egui::Painter,
-        traffic: Option<&'c route::WorldState>,
+        traffic: Option<&'c route::WorldStateImpl>,
     ) -> Self {
         Self {
             app,
@@ -426,6 +426,7 @@ impl<'a, 'b, 'c>
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
+        use route::WorldState;
         self.visit(
             &egui::Color32::from_gray(204),
             1.0,

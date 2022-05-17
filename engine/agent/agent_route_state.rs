@@ -35,7 +35,7 @@ impl AgentRouteState {
     pub fn new(
         route: route::Route,
         start_time: u64,
-        world_state: &mut route::WorldState,
+        world_state: &mut route::WorldStateImpl,
         state: &state::State,
     ) -> Self {
         assert_eq!(route.nodes.len(), route.edges.len() + 1);
@@ -62,7 +62,7 @@ impl AgentRouteState {
      * Advance the agent to the next edge in the route. This should only be done each time the
      * simulation time has passed the value of next_trigger.
      */
-    pub fn advance(&mut self, world_state: &mut route::WorldState, state: &state::State) {
+    pub fn advance(&mut self, world_state: &mut route::WorldStateImpl, state: &state::State) {
         match self.phase {
             AgentRoutePhase::InProgress {
                 current_edge,

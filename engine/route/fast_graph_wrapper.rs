@@ -101,7 +101,7 @@ impl FastGraphWrapper {
         self.path_calculator = Some(path_calculator);
     }
 
-    fn create_input(&self, world_state: &WorldState, state: &state::State) -> InputGraph {
+    fn create_input<W: WorldState>(&self, world_state: &W, state: &state::State) -> InputGraph {
         let mut input_graph = InputGraph::new();
         for ((from, to), edge) in self.edge_map.iter() {
             let weight = edge.cost(world_state, state, None) as Weight;
@@ -112,7 +112,7 @@ impl FastGraphWrapper {
         input_graph
     }
 
-    pub fn update_weights(&mut self, world_state: &WorldState, state: &state::State) {
+    pub fn update_weights<W: WorldState>(&mut self, world_state: &W, state: &state::State) {
         debug_assert!(self.is_prepared());
         // TODO: Patch fast_paths to allow mutating the edge weights instead of constructing a new graph.
         // This might be nontrivial, but it seems like a worthwhile optimization.

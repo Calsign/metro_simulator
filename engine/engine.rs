@@ -9,6 +9,9 @@ use uom::si::u64::Time;
 use crate::time_state::TimeState;
 use crate::trigger::TriggerQueue;
 
+/// number of times to record traffic history per day
+pub const WORLD_STATE_HISTORY_SNAPSHOTS: usize = 48;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("JSON error: {0}")]
@@ -28,8 +31,8 @@ pub enum Error {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
     pub state: state::State,
-    // TODO: re-create this from active routes instead of (de)serializing it
-    pub route_state: route::WorldState,
+    pub world_state: route::WorldStateImpl,
+    pub world_state_history: route::WorldStateHistory,
     #[serde(skip)]
     base_route_graph: Option<route::Graph>,
     pub time_state: TimeState,
@@ -42,9 +45,11 @@ impl Engine {
     pub fn new(config: state::Config) -> Self {
         Self {
             state: state::State::new(config),
-            time_state: TimeState::new(),
-            route_state: route::WorldState::new(),
+
+            world_state: route::WorldStateImpl::new(),
+            world_state_history: route::WorldStateHistory::new(WORLD_STATE_HISTORY_SNAPSHOTS),
             base_route_graph: None,
+            time_state: TimeState::new(),
             agents: HashMap::new(),
             agent_counter: 0,
             trigger_queue: TriggerQueue::new(),
@@ -151,7 +156,6 @@ impl Engine {
             car_config,
         };
 
-        // TODO: borrowing issues, de-duplicate these
         let base_graph = {
             if let None = &self.base_route_graph {
                 self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
@@ -159,11 +163,7 @@ impl Engine {
             self.base_route_graph.as_mut().unwrap()
         };
 
-        Ok(route::best_route(
-            base_graph,
-            query_input,
-            &self.route_state,
-        )?)
+        Ok(route::best_route(base_graph, query_input)?)
     }
 
     /**
@@ -172,13 +172,22 @@ impl Engine {
      * Horizon is how far in the future we should try to predict.
      */
     pub fn update_route_weights(&mut self, horizon: u64) {
+        // update history so that future predictions will use the new data
+        // NOTE: this must happen on the correct cycle, otherwise this will panic
+        self.world_state_history
+            .take_snapshot(&self.world_state, self.time_state.current_time);
+
+        // predict future traffic
+        let predicted_state = &self
+            .world_state_history
+            .get_predictor(self.time_state.current_time + horizon);
+
         // TODO: invalidate base graph when metros/highways change
         // also want to have separate instances per thread
         if let None = &self.base_route_graph {
             self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
         }
-        // TODO: implement prediction of future traffic
-        let predicted_state = &self.route_state;
+
         self.base_route_graph
             .as_mut()
             .unwrap()

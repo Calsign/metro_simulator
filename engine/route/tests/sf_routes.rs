@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 
 use engine::Engine;
-use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route, WorldState};
+use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route, WorldStateImpl};
 
 #[derive(Debug, Clone)]
 pub enum StringPredicate {
@@ -88,7 +88,6 @@ pub struct RouteTest {
     pub start: Coord,
     pub end: Coord,
     pub predicates: Vec<RoutePredicate>,
-    pub world_state: WorldState,
     pub car_config: Option<CarConfig>,
 }
 
@@ -105,7 +104,6 @@ impl RouteTest {
             start,
             end,
             predicates,
-            world_state: WorldState::new(),
             car_config,
         }
     }
@@ -194,7 +192,6 @@ pub fn perform_query(engine: &Engine, graph: &mut Graph, test: &RouteTest) -> Ro
             end,
             car_config: test.car_config.clone(),
         },
-        &test.world_state,
     )
     .unwrap()
     .unwrap()

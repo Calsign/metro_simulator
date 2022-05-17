@@ -16,14 +16,7 @@ pub struct BaseGraphInput<'a> {
     pub validate_highways: bool,
 }
 
-#[cfg(feature = "petgraph")]
-pub type InnerGraph = petgraph::Graph<Node, Edge>;
-#[cfg(feature = "petgraph")]
-pub type NodeIndex = petgraph::graph::NodeIndex;
-
-#[cfg(feature = "fast_paths")]
 pub type InnerGraph = FastGraphWrapper;
-#[cfg(feature = "fast_paths")]
 pub type NodeIndex = fast_paths::NodeId;
 
 /**
@@ -47,9 +40,6 @@ pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<NodeIndex>>;
 
 #[derive(Debug, Clone)]
 pub struct Graph {
-    #[cfg(feature = "petgraph")]
-    pub graph: InnerGraph,
-    #[cfg(feature = "fast_paths")]
     pub graph: FastGraphWrapper,
     pub neighbors: Neighbors,
     pub parking: HashMap<quadtree::Address, Parking>,
@@ -58,8 +48,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn update_weights(&mut self, world_state: &WorldState, state: &state::State) {
-        #[cfg(feature = "fast_paths")]
+    pub fn update_weights<W: WorldState>(&mut self, world_state: &W, state: &state::State) {
         self.graph.update_weights(world_state, state);
     }
 }
@@ -68,12 +57,6 @@ pub fn dump_graph<W>(graph: &InnerGraph, write: &mut W) -> Result<(), std::io::E
 where
     W: std::io::Write,
 {
-    #[cfg(feature = "petgraph")]
-    {
-        let dot = petgraph::dot::Dot::new(graph);
-        write!(write, "{}", dot)?;
-    }
-    #[cfg(feature = "fast_paths")]
     unimplemented!();
     Ok(())
 }
@@ -311,7 +294,6 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
         }
     }
 
-    #[cfg(feature = "fast_paths")]
     graph.prepare();
 
     Ok(Graph {

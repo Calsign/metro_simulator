@@ -86,8 +86,6 @@ fn main() {
                 .construct_base_route_graph_filter(metro_lines, highway_segments)
                 .unwrap();
 
-            let world_state = route::WorldState::new();
-
             let best = route::best_route(
                 &mut graph,
                 route::QueryInput {
@@ -95,7 +93,6 @@ fn main() {
                     end,
                     car_config,
                 },
-                &world_state,
             )
             .unwrap();
 

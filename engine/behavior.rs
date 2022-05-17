@@ -56,7 +56,7 @@ impl TriggerType for UpdateTraffic {
         // re-trigger every hour of simulated time
         engine
             .trigger_queue
-            .push_rel(self, Time::new::<minute>(30).value);
+            .push_rel(self, engine.world_state_history.snapshot_period());
     }
 }
 
@@ -159,7 +159,7 @@ impl TriggerType for AgentRouteStart {
         let route_state = agent::AgentRouteState::new(
             *self.route,
             engine.time_state.current_time,
-            &mut engine.route_state,
+            &mut engine.world_state,
             &engine.state,
         );
         let next_trigger = route_state.next_trigger();
@@ -183,7 +183,7 @@ impl TriggerType for AgentRouteAdvance {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         match &mut agent.state {
             agent::AgentState::Route(route_state) => {
-                route_state.advance(&mut engine.route_state, &engine.state);
+                route_state.advance(&mut engine.world_state, &engine.state);
                 match route_state.next_trigger() {
                     Some(next_trigger) => {
                         assert!(next_trigger >= engine.time_state.current_time);
