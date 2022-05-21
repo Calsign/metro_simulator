@@ -17,6 +17,7 @@ pub struct App {
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
     pub(crate) route_query: RouteQuery,
+    pub(crate) congestion_analysis: CongestionAnalysis,
 }
 
 impl App {
@@ -30,6 +31,7 @@ impl App {
             options: Options::new(),
             diagnostics: Diagnostics::default(),
             route_query: RouteQuery::new(),
+            congestion_analysis: CongestionAnalysis::new(),
         }
     }
 
@@ -66,6 +68,9 @@ impl App {
                     });
 
                     ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
+                    ui.collapsing("Congestion analysis", |ui| {
+                        self.draw_congestion_analysis(ui)
+                    });
                 });
             });
 
@@ -193,6 +198,159 @@ impl App {
                 }
             }
         }
+    }
+
+    fn draw_congestion_analysis(&mut self, ui: &mut egui::Ui) {
+        use enum_iterator::IntoEnumIterator;
+        use route::{CongestionStats, WorldState};
+
+        let bounding_box = self.get_bounding_box(ui);
+        let highway_segment_in_bounds = |highway_segment_id| {
+            if self.congestion_analysis.filter_visible {
+                self.engine
+                    .state
+                    .highways
+                    .get_segments()
+                    .get(&highway_segment_id)
+                    .expect("missing highway segment")
+                    .bounds
+                    .intersects(&bounding_box)
+            } else {
+                true
+            }
+        };
+        let metro_segment_in_bounds = |(metro_line, start, end)| {
+            if self.congestion_analysis.filter_visible {
+                self.engine
+                    .state
+                    .metro_lines
+                    .get(&metro_line)
+                    .expect("missing metro line")
+                    .get_segment_bounds(start, end)
+                    .expect("invalid metro segment")
+                    .intersects(&bounding_box)
+            } else {
+                true
+            }
+        };
+
+        let current_time = self.engine.time_state.current_time;
+        let current_snapshot_index = self
+            .engine
+            .world_state_history
+            .get_current_snapshot_index(current_time, true);
+
+        // TODO: there is some duplication in here, but it's hard to pull it out because the
+        // highway/metro stats types are different, and the snapshot types are different as well.
+
+        let mut history_chart = crate::chart::Chart::new(
+            self.engine
+                .world_state_history
+                .get_snapshots()
+                .iter()
+                .enumerate()
+                .map(|(i, snapshot)| {
+                    let history_value = match self.congestion_analysis.congestion_type {
+                        CongestionType::HighwaySegments => {
+                            let data = snapshot
+                                .iter_highway_segments()
+                                .filter(|k, v| highway_segment_in_bounds(k));
+                            self.congestion_analysis.historical_quantity.get(data)
+                        }
+                        CongestionType::MetroSegments => {
+                            let data = snapshot
+                                .iter_metro_segments()
+                                .filter(|k, v| metro_segment_in_bounds(k));
+                            self.congestion_analysis.historical_quantity.get(data)
+                        }
+                    };
+                    // if this snapshot is the current snapshot, display the current value as well
+                    let extra = (i == current_snapshot_index).then(|| {
+                        let current_value = match self.congestion_analysis.congestion_type {
+                            CongestionType::HighwaySegments => {
+                                let data = self
+                                    .engine
+                                    .world_state
+                                    .iter_highway_segments()
+                                    .filter(|k, v| highway_segment_in_bounds(k));
+                                self.congestion_analysis.historical_quantity.get(data)
+                            }
+                            CongestionType::MetroSegments => {
+                                let data = self
+                                    .engine
+                                    .world_state
+                                    .iter_metro_segments()
+                                    .filter(|k, v| metro_segment_in_bounds(k));
+                                self.congestion_analysis.historical_quantity.get(data)
+                            }
+                        };
+                        current_value - history_value
+                    });
+                    (history_value as f32, extra.map(|value| value as f32))
+                })
+                .collect(),
+        );
+        history_chart.with_labels(|i, (entry, _)| format!("{:.1}", entry));
+
+        let histogram = match self.congestion_analysis.congestion_type {
+            CongestionType::HighwaySegments => {
+                let data = self
+                    .engine
+                    .world_state
+                    .iter_highway_segments()
+                    .filter(|k, v| v > 0 && highway_segment_in_bounds(k));
+                data.histogram(48, 200)
+            }
+            CongestionType::MetroSegments => {
+                let data = self
+                    .engine
+                    .world_state
+                    .iter_metro_segments()
+                    .filter(|k, v| v > 0 && metro_segment_in_bounds(k));
+                data.histogram(48, 200)
+            }
+        };
+
+        let mut histogram_chart =
+            crate::chart::Chart::new(histogram.iter().map(|total| *total as f32).collect());
+        histogram_chart.with_labels(|i, entry| format!("{}", entry as f64));
+
+        egui::ComboBox::from_id_source("congestion_analysis_type")
+            .selected_text(self.congestion_analysis.congestion_type.label())
+            .show_ui(ui, |ui| {
+                for congestion_type in CongestionType::into_enum_iter() {
+                    ui.selectable_value(
+                        &mut self.congestion_analysis.congestion_type,
+                        congestion_type,
+                        congestion_type.label(),
+                    );
+                }
+            });
+
+        ui.checkbox(
+            &mut self.congestion_analysis.filter_visible,
+            "Filter visible",
+        );
+
+        ui.label("Historical congestion");
+        ui.label(format!("Scale {:.1}", history_chart.rounded_max_entry,));
+        ui.add(history_chart);
+
+        egui::ComboBox::from_id_source("congestion_analysis_historical_quantity")
+            .selected_text(self.congestion_analysis.historical_quantity.label())
+            .show_ui(ui, |ui| {
+                for quantity in CongestionHistoricalQuantity::into_enum_iter() {
+                    ui.selectable_value(
+                        &mut self.congestion_analysis.historical_quantity,
+                        quantity,
+                        quantity.label(),
+                    );
+                }
+            });
+
+        ui.label("Current histogram");
+        ui.label(format!("Scale: {:.1}", histogram_chart.rounded_max_entry));
+        ui.add(histogram_chart);
     }
 }
 
@@ -342,6 +500,63 @@ impl RouteQuery {
             stop_selection: false,
             has_car: true,
             current_routes: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, enum_iterator::IntoEnumIterator, PartialEq, Copy, Clone)]
+pub(crate) enum CongestionType {
+    HighwaySegments,
+    MetroSegments,
+}
+
+impl CongestionType {
+    fn label(&self) -> &'static str {
+        match self {
+            Self::HighwaySegments => "Highways",
+            Self::MetroSegments => "Metros",
+        }
+    }
+}
+
+#[derive(Debug, enum_iterator::IntoEnumIterator, PartialEq, Copy, Clone)]
+pub(crate) enum CongestionHistoricalQuantity {
+    Sum,
+    Mean,
+    Rms,
+}
+
+impl CongestionHistoricalQuantity {
+    fn label(&self) -> &'static str {
+        match self {
+            Self::Sum => "Sum",
+            Self::Mean => "Mean",
+            Self::Rms => "RMS",
+        }
+    }
+
+    fn get<'a, K>(&self, congestion_stats: route::CongestionIterator<'a, K>) -> f32 {
+        use route::CongestionStats;
+        match self {
+            Self::Sum => congestion_stats.sum() as f32,
+            Self::Mean => congestion_stats.mean() as f32,
+            Self::Rms => congestion_stats.rms() as f32,
+        }
+    }
+}
+
+pub(crate) struct CongestionAnalysis {
+    pub filter_visible: bool,
+    pub congestion_type: CongestionType,
+    pub historical_quantity: CongestionHistoricalQuantity,
+}
+
+impl CongestionAnalysis {
+    fn new() -> Self {
+        Self {
+            filter_visible: false,
+            congestion_type: CongestionType::HighwaySegments,
+            historical_quantity: CongestionHistoricalQuantity::Rms,
         }
     }
 }

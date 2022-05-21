@@ -73,7 +73,7 @@ where
     Ok(())
 }
 
-pub fn compute_bounds<T, F>(nodes: &Vec<T>, f: F) -> quadtree::Rect
+pub fn compute_bounds<T, F>(nodes: &[T], f: F) -> quadtree::Rect
 where
     F: Fn(&T) -> (f64, f64),
 {

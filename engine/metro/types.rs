@@ -53,7 +53,10 @@ pub struct MetroLine {
     tile_size: f64,
     /// the MetroKeys defining the metro line
     keys: Vec<MetroKey>,
-    pub bounds: quadtree::Rect,
+    #[serde(skip)]
+    bounds: OnceCell<quadtree::Rect>,
+    #[serde(skip)]
+    segment_bounds: OnceCell<HashMap<(quadtree::Address, quadtree::Address), quadtree::Rect>>,
     /// this is fully determined by the keys
     #[serde(skip)]
     splines: OnceCell<Splines>,
@@ -96,7 +99,8 @@ impl MetroLine {
             schedule: Schedule::fixed_frequency(60 * 15),
             tile_size,
             keys: Vec::new(),
-            bounds: quadtree::Rect::xywh(0, 0, 0, 0),
+            bounds: OnceCell::new(),
+            segment_bounds: OnceCell::new(),
             splines: OnceCell::new(),
         }
     }
@@ -106,10 +110,51 @@ impl MetroLine {
     }
 
     pub fn set_keys(&mut self, keys: Vec<MetroKey>) {
-        self.bounds = spline_util::compute_bounds(&keys, |key| match key {
-            MetroKey::Key(vec) | MetroKey::Stop(vec, _) => (vec.x, vec.y),
-        });
         self.keys = keys;
+    }
+
+    pub fn get_bounds(&self) -> &quadtree::Rect {
+        self.bounds.get_or_init(|| {
+            spline_util::compute_bounds(&self.keys, |key| match key {
+                MetroKey::Key(vec) | MetroKey::Stop(vec, _) => (vec.x, vec.y),
+            })
+        })
+    }
+
+    pub fn get_segment_bounds(
+        &self,
+        start: quadtree::Address,
+        end: quadtree::Address,
+    ) -> Option<&quadtree::Rect> {
+        let segment_bounds_map = self.segment_bounds.get_or_init(|| {
+            // partition into segments (bits between stations) and calculate bounds for each
+            let mut segment_bounds = HashMap::new();
+            let mut start = None;
+            let mut start_index = 0;
+            for (i, key) in self.keys.iter().enumerate() {
+                match key {
+                    MetroKey::Key(_) => (),
+                    MetroKey::Stop(vec, station) => {
+                        if let Some(start) = start {
+                            segment_bounds.insert(
+                                (start, station.address),
+                                spline_util::compute_bounds(&self.keys[start_index..i], |key| {
+                                    match key {
+                                        MetroKey::Key(vec) | MetroKey::Stop(vec, _) => {
+                                            (vec.x, vec.y)
+                                        }
+                                    }
+                                }),
+                            );
+                        }
+                        start = Some(station.address);
+                        start_index = i;
+                    }
+                }
+            }
+            segment_bounds
+        });
+        segment_bounds_map.get(&(start, end))
     }
 
     fn construct_splines(&self) -> Splines {

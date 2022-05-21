@@ -17,4 +17,7 @@ pub use node::Node;
 pub use query::best_route;
 pub use route::{Route, SplineVisitor};
 pub use route_key::RouteKey;
-pub use traffic::{WorldState, WorldStateHistory, WorldStateImpl, WorldStatePredictor};
+pub use traffic::{
+    CongestionIterator, CongestionStats, WorldState, WorldStateHistory, WorldStateImpl,
+    WorldStatePredictor,
+};

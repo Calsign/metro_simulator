@@ -8,6 +8,7 @@ CRATES = {
     "once_cell": "1.10.0",
     "derive_more": "0.99",
     "derivative": "2.2.0",
+    "enum-iterator": "0.8.1",
     "enum_dispatch": "0.3",
     "chrono": "0.4",
     "itertools": "0.10",

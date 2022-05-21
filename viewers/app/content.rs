@@ -3,6 +3,14 @@ use anyhow::Result;
 use state::{BranchState, LeafState};
 
 impl App {
+    pub(crate) fn get_bounding_box(&self, ui: &egui::Ui) -> quadtree::Rect {
+        let max_rect = ui.clip_rect();
+        let (x1, y1) = self.pan.to_model_fu(max_rect.min.into());
+        let (x2, y2) = self.pan.to_model_fu(max_rect.max.into());
+
+        quadtree::Rect::corners(x1, y1, x2, y2)
+    }
+
     pub(crate) fn draw_content(&mut self, ui: &mut egui::Ui) -> Result<()> {
         use itertools::Itertools;
 
@@ -10,11 +18,7 @@ impl App {
             ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
         self.handle_input(response);
 
-        let max_rect = ui.max_rect();
-        let (x1, y1) = self.pan.to_model_fu(max_rect.min.into());
-        let (x2, y2) = self.pan.to_model_fu(max_rect.max.into());
-
-        let bounding_box = quadtree::Rect::corners(x1, y1, x2, y2);
+        let bounding_box = self.get_bounding_box(ui);
 
         let mut qtree_visitor = DrawQtreeVisitor::new(self, &painter);
         self.engine
@@ -62,7 +66,7 @@ impl App {
         }
 
         for (id, metro_line) in &self.engine.state.metro_lines {
-            if bounding_box.intersects(&metro_line.bounds) {
+            if bounding_box.intersects(&metro_line.get_bounds()) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
                 self.diagnostics.metro_vertices += spline_visitor.visited;

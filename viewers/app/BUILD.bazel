@@ -6,6 +6,7 @@ rust_library(
     srcs = [
         "app.rs",
         "bootstrap.rs",
+        "chart.rs",
         "content.rs",
         "lib.rs",
     ],
@@ -25,6 +26,7 @@ rust_library(
         "@crates//:egui",
         "@crates//:egui_wgpu_backend",
         "@crates//:egui_winit_platform",
+        "@crates//:enum-iterator",
         "@crates//:env_logger",
         "@crates//:itertools",
         "@crates//:lazy_static",
