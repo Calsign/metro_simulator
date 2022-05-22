@@ -101,6 +101,7 @@ impl WorldState for WorldStateImpl {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldStateHistory {
     snapshots: Vec<WorldStateImpl>,
+    period: u64,
 }
 
 impl WorldStateHistory {
@@ -109,7 +110,7 @@ impl WorldStateHistory {
         for _ in 0..num_snapshots {
             snapshots.push(WorldStateImpl::new());
         }
-        Self { snapshots }
+        Self { snapshots, period: Time::new::<day>(1).value / num_snapshots as u64 }
     }
 
     /**
@@ -127,7 +128,7 @@ impl WorldStateHistory {
      * Number of seconds between each snapshot.
      */
     pub fn snapshot_period(&self) -> u64 {
-        Time::new::<day>(1).value / self.num_snapshots() as u64
+        self.period
     }
 
     fn update_prior(prior: &mut u64, observation: u64) {

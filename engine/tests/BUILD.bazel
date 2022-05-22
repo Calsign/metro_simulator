@@ -8,5 +8,6 @@ rust_binary(
         "//engine",
         "//engine/route",
         "@crates//:uom",
+        "@crates//:clap",
     ],
 )
