@@ -191,7 +191,12 @@ impl App {
                 } else {
                     None
                 };
-                match self.engine.query_route(start, stop, car_config) {
+                let query_input = route::QueryInput {
+                    start,
+                    end: stop,
+                    car_config,
+                };
+                match self.engine.query_route(query_input) {
                     Ok(Some(route)) => self.route_query.current_routes = vec![route],
                     Ok(None) => (),
                     Err(err) => eprintln!("Error querying route: {}", err),

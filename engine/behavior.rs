@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use uom::si::time::{day, hour, minute, second};
 use uom::si::u64::Time;
 
-use crate::engine::Engine;
+use crate::engine::{Engine, Error};
 
 #[enum_dispatch::enum_dispatch]
 pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
@@ -68,32 +68,37 @@ pub struct AgentPlanCommuteToWork {
 impl TriggerType for AgentPlanCommuteToWork {
     fn execute(self, engine: &mut Engine, time: u64) {
         let agent = engine.agents.get(&self.agent).expect("missing agent");
+        let id = agent.id;
         if let Some(workplace) = &agent.workplace {
             // morning commute to work
 
-            let housing = agent.housing;
-            let workplace = *workplace;
-            let id = agent.id;
+            let query_input = route::QueryInput {
+                start: agent.housing,
+                end: *workplace,
+                car_config: Some(route::CarConfig::StartWithCar),
+            };
 
-            let start_time = engine.time_state.current_time;
-            if let Ok(Some(route)) =
-                engine.query_route(housing, workplace, Some(route::CarConfig::StartWithCar))
-            {
-                // TODO: do something better than using the estimated time
-                let estimated_total_time = route.total_cost();
-                engine.trigger_queue.push(
-                    AgentRouteStart {
-                        agent: id,
-                        route: Box::new(route),
-                    },
-                    start_time,
-                );
-                // come home from work after 8 hours
-                engine.trigger_queue.push(
-                    AgentPlanCommuteHome { agent: id },
-                    start_time + estimated_total_time.ceil() as u64 + Time::new::<hour>(8).value,
-                );
-            }
+            let start_time = engine.time_state.current_time + AgentRouteStart::DEADLINE;
+
+            let receiver = engine.query_route_async(query_input);
+            engine.trigger_queue.push(
+                AgentRouteStart {
+                    agent: id,
+                    receiver: Some(RouteReceiver {
+                        receiver: Box::new(receiver),
+                    }),
+                    query_input,
+                },
+                start_time,
+            );
+
+            // come home from work after 8 hours
+            // TODO: it would be better to use estimated time or something
+            // we had this originally, but it's tougher with parallelism
+            engine.trigger_queue.push(
+                AgentPlanCommuteHome { agent: id },
+                start_time as u64 + Time::new::<hour>(8).value,
+            );
         }
 
         engine
@@ -110,44 +115,76 @@ pub struct AgentPlanCommuteHome {
 impl TriggerType for AgentPlanCommuteHome {
     fn execute(self, engine: &mut Engine, time: u64) {
         let agent = engine.agents.get(&self.agent).expect("missing agent");
+        let id = agent.id;
         if let Some(workplace) = &agent.workplace {
             // commute back home from work
 
-            let housing = agent.housing;
-            let workplace = *workplace;
-            let id = agent.id;
-
-            let start_time = engine.time_state.current_time;
-            if let Ok(Some(route)) = engine.query_route(
-                workplace,
-                housing,
+            let query_input = route::QueryInput {
+                start: *workplace,
+                end: agent.housing,
                 // TODO: if a car is parked somewhere, account for it
-                Some(route::CarConfig::StartWithCar),
-            ) {
-                engine.trigger_queue.push(
-                    AgentRouteStart {
-                        agent: id,
-                        route: Box::new(route),
-                    },
-                    start_time,
-                );
-            }
+                car_config: Some(route::CarConfig::StartWithCar),
+            };
+
+            let start_time = engine.time_state.current_time + AgentRouteStart::DEADLINE;
+
+            let receiver = engine.query_route_async(query_input);
+            engine.trigger_queue.push(
+                AgentRouteStart {
+                    agent: id,
+                    receiver: Some(RouteReceiver {
+                        receiver: Box::new(receiver),
+                    }),
+                    query_input,
+                },
+                start_time,
+            );
         }
     }
 }
 
-// NOTE: we intentionally don't compare the route.
-// Hopefully this won't be an issue.
+#[derive(Debug, Clone, derivative::Derivative)]
+#[derivative(PartialEq, Eq, PartialOrd, Ord)]
+struct RouteReceiver {
+    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
+    receiver: Box<crossbeam::channel::Receiver<Result<Option<route::Route>, Error>>>,
+}
+
+// NOTE: if we are loading from a serialized copy, the spawned thread is dead, so we need to
+// do a blocking compute from the query input.
 #[derive(Debug, Clone, Serialize, Deserialize, derivative::Derivative)]
 #[derivative(PartialEq, Eq, PartialOrd, Ord)]
 pub struct AgentRouteStart {
     agent: u64,
+    #[serde(skip)]
+    receiver: Option<RouteReceiver>,
     #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
-    route: Box<route::Route>,
+    query_input: route::QueryInput,
+}
+
+impl AgentRouteStart {
+    /// how long (in simulation time) we should wait before joining the calculation worker
+    const DEADLINE: u64 = 5;
 }
 
 impl TriggerType for AgentRouteStart {
     fn execute(self, engine: &mut Engine, time: u64) {
+        let route = match self.receiver {
+            Some(receiver) => {
+                // This blocks if the route has not been computed yet.
+                // We can adjust how likely we are to block by twiddling the deadline.
+                receiver
+                    .receiver
+                    .recv()
+                    .expect("channel disconnected unexpectedly")
+            }
+            None => {
+                // We don't have a receiver because the engine state was serialized between when the
+                // route query was queued and now. The best we can do is compute the route here.
+                engine.query_route(self.query_input)
+            }
+        };
+
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
 
         if let agent::AgentState::Route(_) = agent.state {
@@ -156,19 +193,22 @@ impl TriggerType for AgentRouteStart {
             return;
         }
 
-        let route_state = agent::AgentRouteState::new(
-            *self.route,
-            engine.time_state.current_time,
-            &mut engine.world_state,
-            &engine.state,
-        );
-        let next_trigger = route_state.next_trigger();
-        agent.state = agent::AgentState::Route(route_state);
+        // TODO: if there's an error here we should probably do something about it
+        if let Ok(Some(route)) = route {
+            let route_state = agent::AgentRouteState::new(
+                route,
+                engine.time_state.current_time,
+                &mut engine.world_state,
+                &engine.state,
+            );
+            let next_trigger = route_state.next_trigger();
+            agent.state = agent::AgentState::Route(route_state);
 
-        if let Some(next_trigger) = next_trigger {
-            engine
-                .trigger_queue
-                .push(AgentRouteAdvance { agent: self.agent }, next_trigger);
+            if let Some(next_trigger) = next_trigger {
+                engine
+                    .trigger_queue
+                    .push(AgentRouteAdvance { agent: self.agent }, next_trigger);
+            }
         }
     }
 }

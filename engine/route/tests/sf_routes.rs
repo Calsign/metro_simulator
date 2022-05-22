@@ -167,13 +167,13 @@ lazy_static! {
     ]);
 }
 
-pub fn setup() -> (Engine, Graph) {
-    let state = Engine::load_file(&PathBuf::from("maps/sf.json")).unwrap();
-    let graph = state.construct_base_route_graph().unwrap();
-    (state, graph)
+pub fn setup() -> (Engine, std::cell::RefCell<Graph>) {
+    let engine = Engine::load_file(&PathBuf::from("maps/sf.json")).unwrap();
+    let graph = engine::BaseGraph::construct_base_graph(&engine.state).unwrap();
+    (engine, std::cell::RefCell::new(graph))
 }
 
-pub fn perform_query(engine: &Engine, graph: &mut Graph, test: &RouteTest) -> Route {
+pub fn perform_query(engine: &Engine, graph: std::cell::RefMut<Graph>, test: &RouteTest) -> Route {
     let start = engine
         .state
         .qtree

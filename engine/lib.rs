@@ -3,4 +3,4 @@ mod engine;
 mod time_state;
 mod trigger;
 
-pub use crate::engine::{Engine, Error};
+pub use crate::engine::{BaseGraph, Engine, Error};

@@ -1,8 +1,7 @@
-use once_cell::unsync::OnceCell;
-
-use quadtree::Quadtree;
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, RwLock};
+
+use serde::{Deserialize, Serialize};
 use uom::si::time::hour;
 use uom::si::u64::Time;
 
@@ -28,32 +27,124 @@ pub enum Error {
     RouteError(#[from] route::Error),
 }
 
+#[derive(Debug)]
+pub struct BaseGraph {
+    base_graph: once_cell::sync::OnceCell<route::Graph>,
+    per_thread: thread_local::ThreadLocal<std::cell::RefCell<route::Graph>>,
+}
+
+impl Default for BaseGraph {
+    fn default() -> Self {
+        Self {
+            base_graph: once_cell::sync::OnceCell::new(),
+            per_thread: thread_local::ThreadLocal::new(),
+        }
+    }
+}
+
+impl Clone for BaseGraph {
+    fn clone(&self) -> Self {
+        Self {
+            base_graph: self.base_graph.clone(),
+            per_thread: thread_local::ThreadLocal::new(),
+        }
+    }
+}
+
+impl BaseGraph {
+    pub fn construct_base_graph_filter(
+        state: &state::State,
+        metro_lines: Option<HashSet<u64>>,
+        highway_segments: Option<HashSet<u64>>,
+    ) -> Result<route::Graph, Error> {
+        let graph = route::construct_base_graph(route::BaseGraphInput {
+            state,
+            filter_metro_lines: metro_lines,
+            filter_highway_segments: highway_segments,
+            add_inferred_edges: true,
+            validate_highways: false,
+        })?;
+        Ok(graph)
+    }
+
+    pub fn construct_base_graph(state: &state::State) -> Result<route::Graph, Error> {
+        Self::construct_base_graph_filter(state, None, None)
+    }
+
+    pub fn get_base_graph(&self, state: &state::State) -> &route::Graph {
+        self.base_graph
+            .get_or_init(|| Self::construct_base_graph(state).unwrap())
+    }
+
+    pub fn get_base_graph_mut(&mut self, state: &state::State) -> &mut route::Graph {
+        // TODO: Annoying that we have to take the value out of the OnceCell and then put it back
+        // in. Seems like there should be a get_or_init_mut function or equivalent.
+        // NOTE: there is no race condition here because we have exclusive access to self
+        let base_graph = self
+            .base_graph
+            .take()
+            .unwrap_or_else(|| Self::construct_base_graph(state).unwrap());
+        self.base_graph.set(base_graph).unwrap();
+        self.base_graph.get_mut().unwrap()
+    }
+
+    /**
+     * Call this every time the base graph is updated. This forces the thread-local copies to be
+     * replaced, otherwise old versions will be used.
+     */
+    pub fn clear_thread_cache(&mut self) {
+        self.per_thread.clear();
+    }
+
+    pub fn get_thread_base_graph(&self) -> std::cell::RefMut<route::Graph> {
+        // TODO: This currently assumes that the base graph has been initialized, will panic if it
+        // hasn't been. The alternative solution requires synchronizing the state across threads,
+        // which seems not fun.
+        self.per_thread
+            .get_or(|| std::cell::RefCell::new(self.base_graph.get().unwrap().clone()))
+            .borrow_mut()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
     pub state: state::State,
     pub world_state: route::WorldStateImpl,
     pub world_state_history: route::WorldStateHistory,
     #[serde(skip)]
-    base_route_graph: Option<route::Graph>,
+    base_graph: Arc<RwLock<BaseGraph>>,
     pub time_state: TimeState,
     pub agents: HashMap<u64, agent::Agent>,
     agent_counter: u64,
     pub trigger_queue: TriggerQueue,
+    #[serde(skip, default = "Engine::create_thread_pool")]
+    pub(crate) thread_pool: threadpool::ThreadPool,
 }
 
 impl Engine {
     pub fn new(config: state::Config) -> Self {
         Self {
             state: state::State::new(config),
-
             world_state: route::WorldStateImpl::new(),
             world_state_history: route::WorldStateHistory::new(WORLD_STATE_HISTORY_SNAPSHOTS),
-            base_route_graph: None,
+            base_graph: Arc::new(RwLock::new(BaseGraph::default())),
             time_state: TimeState::new(),
             agents: HashMap::new(),
             agent_counter: 0,
             trigger_queue: TriggerQueue::new(),
+            thread_pool: Self::create_thread_pool(),
         }
+    }
+
+    fn create_thread_pool() -> threadpool::ThreadPool {
+        let parallelism = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        threadpool::ThreadPool::new(parallelism)
+    }
+
+    pub fn set_num_threads(&mut self, num_threads: usize) {
+        self.thread_pool.set_num_threads(num_threads);
     }
 
     pub fn load(data: &str) -> Result<Self, Error> {
@@ -125,45 +216,40 @@ impl Engine {
         id
     }
 
-    pub fn construct_base_route_graph_filter(
-        &self,
-        metro_lines: Option<HashSet<u64>>,
-        highway_segments: Option<HashSet<u64>>,
-    ) -> Result<route::Graph, Error> {
-        let graph = route::construct_base_graph(route::BaseGraphInput {
-            state: &self.state,
-            filter_metro_lines: metro_lines,
-            filter_highway_segments: highway_segments,
-            add_inferred_edges: true,
-            validate_highways: false,
-        })?;
-        Ok(graph)
-    }
-
-    pub fn construct_base_route_graph(&self) -> Result<route::Graph, Error> {
-        self.construct_base_route_graph_filter(None, None)
-    }
-
     pub fn query_route(
         &mut self,
-        start: quadtree::Address,
-        end: quadtree::Address,
-        car_config: Option<route::CarConfig>,
+        query_input: route::QueryInput,
     ) -> Result<Option<route::Route>, Error> {
-        let query_input = route::QueryInput {
-            start,
-            end,
-            car_config,
-        };
+        // TODO: using the thread local mechanism isn't necessary here, but currently
+        // route::best_route is written to accept RefMut so we have to do this
+        let base_graph = self.base_graph.write().unwrap();
+        // TODO: this is necessary to make sure the base graph is constructed
+        let _ = base_graph.get_base_graph(&self.state);
+        Ok(route::best_route(
+            base_graph.get_thread_base_graph(),
+            query_input,
+        )?)
+    }
 
-        let base_graph = {
-            if let None = &self.base_route_graph {
-                self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
-            }
-            self.base_route_graph.as_mut().unwrap()
-        };
+    /**
+     * Performs the same work as query_route, but passes the work off to a thread pool which sends
+     * the route response on a channel to the returned reciever when it finishes.
+     */
+    pub fn query_route_async(
+        &mut self,
+        query_input: route::QueryInput,
+    ) -> crossbeam::channel::Receiver<Result<Option<route::Route>, Error>> {
+        let (sender, receiver) = crossbeam::channel::bounded(1);
 
-        Ok(route::best_route(base_graph, query_input)?)
+        let base_graph = self.base_graph.clone();
+
+        self.thread_pool.execute(move || {
+            let base_graph = base_graph.read().unwrap();
+            let route = route::best_route(base_graph.get_thread_base_graph(), query_input);
+            sender.send(route.map_err(|e| e.into())).unwrap();
+        });
+
+        receiver
     }
 
     /**
@@ -183,15 +269,12 @@ impl Engine {
             .get_predictor(self.time_state.current_time + horizon);
 
         // TODO: invalidate base graph when metros/highways change
-        // also want to have separate instances per thread
-        if let None = &self.base_route_graph {
-            self.base_route_graph = Some(self.construct_base_route_graph().unwrap());
-        }
-
-        self.base_route_graph
-            .as_mut()
-            .unwrap()
+        let mut base_graph = self.base_graph.write().unwrap();
+        base_graph
+            .get_base_graph_mut(&self.state)
             .update_weights(predicted_state, &self.state);
+        // force the thread-local copies to be invalidated
+        base_graph.clear_thread_cache();
     }
 
     /**

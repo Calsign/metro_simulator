@@ -60,14 +60,20 @@ fn main() {
 
     match args.operation {
         Operation::Construct => {
-            let graph = engine
-                .construct_base_route_graph_filter(metro_lines, highway_segments)
-                .unwrap();
+            let graph = engine::BaseGraph::construct_base_graph_filter(
+                &engine.state,
+                metro_lines,
+                highway_segments,
+            )
+            .unwrap();
         }
         Operation::Dump { output } => {
-            let graph = engine
-                .construct_base_route_graph_filter(metro_lines, highway_segments)
-                .unwrap();
+            let graph = engine::BaseGraph::construct_base_graph_filter(
+                &engine.state,
+                metro_lines,
+                highway_segments,
+            )
+            .unwrap();
             dump_graph(&graph.graph, &output);
         }
         Operation::Query { coords } => {
@@ -82,12 +88,19 @@ fn main() {
                 .get_address(coords.end_x, coords.end_y)
                 .unwrap();
 
-            let mut graph = engine
-                .construct_base_route_graph_filter(metro_lines, highway_segments)
-                .unwrap();
+            let mut graph = engine::BaseGraph::construct_base_graph_filter(
+                &engine.state,
+                metro_lines,
+                highway_segments,
+            )
+            .unwrap();
+
+            let graph_cell = std::cell::RefCell::new(graph);
+
+            use std::borrow::BorrowMut;
 
             let best = route::best_route(
-                &mut graph,
+                graph_cell.borrow_mut(),
                 route::QueryInput {
                     start,
                     end,

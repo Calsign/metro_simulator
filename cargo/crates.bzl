@@ -51,6 +51,9 @@ CRATES = {
 
     # parallelism
     "rayon": "1.5.2",
+    "threadpool": "1.8.1",
+    "crossbeam": "0.8.1",
+    "thread_local": "1.1.4",
 
     # generating flamegraphs (not used in the code, just the executable is used)
     "flamegraph": "0.6.1",

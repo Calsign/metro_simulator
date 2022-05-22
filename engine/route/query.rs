@@ -80,10 +80,11 @@ fn construct_route(
  * TODO: adjust the construction of the problem so that we can always
  * find a route.
  */
-pub fn best_route<'a>(base_graph: &mut Graph, input: QueryInput) -> Result<Option<Route>, Error> {
+pub fn best_route<'a>(
+    mut base_graph: std::cell::RefMut<Graph>,
+    input: QueryInput,
+) -> Result<Option<Route>, Error> {
     use cgmath::MetricSpace;
-
-    let inner = &mut base_graph.graph;
 
     let mut fastest: Option<(f64, Vec<NodeIndex>, Mode, Mode, f64, f64)> = None;
 
@@ -101,17 +102,19 @@ pub fn best_route<'a>(base_graph: &mut Graph, input: QueryInput) -> Result<Optio
         let end_id = base_graph.neighbors[&end_mode].find_nearest(end_x as f64, end_y as f64);
 
         if let (Some(start_id), Some(end_id)) = (start_id, end_id) {
-            let path = perform_query(inner, start_id, end_id)?;
+            let path = perform_query(&mut base_graph.graph, start_id, end_id)?;
             if let Some((cost, nodes)) = path {
                 // add in cost for reaching the start node and end node
                 let start_vec = cgmath::Vector2::from(
-                    inner
+                    base_graph
+                        .graph
                         .node_weight(*nodes.first().unwrap())
                         .unwrap()
                         .location(),
                 );
                 let end_vec = cgmath::Vector2::from(
-                    inner
+                    base_graph
+                        .graph
                         .node_weight(*nodes.last().unwrap())
                         .unwrap()
                         .location(),
@@ -163,7 +166,7 @@ pub fn best_route<'a>(base_graph: &mut Graph, input: QueryInput) -> Result<Optio
             // only
             (cost < Time::new::<hour>(4).value as f64).then(|| {
                 construct_route(
-                    inner,
+                    &mut base_graph.graph,
                     input,
                     cost,
                     &path,
