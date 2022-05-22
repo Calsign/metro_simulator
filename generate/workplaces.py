@@ -32,22 +32,31 @@ class Workplaces(SimpleDensity):
             ):
                 t = node.data["tile"]["type"]
                 if t == "HousingTile":
-                    housing.append(engine.Address(data.address, qtree.max_depth))
+                    for _ in range(node.data["tile"]["density"]):
+                        housing.append(engine.Address(data.address, qtree.max_depth))
                 elif t == "WorkplaceTile":
-                    workplaces.append(engine.Address(data.address, qtree.max_depth))
+                    for _ in range(node.data["tile"]["density"]):
+                        workplaces.append(engine.Address(data.address, qtree.max_depth))
 
         qtree.convolve(count_tiles)
 
-        total_agents = min(len(housing), len(workplaces))
+        total_workers = min(len(housing), len(workplaces))
         print(f"housing: {len(housing)}, workplaces: {len(workplaces)}")
-        print(f"adding {total_agents} agents")
+        print(f"adding {total_workers} working agents")
 
         rand = random(self.map_config.name)
 
-        # TODO: set agents on housing/workplace tiles
-
-        for _ in range(total_agents):
+        for _ in range(total_workers):
             housing_id = housing.pop(rand.randrange(0, len(housing)))
             workplace_id = workplaces.pop(rand.randrange(0, len(workplaces)))
 
             state.add_agent(engine.AgentData(), housing_id, workplace_id)
+
+        # If we have more housing than workplaces (which should normally be true), then add agents
+        # without jobs. This includes not just unemployed people, but also people not working for
+        # various other reasons, e.g. because they are children, retired, or stay-at-home parents.
+        print(f"adding {len(housing)} non-working agents")
+        for housing_id in housing:
+            state.add_agent(engine.AgentData(), housing_id, None)
+
+        # TODO: add additional empty housing
