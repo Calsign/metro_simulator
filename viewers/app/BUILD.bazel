@@ -14,7 +14,6 @@ rust_library(
     deps = [
         "//engine",
         "//engine/agent",
-        "//engine/fields",
         "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",

@@ -395,7 +395,7 @@ impl FieldType {
         }
     }
 
-    fn value(&self, fields: &fields::FieldsState, data: &quadtree::VisitData) -> f32 {
+    fn value(&self, fields: &engine::FieldsState, data: &quadtree::VisitData) -> f32 {
         match self {
             Self::Population => fields.population.people.density as f32,
             Self::Employment => fields.employment.workers.density as f32,
@@ -405,7 +405,7 @@ impl FieldType {
         }
     }
 
-    pub fn hue(&self, fields: &fields::FieldsState, data: &quadtree::VisitData) -> f32 {
+    pub fn hue(&self, fields: &engine::FieldsState, data: &quadtree::VisitData) -> f32 {
         if self.peak() > 0.0 {
             // ranges from 0.0 (reddish) to 0.5 (blueish)
             f32::min(self.value(fields, data), self.peak()) / self.peak() * 0.5

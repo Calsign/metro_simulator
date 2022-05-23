@@ -77,7 +77,7 @@ impl Config {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct BranchState {
-    branch: state::BranchState<fields::FieldsState>,
+    branch: state::BranchState<engine::FieldsState>,
 }
 
 #[pymethods]
@@ -91,7 +91,7 @@ impl BranchState {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct LeafState {
-    leaf: state::LeafState<fields::FieldsState>,
+    leaf: state::LeafState<engine::FieldsState>,
 }
 
 #[pymethods]
@@ -103,7 +103,7 @@ impl LeafState {
 
     #[staticmethod]
     fn from_json(json: String) -> PyResult<Self> {
-        let leaf: state::LeafState<fields::FieldsState> = wrap_err(serde_json::from_str(&json))?;
+        let leaf: state::LeafState<engine::FieldsState> = wrap_err(serde_json::from_str(&json))?;
         Ok(leaf.into())
     }
 
@@ -371,14 +371,14 @@ struct PyQtreeVisitor {
 
 impl
     quadtree::Visitor<
-        state::BranchState<fields::FieldsState>,
-        state::LeafState<fields::FieldsState>,
+        state::BranchState<engine::FieldsState>,
+        state::LeafState<engine::FieldsState>,
         PyErr,
     > for PyQtreeVisitor
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &state::BranchState<fields::FieldsState>,
+        branch: &state::BranchState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> PyResult<bool> {
         Python::with_gil(|py| {
@@ -390,7 +390,7 @@ impl
 
     fn visit_leaf(
         &mut self,
-        leaf: &state::LeafState<fields::FieldsState>,
+        leaf: &state::LeafState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> PyResult<()> {
         Python::with_gil(|py| {
@@ -403,7 +403,7 @@ impl
 
     fn visit_branch_post(
         &mut self,
-        branch: &state::BranchState<fields::FieldsState>,
+        branch: &state::BranchState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> PyResult<()> {
         Ok(())

@@ -5,6 +5,7 @@ rust_library(
     srcs = [
         "behavior.rs",
         "engine.rs",
+        "fields.rs",
         "lib.rs",
         "time_state.rs",
         "trigger.rs",
@@ -16,7 +17,6 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//engine/agent",
-        "//engine/fields",
         "//engine/quadtree",
         "//engine/route",
         "//engine/state",

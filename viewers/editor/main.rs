@@ -325,7 +325,7 @@ enum FieldType {
 
 fn field_data_to_color(
     field_type: &FieldType,
-    fields_state: &fields::FieldsState,
+    fields_state: &engine::FieldsState,
 ) -> Option<druid::Color> {
     let value = match field_type {
         FieldType::None => None,
@@ -430,7 +430,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct CurrentLeafState {
     address: Rc<quadtree::Address>,
-    leaf: Rc<state::LeafState<fields::FieldsState>>,
+    leaf: Rc<state::LeafState<engine::FieldsState>>,
     tile_type: std::mem::Discriminant<tiles::Tile>,
     data: String,
     edited_data: String,
@@ -772,7 +772,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
 
     fn maybe_draw_field(
         &mut self,
-        fields: &fields::FieldsState,
+        fields: &engine::FieldsState,
         data: &quadtree::VisitData,
         is_leaf: bool,
     ) {
@@ -796,14 +796,14 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
 
 impl<'a, 'b, 'c, 'd, 'e, 'f>
     quadtree::Visitor<
-        state::BranchState<fields::FieldsState>,
-        state::LeafState<fields::FieldsState>,
+        state::BranchState<engine::FieldsState>,
+        state::LeafState<engine::FieldsState>,
         anyhow::Error,
     > for PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &state::BranchState<fields::FieldsState>,
+        branch: &state::BranchState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
         let should_descend = data.width as f64 * self.state.content.scale >= 5.0;
@@ -821,7 +821,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
     fn visit_leaf(
         &mut self,
-        leaf: &state::LeafState<fields::FieldsState>,
+        leaf: &state::LeafState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
         use druid::RenderContext;
@@ -870,7 +870,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
     fn visit_branch_post(
         &mut self,
-        branch: &state::BranchState<fields::FieldsState>,
+        branch: &state::BranchState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
         self.maybe_draw_field(&branch.fields, data, false);

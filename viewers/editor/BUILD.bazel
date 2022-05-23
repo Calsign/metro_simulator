@@ -7,7 +7,6 @@ rust_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//engine",
-        "//engine/fields",
         "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",

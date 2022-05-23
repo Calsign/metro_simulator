@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use uom::si::time::hour;
 use uom::si::u64::Time;
 
+use crate::fields::FieldsState;
 use crate::time_state::TimeState;
 use crate::trigger::TriggerQueue;
 
@@ -113,7 +114,7 @@ impl BaseGraph {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
-    pub state: state::State<fields::FieldsState>,
+    pub state: state::State<FieldsState>,
     pub world_state: route::WorldStateImpl,
     pub world_state_history: route::WorldStateHistory,
     #[serde(skip)]

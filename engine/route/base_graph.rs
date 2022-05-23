@@ -362,7 +362,7 @@ mod highway_tests {
             speed_limit: Some(1), // easy math
         };
 
-        let mut state: state::State<fields::FieldsState> = state::State::new(state::Config {
+        let mut state: state::State<engine::FieldsState> = state::State::new(state::Config {
             max_depth: 5,
             people_per_sim: 1,
             min_tile_size: 1,
