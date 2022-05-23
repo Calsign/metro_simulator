@@ -215,17 +215,7 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
         let threshold = self.app.options.field_resolution as f32;
         if is_leaf || (width >= threshold && width < threshold * 2.0) {
             if let Some(field) = self.app.overlay.field {
-                let hue = match field {
-                    FieldType::Population => {
-                        let peak = 0.15;
-                        f32::min(fields.population.density as f32, peak) / peak * 0.3
-                    }
-                    FieldType::Employment => {
-                        let peak = 0.3;
-                        f32::min(fields.employment.density as f32, peak) / peak * 0.6
-                    }
-                    FieldType::LandValue => 0.0,
-                };
+                let hue = field.hue(fields, data);
                 let color = egui::color::Hsva::new(hue, 0.8, 0.8, 0.5);
                 let rect = self.get_full_rect(data);
                 self.painter

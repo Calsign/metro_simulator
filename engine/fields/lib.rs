@@ -15,68 +15,93 @@ trait Field: std::fmt::Debug + Default + Clone {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct Population {
+pub struct SimpleDensity {
     pub total: usize,
     pub density: f64,
 }
 
-impl Population {
+impl SimpleDensity {
     fn from_total(total: usize, data: &quadtree::VisitData) -> Self {
         let density = total as f64 / (data.width * data.width) as f64;
         Self { total, density }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Population {
+    pub people: SimpleDensity,
+    pub housing: SimpleDensity,
+}
+
+impl Population {
+    pub fn housing_occupancy(&self) -> f64 {
+        self.people.total as f64 / self.housing.total as f64
+    }
+
+    pub fn housing_vacancy(&self) -> f64 {
+        1.0 - self.housing_occupancy()
     }
 }
 
 impl Field for Population {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let total = match leaf.tile {
-            tiles::Tile::HousingTile(tiles::HousingTile { density, .. }) => *density,
-            _ => 0,
+        let (people, housing) = match leaf.tile {
+            tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
+                (agents.len(), *density)
+            }
+            _ => (0, 0),
         };
-        Some(Self::from_total(total, leaf.data))
+        Some(Self {
+            people: SimpleDensity::from_total(people, leaf.data),
+            housing: SimpleDensity::from_total(housing, leaf.data),
+        })
     }
 
     fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
-        let total = branch
+        let (people, housing): (Vec<usize>, Vec<usize>) = branch
             .fields
             .values()
             .iter()
-            .map(|f| f.population.total)
-            .sum();
-        Some(Self::from_total(total, branch.data))
+            .map(|f| (f.population.people.total, f.population.housing.total))
+            .unzip();
+        Some(Self {
+            people: SimpleDensity::from_total(people.iter().sum(), branch.data),
+            housing: SimpleDensity::from_total(housing.iter().sum(), branch.data),
+        })
     }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct Employment {
-    pub total: usize,
-    pub density: f64,
-}
-
-impl Employment {
-    fn from_total(total: usize, data: &quadtree::VisitData) -> Self {
-        let density = total as f64 / (data.width * data.width) as f64;
-        Self { total, density }
-    }
+    pub workers: SimpleDensity,
+    pub jobs: SimpleDensity,
 }
 
 impl Field for Employment {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let total = match leaf.tile {
-            tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, .. }) => *density,
-            _ => 0,
+        let (workers, jobs) = match leaf.tile {
+            tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }) => {
+                (agents.len(), *density)
+            }
+            _ => (0, 0),
         };
-        Some(Self::from_total(total, leaf.data))
+        Some(Self {
+            workers: SimpleDensity::from_total(workers, leaf.data),
+            jobs: SimpleDensity::from_total(jobs, leaf.data),
+        })
     }
 
     fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
-        let total = branch
+        let (workers, jobs): (Vec<usize>, Vec<usize>) = branch
             .fields
             .values()
             .iter()
-            .map(|f| f.employment.total)
-            .sum();
-        Some(Self::from_total(total, branch.data))
+            .map(|f| (f.employment.workers.total, f.employment.jobs.total))
+            .unzip();
+        Some(Self {
+            workers: SimpleDensity::from_total(workers.iter().sum(), branch.data),
+            jobs: SimpleDensity::from_total(jobs.iter().sum(), branch.data),
+        })
     }
 }
 

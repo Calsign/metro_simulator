@@ -109,8 +109,14 @@ impl App {
             vec![],
             self.engine.state.qtree.max_depth(),
         ))) {
-            ui.label(format!("Population: {}", root.fields.population.total));
-            ui.label(format!("Employment: {}", root.fields.employment.total));
+            ui.label(format!(
+                "Population: {}",
+                root.fields.population.people.total
+            ));
+            ui.label(format!(
+                "Employment: {}",
+                root.fields.employment.workers.total
+            ));
         }
     }
 
@@ -359,11 +365,54 @@ impl App {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, enum_iterator::IntoEnumIterator)]
 pub(crate) enum FieldType {
     Population,
     Employment,
+    AvailableHousing,
+    AvailableJobs,
     LandValue,
+}
+
+impl FieldType {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Population => "Population",
+            Self::Employment => "Employment",
+            Self::AvailableHousing => "Available housing",
+            Self::AvailableJobs => "Available jobs",
+            Self::LandValue => "Land value",
+        }
+    }
+
+    fn peak(&self) -> f32 {
+        match self {
+            Self::Population => 0.3,
+            Self::Employment => 0.3,
+            Self::AvailableHousing => 0.3,
+            Self::AvailableJobs => 0.3,
+            Self::LandValue => 1.0,
+        }
+    }
+
+    fn value(&self, fields: &fields::FieldsState, data: &quadtree::VisitData) -> f32 {
+        match self {
+            Self::Population => fields.population.people.density as f32,
+            Self::Employment => fields.employment.workers.density as f32,
+            Self::AvailableHousing => fields.population.housing.density as f32,
+            Self::AvailableJobs => fields.employment.jobs.density as f32,
+            Self::LandValue => 0.0,
+        }
+    }
+
+    pub fn hue(&self, fields: &fields::FieldsState, data: &quadtree::VisitData) -> f32 {
+        if self.peak() > 0.0 {
+            // ranges from 0.0 (reddish) to 0.5 (blueish)
+            f32::min(self.value(fields, data), self.peak()) / self.peak() * 0.5
+        } else {
+            0.0
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -381,11 +430,12 @@ impl Overlay {
     }
 
     fn draw(&mut self, ui: &mut egui::Ui) {
-        ui.radio_value(&mut self.field, None, "None");
-        ui.radio_value(&mut self.field, Some(FieldType::Population), "Population");
-        ui.radio_value(&mut self.field, Some(FieldType::Employment), "Employment");
-        ui.radio_value(&mut self.field, Some(FieldType::LandValue), "Land value");
+        use enum_iterator::IntoEnumIterator;
 
+        ui.radio_value(&mut self.field, None, "None");
+        for field_type in FieldType::into_enum_iter() {
+            ui.radio_value(&mut self.field, Some(field_type), field_type.label());
+        }
         ui.checkbox(&mut self.traffic, "Traffic");
     }
 }

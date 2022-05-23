@@ -20,7 +20,6 @@ rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//engine/fields",
         "//engine/highway",
         "//engine/metro",
         "//engine/quadtree",
