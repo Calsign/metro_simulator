@@ -20,32 +20,41 @@ pub enum Error {
     ConfigError(#[from] crate::config::Error),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BranchState {
-    #[serde(skip)]
-    pub fields: fields::FieldsState,
+pub trait Fields: std::fmt::Debug + Default + Clone {
+    fn compute_leaf(&mut self, tile: &tiles::Tile, data: &quadtree::VisitData) -> bool;
+    fn compute_branch(
+        &mut self,
+        fields: &quadtree::QuadMap<Self>,
+        data: &quadtree::VisitData,
+    ) -> bool;
 }
 
-impl BranchState {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BranchState<F: Fields> {
+    #[serde(skip)]
+    pub fields: F,
+}
+
+impl<F: Fields> BranchState<F> {
     pub fn default() -> Self {
         Self {
-            fields: fields::FieldsState::new(),
+            fields: F::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LeafState {
+pub struct LeafState<F: Fields> {
     pub tile: tiles::Tile,
     #[serde(skip)]
-    pub fields: fields::FieldsState,
+    pub fields: F,
 }
 
-impl LeafState {
+impl<F: Fields> LeafState<F> {
     pub fn default() -> Self {
         Self {
             tile: tiles::EmptyTile {}.into(),
-            fields: fields::FieldsState::new(),
+            fields: F::default(),
         }
     }
 }
@@ -57,9 +66,9 @@ pub enum SerdeFormat {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct State {
+pub struct State<F: Fields> {
     pub config: Config,
-    pub qtree: Quadtree<BranchState, LeafState>,
+    pub qtree: Quadtree<BranchState<F>, LeafState<F>>,
     pub metro_lines: BTreeMap<u64, metro::MetroLine>,
     metro_line_counter: u64,
     pub highways: highway::Highways,
@@ -67,7 +76,7 @@ pub struct State {
     pub collect_tiles: CollectTilesVisitor,
 }
 
-impl State {
+impl<F: Fields> State<F> {
     pub fn new(config: Config) -> Self {
         let qtree = Quadtree::new(LeafState::default(), config.max_depth);
         Self {
@@ -154,24 +163,24 @@ impl State {
 
 struct UpdateFieldsFold {}
 
-impl quadtree::MutFold<BranchState, LeafState, (bool, fields::FieldsState), Error>
+impl<F: Fields> quadtree::MutFold<BranchState<F>, LeafState<F>, (bool, F), Error>
     for UpdateFieldsFold
 {
     fn fold_leaf(
         &mut self,
-        leaf: &mut LeafState,
+        leaf: &mut LeafState<F>,
         data: &quadtree::VisitData,
-    ) -> Result<(bool, fields::FieldsState), Error> {
+    ) -> Result<(bool, F), Error> {
         let changed = leaf.fields.compute_leaf(&leaf.tile, data);
         Ok((changed, leaf.fields.clone()))
     }
 
     fn fold_branch(
         &mut self,
-        branch: &mut BranchState,
-        children: &quadtree::QuadMap<(bool, fields::FieldsState)>,
+        branch: &mut BranchState<F>,
+        children: &quadtree::QuadMap<(bool, F)>,
         data: &quadtree::VisitData,
-    ) -> Result<(bool, fields::FieldsState), Error> {
+    ) -> Result<(bool, F), Error> {
         let changed = children.values().iter().any(|(c, _)| *c);
         if changed {
             // only recompute branch if at least one of the children changed
@@ -197,16 +206,16 @@ impl CollectTilesVisitor {
     }
 }
 
-impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
+impl<F: Fields> quadtree::Visitor<BranchState<F>, LeafState<F>, Error> for CollectTilesVisitor {
     fn visit_branch_pre(
         &mut self,
-        branch: &BranchState,
+        branch: &BranchState<F>,
         data: &quadtree::VisitData,
     ) -> Result<bool, Error> {
         Ok(true)
     }
 
-    fn visit_leaf(&mut self, leaf: &LeafState, data: &quadtree::VisitData) -> Result<(), Error> {
+    fn visit_leaf(&mut self, leaf: &LeafState<F>, data: &quadtree::VisitData) -> Result<(), Error> {
         use tiles::Tile::*;
         self.total += 1;
         match leaf.tile {
@@ -219,7 +228,7 @@ impl quadtree::Visitor<BranchState, LeafState, Error> for CollectTilesVisitor {
 
     fn visit_branch_post(
         &mut self,
-        branch: &BranchState,
+        branch: &BranchState<F>,
         data: &quadtree::VisitData,
     ) -> Result<(), Error> {
         Ok(())

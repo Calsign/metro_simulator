@@ -77,7 +77,7 @@ impl Config {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct BranchState {
-    branch: state::BranchState,
+    branch: state::BranchState<fields::FieldsState>,
 }
 
 #[pymethods]
@@ -91,7 +91,7 @@ impl BranchState {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct LeafState {
-    leaf: state::LeafState,
+    leaf: state::LeafState<fields::FieldsState>,
 }
 
 #[pymethods]
@@ -103,7 +103,7 @@ impl LeafState {
 
     #[staticmethod]
     fn from_json(json: String) -> PyResult<Self> {
-        let leaf: state::LeafState = wrap_err(serde_json::from_str(&json))?;
+        let leaf: state::LeafState<fields::FieldsState> = wrap_err(serde_json::from_str(&json))?;
         Ok(leaf.into())
     }
 
@@ -369,10 +369,16 @@ struct PyQtreeVisitor {
     leaf_visitor: PyObject,
 }
 
-impl quadtree::Visitor<state::BranchState, state::LeafState, PyErr> for PyQtreeVisitor {
+impl
+    quadtree::Visitor<
+        state::BranchState<fields::FieldsState>,
+        state::LeafState<fields::FieldsState>,
+        PyErr,
+    > for PyQtreeVisitor
+{
     fn visit_branch_pre(
         &mut self,
-        branch: &state::BranchState,
+        branch: &state::BranchState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> PyResult<bool> {
         Python::with_gil(|py| {
@@ -382,7 +388,11 @@ impl quadtree::Visitor<state::BranchState, state::LeafState, PyErr> for PyQtreeV
         })
     }
 
-    fn visit_leaf(&mut self, leaf: &state::LeafState, data: &quadtree::VisitData) -> PyResult<()> {
+    fn visit_leaf(
+        &mut self,
+        leaf: &state::LeafState<fields::FieldsState>,
+        data: &quadtree::VisitData,
+    ) -> PyResult<()> {
         Python::with_gil(|py| {
             let leaf = LeafState::from(leaf.clone());
             let data = VisitData::from(data.clone());
@@ -393,7 +403,7 @@ impl quadtree::Visitor<state::BranchState, state::LeafState, PyErr> for PyQtreeV
 
     fn visit_branch_post(
         &mut self,
-        branch: &state::BranchState,
+        branch: &state::BranchState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> PyResult<()> {
         Ok(())

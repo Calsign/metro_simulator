@@ -225,10 +225,16 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
     }
 }
 
-impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQtreeVisitor<'a, 'b> {
+impl<'a, 'b>
+    quadtree::Visitor<
+        BranchState<fields::FieldsState>,
+        LeafState<fields::FieldsState>,
+        anyhow::Error,
+    > for DrawQtreeVisitor<'a, 'b>
+{
     fn visit_branch_pre(
         &mut self,
-        branch: &BranchState,
+        branch: &BranchState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> Result<bool> {
         let should_descend =
@@ -247,7 +253,11 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
         Ok(should_descend)
     }
 
-    fn visit_leaf(&mut self, leaf: &LeafState, data: &quadtree::VisitData) -> Result<()> {
+    fn visit_leaf(
+        &mut self,
+        leaf: &LeafState<fields::FieldsState>,
+        data: &quadtree::VisitData,
+    ) -> Result<()> {
         let width = data.width as f32 * self.app.pan.scale;
         let rect = self.get_rect(data);
         let full_rect = self.get_full_rect(data);
@@ -296,7 +306,7 @@ impl<'a, 'b> quadtree::Visitor<BranchState, LeafState, anyhow::Error> for DrawQt
 
     fn visit_branch_post(
         &mut self,
-        branch: &BranchState,
+        branch: &BranchState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> Result<()> {
         self.maybe_draw_field(&branch.fields, data, false);

@@ -32,11 +32,11 @@ pub struct AgentRouteState {
 }
 
 impl AgentRouteState {
-    pub fn new(
+    pub fn new<F: state::Fields>(
         route: route::Route,
         start_time: u64,
         world_state: &mut route::WorldStateImpl,
-        state: &state::State,
+        state: &state::State<F>,
     ) -> Self {
         assert_eq!(route.nodes.len(), route.edges.len() + 1);
         Self {
@@ -62,7 +62,11 @@ impl AgentRouteState {
      * Advance the agent to the next edge in the route. This should only be done each time the
      * simulation time has passed the value of next_trigger.
      */
-    pub fn advance(&mut self, world_state: &mut route::WorldStateImpl, state: &state::State) {
+    pub fn advance<F: state::Fields>(
+        &mut self,
+        world_state: &mut route::WorldStateImpl,
+        state: &state::State<F>,
+    ) {
         match self.phase {
             AgentRoutePhase::InProgress {
                 current_edge,
@@ -156,7 +160,11 @@ impl AgentRouteState {
      * It isn't too hard to support distance, but it isn't clear that its worth the overhead,
      * and we don't currently use it anywhere.
      */
-    pub fn sample(&self, current_time: u64, state: &state::State) -> Option<route::RouteKey> {
+    pub fn sample<F: state::Fields>(
+        &self,
+        current_time: u64,
+        state: &state::State<F>,
+    ) -> Option<route::RouteKey> {
         match self.phase {
             AgentRoutePhase::InProgress {
                 current_edge,

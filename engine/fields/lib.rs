@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 struct ComputeLeafData<'a, 'b> {
     tile: &'a tiles::Tile,
     data: &'b quadtree::VisitData,
@@ -128,12 +130,8 @@ pub struct FieldsState {
     pub land_value: LandValue,
 }
 
-impl FieldsState {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn compute_leaf(&mut self, tile: &tiles::Tile, data: &quadtree::VisitData) -> bool {
+impl state::Fields for FieldsState {
+    fn compute_leaf(&mut self, tile: &tiles::Tile, data: &quadtree::VisitData) -> bool {
         let mut changed = false;
 
         macro_rules! each_field {
@@ -155,7 +153,7 @@ impl FieldsState {
         changed
     }
 
-    pub fn compute_branch(
+    fn compute_branch(
         &mut self,
         fields: &quadtree::QuadMap<FieldsState>,
         data: &quadtree::VisitData,
@@ -179,5 +177,22 @@ impl FieldsState {
         each_field!(LandValue, land_value);
 
         changed
+    }
+}
+
+// NOTE: Dummy serde implementation, cannot actually be used. We never intend to serialize this
+// since it can always be re-computed from the state, but some limitation of the trait bounds system
+// in conjunction with the way we are using this in a generic bound in Engine makes the type-checker
+// fail if this trait isn't implemented. So here we are.
+
+impl Serialize for FieldsState {
+    fn serialize<S: serde::ser::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        panic!("FieldsState is not deserializable")
+    }
+}
+
+impl<'de> Deserialize<'de> for FieldsState {
+    fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        panic!("FieldsState is not deserializable")
     }
 }

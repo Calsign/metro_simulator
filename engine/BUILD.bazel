@@ -16,6 +16,7 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//engine/agent",
+        "//engine/fields",
         "//engine/quadtree",
         "//engine/route",
         "//engine/state",

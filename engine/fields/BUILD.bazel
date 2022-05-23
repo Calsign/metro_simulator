@@ -8,6 +8,7 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//engine/quadtree",
+        "//engine/state",
         "//engine/tiles",
         "@crates//:serde",
     ],

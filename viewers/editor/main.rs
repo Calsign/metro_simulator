@@ -331,11 +331,11 @@ fn field_data_to_color(
         FieldType::None => None,
         FieldType::Population => {
             let peak = 0.05;
-            Some(f64::min(fields_state.population.density, peak) / peak)
+            Some(f64::min(fields_state.population.people.density, peak) / peak)
         }
         FieldType::Employment => {
             let peak = 0.05;
-            Some(f64::min(fields_state.employment.density, peak) / peak)
+            Some(f64::min(fields_state.employment.workers.density, peak) / peak)
         }
         FieldType::LandValue => None,
     };
@@ -430,7 +430,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct CurrentLeafState {
     address: Rc<quadtree::Address>,
-    leaf: Rc<state::LeafState>,
+    leaf: Rc<state::LeafState<fields::FieldsState>>,
     tile_type: std::mem::Discriminant<tiles::Tile>,
     data: String,
     edited_data: String,
@@ -794,12 +794,16 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     }
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f> quadtree::Visitor<state::BranchState, state::LeafState, anyhow::Error>
-    for PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+impl<'a, 'b, 'c, 'd, 'e, 'f>
+    quadtree::Visitor<
+        state::BranchState<fields::FieldsState>,
+        state::LeafState<fields::FieldsState>,
+        anyhow::Error,
+    > for PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &state::BranchState,
+        branch: &state::BranchState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
         let should_descend = data.width as f64 * self.state.content.scale >= 5.0;
@@ -817,7 +821,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> quadtree::Visitor<state::BranchState, state::LeafSt
 
     fn visit_leaf(
         &mut self,
-        leaf: &state::LeafState,
+        leaf: &state::LeafState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
         use druid::RenderContext;
@@ -866,7 +870,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> quadtree::Visitor<state::BranchState, state::LeafSt
 
     fn visit_branch_post(
         &mut self,
-        branch: &state::BranchState,
+        branch: &state::BranchState<fields::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<()> {
         self.maybe_draw_field(&branch.fields, data, false);

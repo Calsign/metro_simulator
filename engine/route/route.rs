@@ -93,7 +93,7 @@ impl Route {
         }
     }
 
-    fn construct_splines(&self, state: &state::State) -> ConstructedSplines {
+    fn construct_splines<F: state::Fields>(&self, state: &state::State<F>) -> ConstructedSplines {
         use cgmath::MetricSpace;
 
         let mut keys = Vec::new();
@@ -200,7 +200,7 @@ impl Route {
         }
     }
 
-    fn construct_time_spline(&self, state: &state::State) -> SplineData {
+    fn construct_time_spline<F: state::Fields>(&self, state: &state::State<F>) -> SplineData {
         use splines::{Interpolation, Key, Spline};
         let constructed = self.construct_splines(state);
         SplineData {
@@ -215,7 +215,7 @@ impl Route {
         }
     }
 
-    fn construct_dist_spline(&self, state: &state::State) -> SplineData {
+    fn construct_dist_spline<F: state::Fields>(&self, state: &state::State<F>) -> SplineData {
         use splines::{Interpolation, Key, Spline};
         let constructed = self.construct_splines(state);
         SplineData {
@@ -230,22 +230,22 @@ impl Route {
         }
     }
 
-    fn get_time_spline(&self, state: &state::State) -> &SplineData {
+    fn get_time_spline<F: state::Fields>(&self, state: &state::State<F>) -> &SplineData {
         self.time_spline
             .get_or_init(|| self.construct_time_spline(state))
     }
 
-    fn get_dist_spline(&self, state: &state::State) -> &SplineData {
+    fn get_dist_spline<F: state::Fields>(&self, state: &state::State<F>) -> &SplineData {
         self.dist_spline
             .get_or_init(|| self.construct_dist_spline(state))
     }
 
-    pub fn visit_spline<V, E>(
+    pub fn visit_spline<V, E, F: state::Fields>(
         &self,
         visitor: &mut V,
         step: f64,
         rect: &quadtree::Rect,
-        state: &state::State,
+        state: &state::State<F>,
     ) -> Result<(), E>
     where
         V: SplineVisitor<Route, RouteKey, E>,
@@ -265,12 +265,16 @@ impl Route {
     /**
      * Get the route key at the given time, relative to the start of the route.
      */
-    pub fn sample_time(&self, time: f32, state: &state::State) -> Option<RouteKey> {
+    pub fn sample_time<F: state::Fields>(
+        &self,
+        time: f32,
+        state: &state::State<F>,
+    ) -> Option<RouteKey> {
         let spline = self.get_time_spline(state);
         spline.spline.sample(time)
     }
 
-    pub fn total_dist(&self, state: &state::State) -> f32 {
+    pub fn total_dist<F: state::Fields>(&self, state: &state::State<F>) -> f32 {
         let spline = self.get_dist_spline(state);
         spline.total
     }

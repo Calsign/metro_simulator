@@ -40,7 +40,11 @@ impl WorldStateImpl {
         }
     }
 
-    fn edge_entry(&mut self, edge: &Edge, state: &state::State) -> Option<&mut u64> {
+    fn edge_entry<F: state::Fields>(
+        &mut self,
+        edge: &Edge,
+        state: &state::State<F>,
+    ) -> Option<&mut u64> {
         match edge {
             Edge::Highway { segment, .. } => {
                 Some(self.highway_segments.entry(*segment).or_insert(0))
@@ -59,11 +63,11 @@ impl WorldStateImpl {
         }
     }
 
-    pub fn increment_edge(&mut self, edge: &Edge, state: &state::State) {
+    pub fn increment_edge<F: state::Fields>(&mut self, edge: &Edge, state: &state::State<F>) {
         self.edge_entry(edge, state).map(|e| *e += 1);
     }
 
-    pub fn decrement_edge(&mut self, edge: &Edge, state: &state::State) {
+    pub fn decrement_edge<F: state::Fields>(&mut self, edge: &Edge, state: &state::State<F>) {
         self.edge_entry(edge, state).map(|e| {
             assert!(*e > 0);
             *e -= 1;
@@ -110,7 +114,10 @@ impl WorldStateHistory {
         for _ in 0..num_snapshots {
             snapshots.push(WorldStateImpl::new());
         }
-        Self { snapshots, period: Time::new::<day>(1).value / num_snapshots as u64 }
+        Self {
+            snapshots,
+            period: Time::new::<day>(1).value / num_snapshots as u64,
+        }
     }
 
     /**

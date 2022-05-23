@@ -55,7 +55,7 @@ impl Edge {
     /**
      * The time to traverse this edge in the absence of congestion, i.e. the idealized time.
      */
-    pub fn base_cost(&self, state: &state::State) -> f64 {
+    pub fn base_cost<F: state::Fields>(&self, state: &state::State<F>) -> f64 {
         use Edge::*;
         let cost = match self {
             MetroSegment { time, .. } => *time,
@@ -86,10 +86,10 @@ impl Edge {
      * the current time is specified, it is used to give a precise time cost where applicable (e.g.
      * for metro schedules). If it is not specified, the cost is instead an estimate.
      */
-    pub fn cost<W: WorldState>(
+    pub fn cost<W: WorldState, F: state::Fields>(
         &self,
         world_state: &W,
-        state: &state::State,
+        state: &state::State<F>,
         current_time: Option<u64>,
     ) -> f64 {
         use Edge::*;
@@ -159,9 +159,9 @@ impl Edge {
     /**
      * Interpolate the position along this edge at the given fraction of the total edge time.
      */
-    pub fn interpolate_position(
+    pub fn interpolate_position<F: state::Fields>(
         &self,
-        state: &state::State,
+        state: &state::State<F>,
         pred: &Node,
         succ: &Node,
         fraction: f32,
@@ -237,7 +237,11 @@ impl Edge {
         }
     }
 
-    pub fn is_jammed<W: WorldState>(&self, world_state: &W, state: &state::State) -> bool {
+    pub fn is_jammed<W: WorldState, F: state::Fields>(
+        &self,
+        world_state: &W,
+        state: &state::State<F>,
+    ) -> bool {
         match self {
             Edge::Highway {
                 segment: segment_id,

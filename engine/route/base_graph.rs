@@ -6,8 +6,8 @@ use crate::fast_graph_wrapper::FastGraphWrapper;
 use crate::node::Node;
 use crate::traffic::WorldState;
 
-pub struct BaseGraphInput<'a> {
-    pub state: &'a state::State,
+pub struct BaseGraphInput<'a, F: state::Fields> {
+    pub state: &'a state::State<F>,
 
     pub filter_metro_lines: Option<HashSet<u64>>,
     pub filter_highway_segments: Option<HashSet<u64>>,
@@ -48,7 +48,11 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn update_weights<W: WorldState>(&mut self, world_state: &W, state: &state::State) {
+    pub fn update_weights<W: WorldState, F: state::Fields>(
+        &mut self,
+        world_state: &W,
+        state: &state::State<F>,
+    ) {
         self.graph.update_weights(world_state, state);
     }
 }
@@ -61,7 +65,9 @@ where
     Ok(())
 }
 
-pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Error> {
+pub fn construct_base_graph<'a, F: state::Fields>(
+    input: BaseGraphInput<'a, F>,
+) -> Result<Graph, Error> {
     use itertools::Itertools;
 
     let tile_size = input.state.config.min_tile_size as f64;
@@ -305,14 +311,16 @@ pub fn construct_base_graph<'a>(input: BaseGraphInput<'a>) -> Result<Graph, Erro
     })
 }
 
-struct AddEdgesVisitor<'a, 'b> {
+struct AddEdgesVisitor<'a, 'b, F: state::Fields> {
     graph: &'a mut InnerGraph,
-    state: &'b state::State,
+    state: &'b state::State<F>,
     tile_size: f64,
     mode: Mode,
 }
 
-impl<'a, 'b> quadtree::AllNeighborsVisitor<NodeIndex, Error> for AddEdgesVisitor<'a, 'b> {
+impl<'a, 'b, F: state::Fields> quadtree::AllNeighborsVisitor<NodeIndex, Error>
+    for AddEdgesVisitor<'a, 'b, F>
+{
     fn visit(&mut self, base: &NodeIndex, entry: &NodeIndex, distance: f64) -> Result<(), Error> {
         if base != entry {
             self.graph.add_edge(
@@ -354,7 +362,7 @@ mod highway_tests {
             speed_limit: Some(1), // easy math
         };
 
-        let mut state = state::State::new(state::Config {
+        let mut state: state::State<fields::FieldsState> = state::State::new(state::Config {
             max_depth: 5,
             people_per_sim: 1,
             min_tile_size: 1,

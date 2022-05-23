@@ -52,8 +52,8 @@ impl Clone for BaseGraph {
 }
 
 impl BaseGraph {
-    pub fn construct_base_graph_filter(
-        state: &state::State,
+    pub fn construct_base_graph_filter<F: state::Fields>(
+        state: &state::State<F>,
         metro_lines: Option<HashSet<u64>>,
         highway_segments: Option<HashSet<u64>>,
     ) -> Result<route::Graph, Error> {
@@ -67,16 +67,21 @@ impl BaseGraph {
         Ok(graph)
     }
 
-    pub fn construct_base_graph(state: &state::State) -> Result<route::Graph, Error> {
+    pub fn construct_base_graph<F: state::Fields>(
+        state: &state::State<F>,
+    ) -> Result<route::Graph, Error> {
         Self::construct_base_graph_filter(state, None, None)
     }
 
-    pub fn get_base_graph(&self, state: &state::State) -> &route::Graph {
+    pub fn get_base_graph<F: state::Fields>(&self, state: &state::State<F>) -> &route::Graph {
         self.base_graph
             .get_or_init(|| Self::construct_base_graph(state).unwrap())
     }
 
-    pub fn get_base_graph_mut(&mut self, state: &state::State) -> &mut route::Graph {
+    pub fn get_base_graph_mut<F: state::Fields>(
+        &mut self,
+        state: &state::State<F>,
+    ) -> &mut route::Graph {
         // TODO: Annoying that we have to take the value out of the OnceCell and then put it back
         // in. Seems like there should be a get_or_init_mut function or equivalent.
         // NOTE: there is no race condition here because we have exclusive access to self
@@ -108,7 +113,7 @@ impl BaseGraph {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Engine {
-    pub state: state::State,
+    pub state: state::State<fields::FieldsState>,
     pub world_state: route::WorldStateImpl,
     pub world_state_history: route::WorldStateHistory,
     #[serde(skip)]
