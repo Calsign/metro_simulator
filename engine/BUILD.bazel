@@ -24,6 +24,7 @@ rust_library(
         "@crates//:cgmath",
         "@crates//:chrono",
         "@crates//:crossbeam",
+        "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:serde",
         "@crates//:serde_json",

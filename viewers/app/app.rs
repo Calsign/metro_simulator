@@ -365,59 +365,9 @@ impl App {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, enum_iterator::IntoEnumIterator)]
-pub(crate) enum FieldType {
-    Population,
-    Employment,
-    AvailableHousing,
-    AvailableJobs,
-    LandValue,
-}
-
-impl FieldType {
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::Population => "Population",
-            Self::Employment => "Employment",
-            Self::AvailableHousing => "Available housing",
-            Self::AvailableJobs => "Available jobs",
-            Self::LandValue => "Land value",
-        }
-    }
-
-    fn peak(&self) -> f32 {
-        match self {
-            Self::Population => 0.3,
-            Self::Employment => 0.3,
-            Self::AvailableHousing => 0.3,
-            Self::AvailableJobs => 0.3,
-            Self::LandValue => 1.0,
-        }
-    }
-
-    fn value(&self, fields: &engine::FieldsState, data: &quadtree::VisitData) -> f32 {
-        match self {
-            Self::Population => fields.population.people.density as f32,
-            Self::Employment => fields.employment.workers.density as f32,
-            Self::AvailableHousing => fields.population.housing.density as f32,
-            Self::AvailableJobs => fields.employment.jobs.density as f32,
-            Self::LandValue => 0.0,
-        }
-    }
-
-    pub fn hue(&self, fields: &engine::FieldsState, data: &quadtree::VisitData) -> f32 {
-        if self.peak() > 0.0 {
-            // ranges from 0.0 (reddish) to 0.5 (blueish)
-            f32::min(self.value(fields, data), self.peak()) / self.peak() * 0.5
-        } else {
-            0.0
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct Overlay {
-    pub field: Option<FieldType>,
+    pub field: Option<crate::field_overlay::FieldType>,
     pub traffic: bool,
 }
 
@@ -433,7 +383,7 @@ impl Overlay {
         use enum_iterator::IntoEnumIterator;
 
         ui.radio_value(&mut self.field, None, "None");
-        for field_type in FieldType::into_enum_iter() {
+        for field_type in crate::field_overlay::FieldType::into_enum_iter() {
             ui.radio_value(&mut self.field, Some(field_type), field_type.label());
         }
         ui.checkbox(&mut self.traffic, "Traffic");

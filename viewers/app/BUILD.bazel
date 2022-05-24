@@ -8,6 +8,7 @@ rust_library(
         "bootstrap.rs",
         "chart.rs",
         "content.rs",
+        "field_overlay.rs",
         "lib.rs",
     ],
     visibility = ["//visibility:public"],

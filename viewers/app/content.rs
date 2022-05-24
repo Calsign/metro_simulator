@@ -1,6 +1,9 @@
-use crate::app::{App, FieldType};
 use anyhow::Result;
+
 use state::{BranchState, LeafState};
+
+use crate::app::App;
+use crate::field_overlay::FieldType;
 
 impl App {
     pub(crate) fn get_bounding_box(&self, ui: &egui::Ui) -> quadtree::Rect {

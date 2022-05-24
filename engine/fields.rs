@@ -36,42 +36,80 @@ impl SimpleDensity {
 pub struct Population {
     pub people: SimpleDensity,
     pub housing: SimpleDensity,
+    // NOTE: this is stored in Population rather than Employment because it is based on where people
+    // live, not where they work
+    pub employed_people: usize,
 }
 
 impl Population {
-    pub fn housing_occupancy(&self) -> f64 {
-        self.people.total as f64 / self.housing.total as f64
+    /// the fraction of total housing that is occupied
+    pub fn housing_saturation(&self) -> f64 {
+        if self.housing.total > 0 {
+            self.people.total as f64 / self.housing.total as f64
+        } else {
+            1.0
+        }
     }
 
+    /// the fraction of total housing that is vacant
     pub fn housing_vacancy(&self) -> f64 {
-        1.0 - self.housing_occupancy()
+        1.0 - self.housing_saturation()
+    }
+
+    /// the total number of empty housing units
+    pub fn empty_housing(&self) -> usize {
+        self.housing.total - self.people.total
+    }
+
+    /// the fraction of people that have jobs
+    pub fn employment_rate(&self) -> f64 {
+        // NOTE: the unemployment rate is not the opposite of this, it should take into account
+        // whether people are not in the workforce for other reasons.
+        if self.people.total > 0 {
+            self.employed_people as f64 / self.people.total as f64
+        } else {
+            1.0
+        }
     }
 }
 
 impl Field for Population {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (people, housing) = match leaf.tile {
+        let (people, housing, employed_people) = match leaf.tile {
             tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
-                (agents.len(), *density)
+                let employed_people: usize = agents
+                    .iter()
+                    .filter_map(|id| leaf.extra.agents.get(id).expect("missing agent").workplace)
+                    .count();
+                (agents.len(), *density, employed_people)
             }
-            _ => (0, 0),
+            _ => (0, 0, 0),
         };
         Some(Self {
             people: SimpleDensity::from_total(people, leaf.data),
             housing: SimpleDensity::from_total(housing, leaf.data),
+            employed_people,
         })
     }
 
     fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
-        let (people, housing): (Vec<usize>, Vec<usize>) = branch
+        use itertools::Itertools;
+        let (people, housing, employed_people): (Vec<usize>, Vec<usize>, Vec<usize>) = branch
             .fields
             .values()
             .iter()
-            .map(|f| (f.population.people.total, f.population.housing.total))
-            .unzip();
+            .map(|f| {
+                (
+                    f.population.people.total,
+                    f.population.housing.total,
+                    f.population.employed_people,
+                )
+            })
+            .multiunzip();
         Some(Self {
             people: SimpleDensity::from_total(people.iter().sum(), branch.data),
             housing: SimpleDensity::from_total(housing.iter().sum(), branch.data),
+            employed_people: employed_people.iter().sum(),
         })
     }
 }
@@ -80,6 +118,27 @@ impl Field for Population {
 pub struct Employment {
     pub workers: SimpleDensity,
     pub jobs: SimpleDensity,
+}
+
+impl Employment {
+    /// the fraction of total jobs that are occupied
+    pub fn job_saturation(&self) -> f64 {
+        if self.jobs.total > 0 {
+            self.workers.total as f64 / self.jobs.total as f64
+        } else {
+            1.0
+        }
+    }
+
+    /// the fraction of jobs that are unfilled
+    pub fn job_vacancy(&self) -> f64 {
+        1.0 - self.job_saturation()
+    }
+
+    /// the total number of unfilled jobs
+    pub fn unfilled_jobs(&self) -> usize {
+        self.jobs.total - self.workers.total
+    }
 }
 
 impl Field for Employment {
