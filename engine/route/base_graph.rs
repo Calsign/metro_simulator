@@ -354,6 +354,11 @@ mod highway_tests {
         end: u64,
     }
 
+    #[derive(Debug, Default, Clone)]
+    struct DummyFields {}
+
+    impl state::Fields for DummyFields {}
+
     fn setup_problem(junctions: Vec<JunctionData>, segments: Vec<SegmentData>) -> Graph {
         let data = HighwayData {
             name: None,
@@ -362,7 +367,7 @@ mod highway_tests {
             speed_limit: Some(1), // easy math
         };
 
-        let mut state: state::State<engine::FieldsState> = state::State::new(state::Config {
+        let mut state: state::State<DummyFields> = state::State::new(state::Config {
             max_depth: 5,
             people_per_sim: 1,
             min_tile_size: 1,

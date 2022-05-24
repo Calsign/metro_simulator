@@ -20,14 +20,7 @@ pub enum Error {
     ConfigError(#[from] crate::config::Error),
 }
 
-pub trait Fields: std::fmt::Debug + Default + Clone {
-    fn compute_leaf(&mut self, tile: &tiles::Tile, data: &quadtree::VisitData) -> bool;
-    fn compute_branch(
-        &mut self,
-        fields: &quadtree::QuadMap<Self>,
-        data: &quadtree::VisitData,
-    ) -> bool;
-}
+pub trait Fields: std::fmt::Debug + Default + Clone {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchState<F: Fields> {
@@ -87,12 +80,6 @@ impl<F: Fields> State<F> {
             highways: highway::Highways::new(),
             collect_tiles: CollectTilesVisitor::default(),
         }
-    }
-
-    pub fn update_fields(&mut self) -> Result<(), Error> {
-        let mut fold = UpdateFieldsFold {};
-        let _ = self.qtree.fold_mut(&mut fold)?;
-        Ok(())
     }
 
     pub fn update_collect_tiles(&mut self) -> Result<(), Error> {
@@ -158,36 +145,6 @@ impl<F: Fields> State<F> {
         self.metro_lines.insert(id, metro_line);
 
         id
-    }
-}
-
-struct UpdateFieldsFold {}
-
-impl<F: Fields> quadtree::MutFold<BranchState<F>, LeafState<F>, (bool, F), Error>
-    for UpdateFieldsFold
-{
-    fn fold_leaf(
-        &mut self,
-        leaf: &mut LeafState<F>,
-        data: &quadtree::VisitData,
-    ) -> Result<(bool, F), Error> {
-        let changed = leaf.fields.compute_leaf(&leaf.tile, data);
-        Ok((changed, leaf.fields.clone()))
-    }
-
-    fn fold_branch(
-        &mut self,
-        branch: &mut BranchState<F>,
-        children: &quadtree::QuadMap<(bool, F)>,
-        data: &quadtree::VisitData,
-    ) -> Result<(bool, F), Error> {
-        let changed = children.values().iter().any(|(c, _)| *c);
-        if changed {
-            // only recompute branch if at least one of the children changed
-            let fields = children.clone().map_into(&|(_, f)| f);
-            branch.fields.compute_branch(&fields, data);
-        }
-        Ok((changed, branch.fields.clone()))
     }
 }
 

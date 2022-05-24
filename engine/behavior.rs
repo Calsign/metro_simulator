@@ -35,7 +35,7 @@ pub struct Tick {}
 impl TriggerType for Tick {
     fn execute(self, engine: &mut Engine, time: u64) {
         // TODO: only re-run these when the underlying data updates
-        engine.state.update_fields().unwrap();
+        engine.update_fields().unwrap();
         engine.state.update_collect_tiles().unwrap();
 
         // re-trigger every hour of simulated time

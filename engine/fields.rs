@@ -1,18 +1,21 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-struct ComputeLeafData<'a, 'b> {
+struct ComputeLeafData<'a, 'b, 'c, 'd> {
     tile: &'a tiles::Tile,
     data: &'b quadtree::VisitData,
+    extra: &'c FieldsComputationData<'d>,
 }
 
-struct ComputeBranchData<'a, 'b> {
+struct ComputeBranchData<'a, 'b, 'c, 'd> {
     fields: &'a quadtree::QuadMap<FieldsState>,
     data: &'b quadtree::VisitData,
+    extra: &'c FieldsComputationData<'d>,
 }
 
 trait Field: std::fmt::Debug + Default + Clone {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self>;
-
     fn compute_branch(branch: ComputeBranchData) -> Option<Self>;
 }
 
@@ -130,13 +133,23 @@ pub struct FieldsState {
     pub land_value: LandValue,
 }
 
-impl state::Fields for FieldsState {
-    fn compute_leaf(&mut self, tile: &tiles::Tile, data: &quadtree::VisitData) -> bool {
+// TODO: it could make sense to split this out of Engine into a separate state, like State
+pub struct FieldsComputationData<'a> {
+    pub agents: &'a HashMap<u64, agent::Agent>,
+}
+
+impl FieldsState {
+    pub(crate) fn compute_leaf<'a>(
+        &mut self,
+        tile: &tiles::Tile,
+        data: &quadtree::VisitData,
+        extra: &FieldsComputationData<'a>,
+    ) -> bool {
         let mut changed = false;
 
         macro_rules! each_field {
             ($field:ty, $name:ident) => {{
-                match <$field>::compute_leaf(ComputeLeafData { tile, data }) {
+                match <$field>::compute_leaf(ComputeLeafData { tile, data, extra }) {
                     Some(val) => {
                         self.$name = val;
                         changed = true;
@@ -153,16 +166,21 @@ impl state::Fields for FieldsState {
         changed
     }
 
-    fn compute_branch(
+    pub(crate) fn compute_branch<'a>(
         &mut self,
         fields: &quadtree::QuadMap<FieldsState>,
         data: &quadtree::VisitData,
+        extra: &FieldsComputationData<'a>,
     ) -> bool {
         let mut changed = false;
 
         macro_rules! each_field {
             ($field:ty, $name:ident) => {{
-                match <$field>::compute_branch(ComputeBranchData { fields, data }) {
+                match <$field>::compute_branch(ComputeBranchData {
+                    fields,
+                    data,
+                    extra,
+                }) {
                     Some(val) => {
                         self.$name = val;
                         changed = true;
@@ -179,6 +197,8 @@ impl state::Fields for FieldsState {
         changed
     }
 }
+
+impl state::Fields for FieldsState {}
 
 // NOTE: Dummy serde implementation, cannot actually be used. We never intend to serialize this
 // since it can always be re-computed from the state, but some limitation of the trait bounds system
