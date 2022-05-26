@@ -3,8 +3,26 @@ use serde::{Deserialize, Serialize};
 use uom::si::time::minute;
 use uom::si::u64::Time;
 
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    enum_iterator::IntoEnumIterator,
+)]
+pub enum RouteType {
+    CommuteToWork,
+    CommuteFromWork,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-enum AgentRoutePhase {
+pub enum AgentRoutePhase {
     InProgress {
         /// the index of the current edge within the route
         current_edge: u32,
@@ -28,13 +46,15 @@ pub struct AgentRouteState {
     pub route: route::Route,
     /// the simulation time at which the agent started following the route
     pub start_time: u64,
-    phase: AgentRoutePhase,
+    pub route_type: RouteType,
+    pub phase: AgentRoutePhase,
 }
 
 impl AgentRouteState {
     pub fn new<F: state::Fields>(
         route: route::Route,
         start_time: u64,
+        route_type: RouteType,
         world_state: &mut route::WorldStateImpl,
         state: &state::State<F>,
     ) -> Self {
@@ -54,6 +74,7 @@ impl AgentRouteState {
                 }
                 None => AgentRoutePhase::Finished { total_time: 0.0 },
             },
+            route_type,
             route,
         }
     }

@@ -87,6 +87,7 @@ impl TriggerType for AgentPlanCommuteToWork {
                     receiver: Some(RouteReceiver {
                         receiver: Box::new(receiver),
                     }),
+                    route_type: agent::RouteType::CommuteToWork,
                     query_input,
                 },
                 start_time,
@@ -135,6 +136,7 @@ impl TriggerType for AgentPlanCommuteHome {
                     receiver: Some(RouteReceiver {
                         receiver: Box::new(receiver),
                     }),
+                    route_type: agent::RouteType::CommuteFromWork,
                     query_input,
                 },
                 start_time,
@@ -156,6 +158,7 @@ struct RouteReceiver {
 #[derivative(PartialEq, Eq, PartialOrd, Ord)]
 pub struct AgentRouteStart {
     agent: u64,
+    route_type: agent::RouteType,
     #[serde(skip)]
     receiver: Option<RouteReceiver>,
     #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
@@ -198,6 +201,7 @@ impl TriggerType for AgentRouteStart {
             let route_state = agent::AgentRouteState::new(
                 route,
                 engine.time_state.current_time,
+                self.route_type,
                 &mut engine.world_state,
                 &engine.state,
             );
@@ -230,7 +234,7 @@ impl TriggerType for AgentRouteAdvance {
                         engine.trigger_queue.push(self, next_trigger);
                     }
                     None => {
-                        agent.state = agent::AgentState::Tile(route_state.route.end());
+                        agent.finish_route();
                     }
                 }
             }

@@ -12,6 +12,7 @@ rust_library(
         "//engine/quadtree",
         "//engine/route",
         "//engine/state",
+        "@crates//:enum-iterator",
         "@crates//:serde",
         "@crates//:uom",
     ],
