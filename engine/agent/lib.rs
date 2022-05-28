@@ -1,5 +1,7 @@
 mod agent;
+mod agent_data;
 mod agent_route_state;
 
-pub use agent::{Agent, AgentData, AgentState};
-pub use agent_route_state::{AgentRouteState, RouteType};
+pub use crate::agent::{Agent, AgentState};
+pub use crate::agent_data::{AgentData, EducationDegree};
+pub use crate::agent_route_state::{AgentRouteState, RouteType};

@@ -2,16 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::agent_data::AgentData;
 use crate::agent_route_state::{AgentRoutePhase, AgentRouteState, RouteType};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentData {}
-
-impl AgentData {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentState {

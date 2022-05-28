@@ -571,6 +571,22 @@ impl RampDirection {
 }
 
 #[pyclass]
+#[derive(Clone, Copy)]
+struct Date {
+    date: chrono::NaiveDate,
+}
+
+#[pymethods]
+impl Date {
+    #[staticmethod]
+    fn from_ymd(year: i32, month: u32, day: u32) -> Self {
+        Self {
+            date: chrono::NaiveDate::from_ymd(year, month, day),
+        }
+    }
+}
+
+#[pyclass]
 #[derive(Clone)]
 struct AgentData {
     data: agent::AgentData,
@@ -579,9 +595,12 @@ struct AgentData {
 #[pymethods]
 impl AgentData {
     #[new]
-    fn new() -> Self {
+    fn new(birthday: Date, years_of_education: u32) -> Self {
         Self {
-            data: agent::AgentData::new(),
+            data: agent::AgentData {
+                birthday: birthday.date,
+                years_of_education,
+            },
         }
     }
 }
@@ -603,6 +622,7 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<HighwaySegment>()?;
     m.add_class::<RampDirection>()?;
 
+    m.add_class::<Date>()?;
     m.add_class::<AgentData>()?;
 
     return Ok(());

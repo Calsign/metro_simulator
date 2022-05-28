@@ -1,9 +1,10 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 rust_library(
     name = "agent",
     srcs = [
         "agent.rs",
+        "agent_data.rs",
         "agent_route_state.rs",
         "lib.rs",
     ],
@@ -12,8 +13,18 @@ rust_library(
         "//engine/quadtree",
         "//engine/route",
         "//engine/state",
+        "@crates//:chrono",
         "@crates//:enum-iterator",
         "@crates//:serde",
         "@crates//:uom",
+    ],
+)
+
+rust_test(
+    name = "agent_tests",
+    crate = ":agent",
+    deps = [
+        ":agent",
+        "@crates//:chrono",
     ],
 )

@@ -17,6 +17,7 @@ exports_files(
 py_library(
     name = "generate_lib",
     srcs = [
+        "agents.py",
         "common.py",
         "data.py",
         "gdal.py",

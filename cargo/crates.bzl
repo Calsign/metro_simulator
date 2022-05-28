@@ -10,7 +10,10 @@ CRATES = {
     "derivative": "2.2.0",
     "enum-iterator": "0.8.1",
     "enum_dispatch": "0.3",
-    "chrono": "0.4",
+    "chrono": dict(
+        version = "0.4",
+        features = ["serde"],
+    ),
     "itertools": "0.10",
     "float-cmp": dict(
         git = "https://github.com/mikedilger/float-cmp",

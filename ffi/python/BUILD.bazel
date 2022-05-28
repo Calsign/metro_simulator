@@ -16,6 +16,7 @@ rust_shared_library(
         "//engine/state",
         "//engine/tiles",
         "@crates//:cgmath",
+        "@crates//:chrono",
         "@crates//:pyo3",
         "@crates//:serde_json",
         "@crates//:thiserror",
