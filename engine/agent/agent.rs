@@ -61,4 +61,10 @@ impl Agent {
             _ => panic!("agent not in finished route state"),
         }
     }
+
+    pub fn average_commute_length(&self) -> f32 {
+        let sum = self.route_lengths[&RouteType::CommuteToWork]
+            + self.route_lengths[&RouteType::CommuteFromWork];
+        sum / 2.0
+    }
 }

@@ -23,6 +23,7 @@ rust_library(
         "//engine/tiles",
         "@crates//:anyhow",
         "@crates//:cgmath",
+        "@crates//:chrono",
         "@crates//:egui",
         "@crates//:egui_wgpu_backend",
         "@crates//:egui_winit_platform",

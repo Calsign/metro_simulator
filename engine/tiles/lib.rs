@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[enum_dispatch::enum_dispatch]
 pub trait TileType {
     fn name(&self) -> &'static str;
+    fn query_agents(&self) -> Option<&Vec<u64>>;
 }
 
 #[enum_dispatch::enum_dispatch(TileType)]
@@ -24,6 +25,10 @@ impl TileType for EmptyTile {
     fn name(&self) -> &'static str {
         "empty"
     }
+
+    fn query_agents(&self) -> Option<&Vec<u64>> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,6 +37,10 @@ pub struct WaterTile {}
 impl TileType for WaterTile {
     fn name(&self) -> &'static str {
         "water"
+    }
+
+    fn query_agents(&self) -> Option<&Vec<u64>> {
+        None
     }
 }
 
@@ -45,6 +54,10 @@ impl TileType for HousingTile {
     fn name(&self) -> &'static str {
         "housing"
     }
+
+    fn query_agents(&self) -> Option<&Vec<u64>> {
+        Some(&self.agents)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,6 +69,10 @@ pub struct WorkplaceTile {
 impl TileType for WorkplaceTile {
     fn name(&self) -> &'static str {
         "workplace"
+    }
+
+    fn query_agents(&self) -> Option<&Vec<u64>> {
+        Some(&self.agents)
     }
 }
 
@@ -73,6 +90,10 @@ pub struct MetroStationTile {
 impl TileType for MetroStationTile {
     fn name(&self) -> &'static str {
         "metro"
+    }
+
+    fn query_agents(&self) -> Option<&Vec<u64>> {
+        None
     }
 }
 

@@ -24,6 +24,22 @@ impl EducationDegree {
             Self::NoDegree
         }
     }
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::NoDegree => "No degree",
+            Self::HighSchool => "High school",
+            Self::Undergrad => "Undergrad",
+            Self::Masters => "Masters",
+            Self::Phd => "PhD",
+        }
+    }
+}
+
+impl std::fmt::Display for EducationDegree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_str())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -45,6 +61,12 @@ impl Age {
 
     pub fn is_working_age(&self) -> bool {
         self.0 >= 15 && self.0 < 65
+    }
+}
+
+impl std::fmt::Display for Age {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

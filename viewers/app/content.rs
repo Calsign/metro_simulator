@@ -92,7 +92,12 @@ impl App {
         // only render routes if the simulation is slow enough to see them and we are zoomed in
         // sufficiently far
         if self.engine.time_state.should_render_motion() && self.pan.scale >= 2.0 {
-            for agent in self.engine.agents.values() {
+            let selected_agent = match self.agent_detail {
+                crate::app::AgentDetail::Selected { id } => Some(id),
+                _ => None,
+            };
+
+            for (id, agent) in self.engine.agents.iter() {
                 if let agent::AgentState::Route(route_state) = &agent.state {
                     // NOTE: this draws a lot more than needed, but it also avoids computing the
                     // time spline for each route unless necessary
@@ -113,6 +118,27 @@ impl App {
                     }
                 }
             }
+        }
+
+        match &self.agent_detail {
+            crate::app::AgentDetail::Selected { id } => {
+                let agent = self.engine.agents.get(id).expect("missing agent");
+                if let agent::AgentState::Route(route_state) = &agent.state {
+                    if let Some(key) =
+                        route_state.sample(self.engine.time_state.current_time, &self.engine.state)
+                    {
+                        let (x, y) = key.position;
+                        let pos = egui::Pos2::from(self.pan.to_screen_ff((x, y)));
+                        painter.circle(
+                            pos,
+                            5.0,
+                            egui::Color32::from_rgb(255, 0, 0),
+                            egui::Stroke::none(),
+                        );
+                    }
+                }
+            }
+            _ => (),
         }
 
         Ok(())
@@ -167,6 +193,20 @@ impl App {
                 let delta = response.drag_delta();
                 self.pan.tx += delta.x;
                 self.pan.ty += delta.y;
+            }
+        }
+
+        if let crate::app::AgentDetail::Querying = self.agent_detail {
+            if response.clicked() {
+                if let Some(pos) = { response.ctx.input().pointer.interact_pos() } {
+                    let (mx, my) = self.pan.to_model_fu(pos.into());
+                    match self.engine.state.qtree.get_address(mx, my) {
+                        Ok(address) => {
+                            self.agent_detail = crate::app::AgentDetail::Query { address }
+                        }
+                        Err(_) => self.agent_detail = crate::app::AgentDetail::Empty,
+                    }
+                }
             }
         }
     }

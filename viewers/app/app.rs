@@ -18,6 +18,7 @@ pub struct App {
     pub(crate) pan: PanState,
     pub(crate) route_query: RouteQuery,
     pub(crate) congestion_analysis: CongestionAnalysis,
+    pub(crate) agent_detail: AgentDetail,
 }
 
 impl App {
@@ -32,6 +33,7 @@ impl App {
             diagnostics: Diagnostics::default(),
             route_query: RouteQuery::new(),
             congestion_analysis: CongestionAnalysis::new(),
+            agent_detail: AgentDetail::new(),
         }
     }
 
@@ -71,6 +73,7 @@ impl App {
                     ui.collapsing("Congestion analysis", |ui| {
                         self.draw_congestion_analysis(ui)
                     });
+                    ui.collapsing("Agent detail", |ui| self.draw_agent_detail(ui));
                 });
             });
 
@@ -130,6 +133,13 @@ impl App {
     fn draw_route_query(&mut self, ui: &mut egui::Ui) {
         let mut changed = false;
 
+        if ui.button("Clear").clicked() {
+            self.route_query.start_address = None;
+            self.route_query.stop_address = None;
+            changed = true;
+        }
+        ui.separator();
+
         match self.route_query.start_address {
             Some(start) => {
                 let (x, y) = start.to_xy();
@@ -188,25 +198,31 @@ impl App {
         }
 
         if changed {
-            if let (Some(start), Some(stop)) = (
-                self.route_query.start_address,
-                self.route_query.stop_address,
-            ) {
-                let car_config = if self.route_query.has_car {
-                    Some(route::CarConfig::StartWithCar)
-                } else {
-                    None
-                };
-                let query_input = route::QueryInput {
-                    start,
-                    end: stop,
-                    car_config,
-                };
-                match self.engine.query_route(query_input) {
-                    Ok(Some(route)) => self.route_query.current_routes = vec![route],
-                    Ok(None) => (),
-                    Err(err) => eprintln!("Error querying route: {}", err),
-                }
+            self.update_route_query();
+        }
+    }
+
+    fn update_route_query(&mut self) {
+        self.route_query.current_routes.clear();
+
+        if let (Some(start), Some(stop)) = (
+            self.route_query.start_address,
+            self.route_query.stop_address,
+        ) {
+            let car_config = if self.route_query.has_car {
+                Some(route::CarConfig::StartWithCar)
+            } else {
+                None
+            };
+            let query_input = route::QueryInput {
+                start,
+                end: stop,
+                car_config,
+            };
+            match self.engine.query_route(query_input) {
+                Ok(Some(route)) => self.route_query.current_routes = vec![route],
+                Ok(None) => eprintln!("No route found"),
+                Err(err) => eprintln!("Error querying route: {}", err),
             }
         }
     }
@@ -362,6 +378,110 @@ impl App {
         ui.label("Current histogram");
         ui.label(format!("Scale: {:.1}", histogram_chart.rounded_max_entry));
         ui.add(histogram_chart);
+    }
+
+    fn draw_agent_detail(&mut self, ui: &mut egui::Ui) {
+        match self.agent_detail {
+            AgentDetail::Empty => {
+                if ui.button("Pick tile").clicked() {
+                    self.agent_detail = AgentDetail::Querying;
+                }
+            }
+            AgentDetail::Querying => {
+                if ui.button("Clear").clicked() {
+                    self.agent_detail = AgentDetail::Empty;
+                }
+                ui.separator();
+
+                ui.label("<waiting for tile selection>");
+            }
+            AgentDetail::Query { address } => {
+                use tiles::TileType;
+
+                if ui.button("Clear").clicked() {
+                    self.agent_detail = AgentDetail::Empty;
+                }
+                ui.separator();
+
+                let leaf = self.engine.state.qtree.get_leaf(address).unwrap();
+                // TODO: replace with if-let chain once stabilized
+                let agents = leaf.tile.query_agents().and_then(|agents| {
+                    if agents.len() > 0 {
+                        Some(agents)
+                    } else {
+                        None
+                    }
+                });
+                if let Some(agents) = agents {
+                    ui.label(format!("Selected tile has {} agent(s):", agents.len()));
+
+                    for id in agents {
+                        let agent = self.engine.agents.get(id).expect("missing agent");
+                        if ui.button(format!("Agent #{}", id)).clicked() {
+                            self.agent_detail = AgentDetail::Selected { id: *id };
+                        }
+                    }
+                } else {
+                    ui.label("Selected tile has no agents");
+                }
+            }
+            AgentDetail::Selected { id } => {
+                if ui.button("Clear").clicked() {
+                    self.agent_detail = AgentDetail::Empty;
+                }
+                ui.separator();
+
+                self.draw_agent_info(ui, id);
+            }
+        }
+    }
+
+    fn draw_agent_info(&mut self, ui: &mut egui::Ui, id: u64) {
+        let agent = self.engine.agents.get(&id).expect("missing agent");
+
+        ui.label(format!("Agent #{}:", id));
+        ui.label(format!(
+            "Age: {}",
+            agent.data.age(self.engine.time_state.current_date())
+        ));
+        ui.label(format!(
+            "Education: {} ({} years)",
+            agent.data.education_degree(),
+            agent.data.years_of_education
+        ));
+
+        let (home_x, home_y) = agent.housing.to_xy();
+        ui.label(format!("Home: ({}, {})", home_x, home_y));
+
+        match agent.workplace {
+            Some(workplace) => {
+                let (work_x, work_y) = workplace.to_xy();
+                ui.label(format!("Work: ({}, {})", work_x, work_y));
+            }
+            None => {
+                ui.label("Work: n/a");
+            }
+        }
+
+        // TODO: use some better way to format durations. chrono::Duration itself is not
+        // formattable.
+        if let Some(average_commute) = chrono::NaiveTime::from_num_seconds_from_midnight_opt(
+            agent.average_commute_length() as u32,
+            0,
+        ) {
+            ui.label(format!(
+                "Average commute: {}",
+                average_commute.format("%H:%M:%S"),
+            ));
+        }
+
+        if let Some(workplace) = agent.workplace {
+            if ui.button("Show commute").clicked() {
+                self.route_query.start_address = Some(agent.housing);
+                self.route_query.stop_address = Some(workplace);
+                self.update_route_query();
+            }
+        }
     }
 }
 
@@ -563,5 +683,22 @@ impl CongestionAnalysis {
             congestion_type: CongestionType::HighwaySegments,
             historical_quantity: CongestionHistoricalQuantity::Rms,
         }
+    }
+}
+
+pub(crate) enum AgentDetail {
+    /// no selection
+    Empty,
+    /// waiting for user to select a tile
+    Querying,
+    /// user selected a tile, which has zero or more agents
+    Query { address: quadtree::Address },
+    /// user picked one of the agents
+    Selected { id: u64 },
+}
+
+impl AgentDetail {
+    fn new() -> Self {
+        Self::Empty
     }
 }
