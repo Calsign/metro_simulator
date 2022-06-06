@@ -192,12 +192,10 @@ impl TriggerType for AgentRouteStart {
 
         if let agent::AgentState::Route(_) = agent.state {
             // the agent hasn't finished their previous route yet.
-            // looks like they're sleeping at the office!
-            return;
+            agent.abort_route(&mut engine.world_state, &engine.state);
         }
 
-        // TODO: if there's an error here we should probably do something about it
-        if let Ok(Some(route)) = route {
+        if let Some(route) = route.unwrap() {
             let route_state = agent::AgentRouteState::new(
                 route,
                 engine.time_state.current_time,
@@ -238,7 +236,9 @@ impl TriggerType for AgentRouteAdvance {
                     }
                 }
             }
-            _ => panic!("agent not in route state"),
+            _ => {
+                // this route was aborted because it took too long
+            }
         }
     }
 }

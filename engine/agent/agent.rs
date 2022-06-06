@@ -11,6 +11,8 @@ pub enum AgentState {
     Tile(quadtree::Address),
     /// agent is currently in transit along the given route.
     Route(AgentRouteState),
+    /// agent state is currently unknown
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,20 +48,63 @@ impl Agent {
         }
     }
 
+    fn record_route_time(&mut self, route_type: RouteType, total_time: f32) {
+        // TODO: do some fancy estimation instead of just using the previous time
+        self.route_lengths.insert(route_type, total_time);
+    }
+
     pub fn finish_route(&mut self) {
-        match &self.state {
+        let (route_type, total_time, route) = match &self.state {
             AgentState::Route(AgentRouteState {
                 route_type,
                 phase: AgentRoutePhase::Finished { total_time },
                 route,
                 ..
-            }) => {
-                // TODO: do some fancy estimation instead of just using the previous time
-                self.route_lengths.insert(*route_type, *total_time);
-                self.state = AgentState::Tile(route.end());
-            }
+            }) => (*route_type, *total_time, route),
             _ => panic!("agent not in finished route state"),
+        };
+
+        self.state = AgentState::Tile(route.end());
+        self.record_route_time(route_type, total_time);
+    }
+
+    pub fn abort_route<F: state::Fields>(
+        &mut self,
+        world_state: &mut route::WorldStateImpl,
+        state: &state::State<F>,
+    ) {
+        match &self.state {
+            AgentState::Route(AgentRouteState {
+                route_type,
+                phase:
+                    AgentRoutePhase::InProgress {
+                        current_edge,
+                        current_edge_start,
+                        current_edge_total,
+                        ..
+                    },
+                route,
+                ..
+            }) => {
+                let route_type = *route_type;
+
+                // make sure to decrement the edge so that congestion totals are consistent
+                let edge = &route.edges[*current_edge as usize];
+                world_state.decrement_edge(edge, state);
+
+                let total_time = current_edge_start + current_edge_total;
+                self.record_route_time(route_type, total_time);
+            }
+            AgentState::Route(AgentRouteState {
+                phase: AgentRoutePhase::Finished { .. },
+                ..
+            }) => {
+                // this is OK
+            }
+            _ => panic!("agent not in in-progress route state"),
         }
+
+        self.state = AgentState::Unknown;
     }
 
     pub fn average_commute_length(&self) -> f32 {

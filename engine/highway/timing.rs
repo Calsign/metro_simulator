@@ -21,10 +21,10 @@ pub const K_LINEAR_FACTOR: f64 = 1.1;
 
 /// controls how quickly traffic gets worse after the critical capacity
 // this particular value means we go ~10x slower at double the critical capacity
-pub const K_EXPOENTIAL_FACTOR: f64 = 3.22;
+pub const K_EXPONENTIAL_FACTOR: f64 = 3.22;
 
 /// we need a bound on total time to keep things from breaking
-pub const MAX_CONGESTED_TIME: f64 = 3600.0 * 10.0; // 10 hours
+pub const MAX_CONGESTED_TIME: f64 = 3600.0; // 1 hour
 
 impl HighwaySegment {
     pub fn travel_time(&self, tile_size: f64) -> f64 {
@@ -70,7 +70,7 @@ impl HighwaySegment {
             // we get exponentially slower
             K_LINEAR_FACTOR
                 + 2.0_f64.powf((travelers_f64 - critical_capacity_f64) / critical_capacity_f64)
-                    * K_EXPOENTIAL_FACTOR
+                    * K_EXPONENTIAL_FACTOR
         }
     }
 
