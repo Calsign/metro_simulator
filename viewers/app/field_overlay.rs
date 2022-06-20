@@ -1,3 +1,10 @@
+use uom::si::time::hour;
+use uom::si::u64::Time;
+
+lazy_static::lazy_static! {
+    static ref COMMUTE_DURATION_MAX_SCALE: f32 = Time::new::<hour>(2).value as f32;
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, enum_iterator::IntoEnumIterator)]
 pub(crate) enum FieldType {
     // population-related
@@ -7,6 +14,7 @@ pub(crate) enum FieldType {
     HousingVacancy,
     EmploymentRate,
     WorkplaceHappinessHome,
+    CommuteDurationHome,
 
     // employment-related
     Employment,
@@ -14,6 +22,7 @@ pub(crate) enum FieldType {
     JobSaturation,
     JobVacancy,
     WorkplaceHappinessWork,
+    CommuteDurationWork,
 
     // ...
     LandValue,
@@ -28,12 +37,14 @@ impl FieldType {
             Self::HousingVacancy => "Housing vacancy",
             Self::EmploymentRate => "Employment rate",
             Self::WorkplaceHappinessHome => "Workplace happiness (home)",
+            Self::CommuteDurationHome => "Commute duration (home)",
 
             Self::Employment => "Employment",
             Self::TotalJobs => "Total jobs",
             Self::JobSaturation => "Job saturation",
             Self::JobVacancy => "Job vacancy",
             Self::WorkplaceHappinessWork => "Workplace happiness (work)",
+            Self::CommuteDurationWork => "Commute duration (work)",
 
             Self::LandValue => "Land value",
         }
@@ -47,12 +58,14 @@ impl FieldType {
             Self::HousingVacancy => 0.5,
             Self::EmploymentRate => 1.0,
             Self::WorkplaceHappinessHome => 1.0,
+            Self::CommuteDurationHome => *COMMUTE_DURATION_MAX_SCALE,
 
             Self::Employment => 0.3,
             Self::TotalJobs => 0.3,
             Self::JobSaturation => 1.0,
             Self::JobVacancy => 0.5,
             Self::WorkplaceHappinessWork => 1.0,
+            Self::CommuteDurationWork => *COMMUTE_DURATION_MAX_SCALE,
 
             Self::LandValue => 1.0,
         }
@@ -66,12 +79,14 @@ impl FieldType {
             Self::HousingVacancy => fields.population.housing_vacancy() as f32,
             Self::EmploymentRate => fields.population.employment_rate() as f32,
             Self::WorkplaceHappinessHome => fields.population.workplace_happiness.value as f32,
+            Self::CommuteDurationHome => fields.population.commute_duration.value as f32,
 
             Self::Employment => fields.employment.workers.density() as f32,
             Self::TotalJobs => fields.employment.jobs.density() as f32,
             Self::JobSaturation => fields.employment.job_saturation() as f32,
             Self::JobVacancy => fields.employment.job_vacancy() as f32,
             Self::WorkplaceHappinessWork => fields.employment.workplace_happiness.value as f32,
+            Self::CommuteDurationWork => fields.employment.commute_duration.value as f32,
 
             Self::LandValue => 0.0,
         }

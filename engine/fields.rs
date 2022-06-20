@@ -98,6 +98,7 @@ pub struct Population {
     // live, not where they work
     pub employed_people: usize,
     pub workplace_happiness: WeightedAverage,
+    pub commute_duration: WeightedAverage,
 }
 
 impl Population {
@@ -134,27 +135,37 @@ impl Population {
 
 impl Field for Population {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (people, housing, employed_people, workplace_happiness) = match leaf.tile {
-            tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
-                let mut employed_people = 0;
-                let mut workplace_happiness = WeightedAverage::zero();
-                for agent_id in agents {
-                    let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
-                    if let Some(workplace) = agent.workplace {
-                        employed_people += 1;
-                        workplace_happiness
-                            .add_sample(agent.workplace_happiness_score().unwrap() as f64);
+        let (people, housing, employed_people, workplace_happiness, commute_duration) =
+            match leaf.tile {
+                tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
+                    let mut employed_people = 0;
+                    let mut workplace_happiness = WeightedAverage::zero();
+                    let mut commute_duration = WeightedAverage::zero();
+                    for agent_id in agents {
+                        let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
+                        if let Some(workplace) = agent.workplace {
+                            employed_people += 1;
+                            workplace_happiness
+                                .add_sample(agent.workplace_happiness_score().unwrap() as f64);
+                            commute_duration.add_sample(agent.average_commute_length() as f64);
+                        }
                     }
+                    (
+                        agents.len(),
+                        *density,
+                        employed_people,
+                        workplace_happiness,
+                        commute_duration,
+                    )
                 }
-                (agents.len(), *density, employed_people, workplace_happiness)
-            }
-            _ => (0, 0, 0, WeightedAverage::zero()),
-        };
+                _ => (0, 0, 0, WeightedAverage::zero(), WeightedAverage::zero()),
+            };
         Some(Self {
             people: SimpleDensity::from_total(people, leaf.data),
             housing: SimpleDensity::from_total(housing, leaf.data),
             employed_people,
             workplace_happiness,
+            commute_duration,
         })
     }
 
@@ -170,6 +181,7 @@ pub struct Employment {
     pub workers: SimpleDensity,
     pub jobs: SimpleDensity,
     pub workplace_happiness: WeightedAverage,
+    pub commute_duration: WeightedAverage,
 }
 
 impl Employment {
@@ -195,22 +207,30 @@ impl Employment {
 
 impl Field for Employment {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (workers, jobs, workplace_happiness) = match leaf.tile {
+        let (workers, jobs, workplace_happiness, commute_duration) = match leaf.tile {
             tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }) => {
                 let mut workplace_happiness = WeightedAverage::zero();
+                let mut commute_duration = WeightedAverage::zero();
                 for agent_id in agents {
                     let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
                     workplace_happiness
                         .add_sample(agent.workplace_happiness_score().unwrap() as f64);
+                    commute_duration.add_sample(agent.average_commute_length() as f64);
                 }
-                (agents.len(), *density, workplace_happiness)
+                (
+                    agents.len(),
+                    *density,
+                    workplace_happiness,
+                    commute_duration,
+                )
             }
-            _ => (0, 0, WeightedAverage::zero()),
+            _ => (0, 0, WeightedAverage::zero(), WeightedAverage::zero()),
         };
         Some(Self {
             workers: SimpleDensity::from_total(workers, leaf.data),
             jobs: SimpleDensity::from_total(jobs, leaf.data),
             workplace_happiness,
+            commute_duration,
         })
     }
 
