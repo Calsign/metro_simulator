@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
 
 rust_binary(
     name = "simulation_timer",
@@ -6,8 +6,17 @@ rust_binary(
     data = ["//maps:sf"],
     deps = [
         "//engine",
-        "//engine/route",
-        "@crates//:uom",
         "@crates//:clap",
+        "@crates//:uom",
+    ],
+)
+
+rust_test(
+    name = "dynamics_test",
+    srcs = ["dynamics_test.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+        "@crates//:uom",
     ],
 )

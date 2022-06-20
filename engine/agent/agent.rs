@@ -112,4 +112,13 @@ impl Agent {
             + self.route_lengths[&RouteType::CommuteFromWork];
         sum / 2.0
     }
+
+    /// How happy this agent is with their current workplace.
+    /// 0.0 means they want to quit immediately and 1.0 means they definitely don't want to leave.
+    pub fn workplace_happiness_score(&self) -> Option<f32> {
+        self.workplace.map(|_| {
+            self.data
+                .expected_workplace_happiness(self.average_commute_length())
+        })
+    }
 }

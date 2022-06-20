@@ -108,6 +108,18 @@ impl AgentData {
     pub fn workplace_stickiness(&self) -> f32 {
         0.5
     }
+
+    /// How long this agent is willing to drive to/from work (each way), in seconds.
+    pub fn commute_length_tolerance(&self) -> u32 {
+        60 * 60 // 1 hour
+    }
+
+    pub fn expected_workplace_happiness(&self, commute_length: f32) -> f32 {
+        // TODO: a more nuanced approximation here; also, should incorporate other information
+        let fraction = commute_length / self.commute_length_tolerance() as f32;
+        assert!(fraction >= 0.0);
+        1.0 - fraction.min(1.0)
+    }
 }
 
 #[cfg(test)]

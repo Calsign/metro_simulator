@@ -19,26 +19,85 @@ trait Field: std::fmt::Debug + Default + Clone {
     fn compute_branch(branch: ComputeBranchData) -> Option<Self>;
 }
 
-#[derive(Debug, Default, Clone)]
+fn sum_iter<T, I>(iterator: I) -> T
+where
+    T: std::ops::Add<Output = T> + Default + Copy,
+    I: IntoIterator<Item = T>,
+{
+    use std::borrow::Borrow;
+    iterator.into_iter().fold(T::default(), std::ops::Add::add)
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
 pub struct SimpleDensity {
     pub total: usize,
-    pub density: f64,
+    pub area: u64,
 }
 
 impl SimpleDensity {
     fn from_total(total: usize, data: &quadtree::VisitData) -> Self {
-        let density = total as f64 / (data.width * data.width) as f64;
-        Self { total, density }
+        Self {
+            total,
+            area: data.width.pow(2),
+        }
+    }
+
+    pub fn density(&self) -> f64 {
+        self.total as f64 / self.area as f64
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
+pub struct WeightedAverage {
+    pub value: f64,
+    pub count: usize,
+}
+
+impl WeightedAverage {
+    fn zero() -> Self {
+        Self {
+            value: 0.0,
+            count: 0,
+        }
+    }
+
+    fn one(value: f64) -> Self {
+        Self { value, count: 1 }
+    }
+
+    fn add_sample(&mut self, value: f64) {
+        *self = *self + Self::one(value)
+    }
+}
+
+impl std::ops::Add for WeightedAverage {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let total = self.count + other.count;
+        let (self_share, other_share) = if total > 0 {
+            (
+                self.count as f64 / total as f64,
+                other.count as f64 / total as f64,
+            )
+        } else {
+            (0.0, 0.0)
+        };
+        Self {
+            value: self.value as f64 * self_share + other.value as f64 * other_share,
+            count: total,
+        }
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, derive_more::Add)]
 pub struct Population {
     pub people: SimpleDensity,
     pub housing: SimpleDensity,
     // NOTE: this is stored in Population rather than Employment because it is based on where people
     // live, not where they work
     pub employed_people: usize,
+    pub workplace_happiness: WeightedAverage,
 }
 
 impl Population {
@@ -75,49 +134,42 @@ impl Population {
 
 impl Field for Population {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (people, housing, employed_people) = match leaf.tile {
+        let (people, housing, employed_people, workplace_happiness) = match leaf.tile {
             tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
-                let employed_people: usize = agents
-                    .iter()
-                    .filter_map(|id| leaf.extra.agents.get(id).expect("missing agent").workplace)
-                    .count();
-                (agents.len(), *density, employed_people)
+                let mut employed_people = 0;
+                let mut workplace_happiness = WeightedAverage::zero();
+                for agent_id in agents {
+                    let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
+                    if let Some(workplace) = agent.workplace {
+                        employed_people += 1;
+                        workplace_happiness
+                            .add_sample(agent.workplace_happiness_score().unwrap() as f64);
+                    }
+                }
+                (agents.len(), *density, employed_people, workplace_happiness)
             }
-            _ => (0, 0, 0),
+            _ => (0, 0, 0, WeightedAverage::zero()),
         };
         Some(Self {
             people: SimpleDensity::from_total(people, leaf.data),
             housing: SimpleDensity::from_total(housing, leaf.data),
             employed_people,
+            workplace_happiness,
         })
     }
 
     fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
-        use itertools::Itertools;
-        let (people, housing, employed_people): (Vec<usize>, Vec<usize>, Vec<usize>) = branch
-            .fields
-            .values()
-            .iter()
-            .map(|f| {
-                (
-                    f.population.people.total,
-                    f.population.housing.total,
-                    f.population.employed_people,
-                )
-            })
-            .multiunzip();
-        Some(Self {
-            people: SimpleDensity::from_total(people.iter().sum(), branch.data),
-            housing: SimpleDensity::from_total(housing.iter().sum(), branch.data),
-            employed_people: employed_people.iter().sum(),
-        })
+        Some(sum_iter(
+            branch.fields.values().iter().map(|f| f.population),
+        ))
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Copy, Clone, derive_more::Add)]
 pub struct Employment {
     pub workers: SimpleDensity,
     pub jobs: SimpleDensity,
+    pub workplace_happiness: WeightedAverage,
 }
 
 impl Employment {
@@ -143,29 +195,29 @@ impl Employment {
 
 impl Field for Employment {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (workers, jobs) = match leaf.tile {
+        let (workers, jobs, workplace_happiness) = match leaf.tile {
             tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }) => {
-                (agents.len(), *density)
+                let mut workplace_happiness = WeightedAverage::zero();
+                for agent_id in agents {
+                    let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
+                    workplace_happiness
+                        .add_sample(agent.workplace_happiness_score().unwrap() as f64);
+                }
+                (agents.len(), *density, workplace_happiness)
             }
-            _ => (0, 0),
+            _ => (0, 0, WeightedAverage::zero()),
         };
         Some(Self {
             workers: SimpleDensity::from_total(workers, leaf.data),
             jobs: SimpleDensity::from_total(jobs, leaf.data),
+            workplace_happiness,
         })
     }
 
     fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
-        let (workers, jobs): (Vec<usize>, Vec<usize>) = branch
-            .fields
-            .values()
-            .iter()
-            .map(|f| (f.employment.workers.total, f.employment.jobs.total))
-            .unzip();
-        Some(Self {
-            workers: SimpleDensity::from_total(workers.iter().sum(), branch.data),
-            jobs: SimpleDensity::from_total(jobs.iter().sum(), branch.data),
-        })
+        Some(sum_iter(
+            branch.fields.values().iter().map(|f| f.employment),
+        ))
     }
 }
 
@@ -273,5 +325,39 @@ impl Serialize for FieldsState {
 impl<'de> Deserialize<'de> for FieldsState {
     fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         panic!("FieldsState is not deserializable")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::fields::*;
+
+    #[test]
+    fn simple_density_test() {
+        assert_eq!(
+            (SimpleDensity {
+                total: 100,
+                area: 1,
+            } + SimpleDensity { total: 4, area: 3 })
+            .density(),
+            26.0,
+        );
+    }
+
+    #[test]
+    fn weighted_average_test() {
+        assert_eq!(
+            WeightedAverage {
+                value: 1.0,
+                count: 10
+            } + WeightedAverage {
+                value: 4.0,
+                count: 5,
+            },
+            WeightedAverage {
+                value: 2.0,
+                count: 15,
+            }
+        );
     }
 }

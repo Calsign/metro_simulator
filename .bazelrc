@@ -2,14 +2,18 @@ build --symlink_prefix=build/bazel-
 
 test --test_output=errors
 
+# print backtraces in tests
+test --test_env RUST_BACKTRACE=1
+
+# Running the simulation is painfully slow in dbg, so we want to run it in opt.
+# Side-effect: we can't use #[cfg(debug_assertions)] to build code only for tests.
+test -c opt
+
 # mypy aspect
 build:mypy --aspects @mypy_integration//:mypy.bzl%mypy_aspect
 build:mypy --output_groups=+mypy
 
 build --config mypy
-
-# print backtraces in tests
-test --test_env RUST_BACKTRACE=1
 
 # auto-launch android app
 mobile-install --start_app

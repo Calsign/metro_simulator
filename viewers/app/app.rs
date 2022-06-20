@@ -108,10 +108,7 @@ impl App {
     }
 
     fn draw_stats(&mut self, ui: &mut egui::Ui) {
-        if let Ok(root) = self.engine.state.qtree.get_branch(quadtree::Address::from((
-            vec![],
-            self.engine.state.qtree.max_depth(),
-        ))) {
+        if let Ok(root) = self.engine.state.qtree.get_root_branch() {
             ui.label(format!(
                 "Population: {}",
                 root.fields.population.people.total
@@ -119,6 +116,10 @@ impl App {
             ui.label(format!(
                 "Employment: {}",
                 root.fields.employment.workers.total
+            ));
+            ui.label(format!(
+                "Employment rate: {:.1}%",
+                root.fields.population.employment_rate() * 100.0,
             ));
         }
     }
@@ -463,6 +464,19 @@ impl App {
             }
         }
 
+        ui.label(format!(
+            "Housing stickiness: {:.2}/1.00",
+            agent.data.housing_stickiness()
+        ));
+        ui.label(format!(
+            "Workplace stickiness: {:.2}/1.00",
+            agent.data.workplace_stickiness()
+        ));
+        ui.label(format!(
+            "Commute length tolerance: {} minutes",
+            agent.data.commute_length_tolerance() / 60,
+        ));
+
         // TODO: use some better way to format durations. chrono::Duration itself is not
         // formattable.
         if let Some(average_commute) = chrono::NaiveTime::from_num_seconds_from_midnight_opt(
@@ -472,6 +486,13 @@ impl App {
             ui.label(format!(
                 "Average commute: {}",
                 average_commute.format("%H:%M:%S"),
+            ));
+        }
+
+        if let Some(workplace_happiness_score) = agent.workplace_happiness_score() {
+            ui.label(format!(
+                "Workplace happiness score: {:.2}/1.00",
+                workplace_happiness_score
             ));
         }
 

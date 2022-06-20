@@ -153,6 +153,8 @@ pub struct CollectTilesVisitor {
     pub total: u64,
     pub housing: Vec<quadtree::Address>,
     pub workplaces: Vec<quadtree::Address>,
+    pub vacant_housing: Vec<quadtree::Address>,
+    pub vacant_workplaces: Vec<quadtree::Address>,
 }
 
 impl CollectTilesVisitor {
@@ -160,6 +162,8 @@ impl CollectTilesVisitor {
         self.total = 0;
         self.housing.clear();
         self.workplaces.clear();
+        self.vacant_housing.clear();
+        self.vacant_workplaces.clear();
     }
 }
 
@@ -175,9 +179,19 @@ impl<F: Fields> quadtree::Visitor<BranchState<F>, LeafState<F>, Error> for Colle
     fn visit_leaf(&mut self, leaf: &LeafState<F>, data: &quadtree::VisitData) -> Result<(), Error> {
         use tiles::Tile::*;
         self.total += 1;
-        match leaf.tile {
-            HousingTile(_) => self.housing.push(data.address),
-            WorkplaceTile(_) => self.workplaces.push(data.address),
+        match &leaf.tile {
+            HousingTile(tiles::HousingTile { density, agents }) => {
+                self.housing.push(data.address);
+                if &agents.len() < density {
+                    self.vacant_housing.push(data.address);
+                }
+            }
+            WorkplaceTile(tiles::WorkplaceTile { density, agents }) => {
+                self.workplaces.push(data.address);
+                if &agents.len() < density {
+                    self.vacant_workplaces.push(data.address);
+                }
+            }
             _ => (),
         }
         Ok(())

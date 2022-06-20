@@ -12,6 +12,7 @@ rust_library(
     ],
     proc_macro_deps = [
         "@crates//:enum_dispatch",
+        "@crates//:derive_more",
         "@crates//:derivative",
     ],
     visibility = ["//visibility:public"],
@@ -26,6 +27,7 @@ rust_library(
         "@crates//:crossbeam",
         "@crates//:itertools",
         "@crates//:once_cell",
+        "@crates//:rand",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:splines",

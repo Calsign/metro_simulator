@@ -21,9 +21,8 @@ pub enum Trigger {
     AgentPlanCommuteHome,
     AgentRouteStart,
     AgentRouteAdvance,
-    #[cfg(debug_assertions)]
+    AgentLifeDecisions,
     DummyTrigger,
-    #[cfg(debug_assertions)]
     DoublingTrigger,
 }
 
@@ -243,12 +242,136 @@ impl TriggerType for AgentRouteAdvance {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct AgentLifeDecisions {
+    pub agent: u64,
+}
+
+impl AgentLifeDecisions {
+    fn get_agent<'a>(&self, engine: &'a Engine) -> &'a agent::Agent {
+        engine.agents.get(&self.agent).expect("missing agent")
+    }
+
+    fn modify_agent<F>(&self, engine: &mut Engine, f: F)
+    where
+        F: FnOnce(&mut agent::Agent),
+    {
+        let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
+        f(agent);
+    }
+
+    fn maybe_quit_job(&self, engine: &mut Engine) {
+        let agent = self.get_agent(engine);
+
+        if let Some(workplace_happiness_score) = agent.workplace_happiness_score() {
+            if workplace_happiness_score < 0.1 {
+                if let Some(workplace) = agent.workplace {
+                    let agent_id = agent.id;
+                    match engine.state.qtree.get_leaf_mut(workplace) {
+                        Ok(state::LeafState {
+                            tile: tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { agents, .. }),
+                            ..
+                        }) => {
+                            agents.retain(|id| *id != agent_id);
+                        }
+                        _ => panic!("missing workplace or non-workplace tile"),
+                    }
+                    self.modify_agent(engine, |agent| agent.workplace = None);
+                }
+            }
+        }
+    }
+
+    fn maybe_find_new_job(&self, engine: &mut Engine) {
+        let agent = self.get_agent(engine);
+
+        // NOTE: if this is slow, it should be easy to parallelize
+        if agent.workplace.is_none() {
+            use rand::seq::SliceRandom;
+
+            // TODO: be smarter about picking workplace candidates; sampling the map at random will
+            // lead to the majority being too far away
+            let vacant = &engine.state.collect_tiles.vacant_workplaces[..];
+            let best = vacant.choose_multiple(&mut rand::thread_rng(), 100).filter_map(|address| {
+                // the CollectTilesVisitor could be out-of-date; make sure the information is still
+                // valid
+                match engine.state.qtree.get_leaf(*address) {
+                    Ok(state::LeafState {
+                        tile: tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }),
+                        ..
+                    }) => {
+                        if agents.len() >= *density {
+                            return None;
+                        }
+                    }
+                    _ => return None,
+                };
+
+                // TODO: running a bunch of queries is too expensive
+
+                // let query_input = route::QueryInput {
+                //     start: agent.housing,
+                //     end: *address,
+                //     car_config: Some(route::CarConfig::StartWithCar),
+                // };
+                // // TODO: query for what congestion *would* be during normal commuting hours
+                // // TODO: we don't need to construct the route, this is a significant source of
+                // // wasted time
+                // let route = engine.query_route(query_input).unwrap();
+                // route.map(|route| (*address, route.total_cost()))
+
+                use cgmath::MetricSpace;
+
+                let (x1, y1) = agent.housing.to_xy_f64();
+                let (x2, y2) = address.to_xy_f64();
+
+                let dist_sq = cgmath::Vector2::from((x1, y1)).distance2((x2, y2).into());
+                Some((*address, -dist_sq))
+            }).max_by(|(_, score1), (_, score2)| score1.partial_cmp(score2).unwrap());
+            if let Some((address, neg_dist_sq)) = best {
+                // TODO: this is a gross approximation, would be better to actually compute the
+                // route cost
+                if (-neg_dist_sq).sqrt() < (agent.data.commute_length_tolerance() as f64) / 10.0 {
+                    let agent_id = agent.id;
+                    if match engine.state.qtree.get_leaf_mut(address) {
+                        Ok(state::LeafState {
+                            tile:
+                                tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }),
+                            ..
+                        }) => {
+                            if agents.len() < *density {
+                                agents.push(agent_id);
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    } {
+                        self.modify_agent(engine, |agent| agent.workplace = Some(address));
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl TriggerType for AgentLifeDecisions {
+    fn execute(self, engine: &mut Engine, time: u64) {
+        self.maybe_quit_job(engine);
+        self.maybe_find_new_job(engine);
+
+        // TODO: a longer cadence would make sense, but doing this for testing purposes
+        engine
+            .trigger_queue
+            .push_rel(self, Time::new::<day>(2).value);
+    }
+}
+
 // Sample trigger implementation, demonstrates a simple recurring trigger
-#[cfg(debug_assertions)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DummyTrigger {}
 
-#[cfg(debug_assertions)]
 impl TriggerType for DummyTrigger {
     fn execute(self, engine: &mut Engine, time: u64) {
         println!("executing {}", time);
@@ -258,11 +381,9 @@ impl TriggerType for DummyTrigger {
 
 // Used for testing. Must be defined here since enum_dispatch doesn't support crossing crate
 // boundaries.
-#[cfg(debug_assertions)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DoublingTrigger {}
 
-#[cfg(debug_assertions)]
 impl TriggerType for DoublingTrigger {
     fn execute(self, engine: &mut Engine, time: u64) {
         engine.trigger_queue.push_rel(DoublingTrigger {}, 1);

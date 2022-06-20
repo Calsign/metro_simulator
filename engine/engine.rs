@@ -223,7 +223,7 @@ impl Engine {
     }
 
     pub fn query_route(
-        &mut self,
+        &self,
         query_input: route::QueryInput,
     ) -> Result<Option<route::Route>, Error> {
         // TODO: using the thread local mechanism isn't necessary here, but currently
@@ -242,7 +242,7 @@ impl Engine {
      * the route response on a channel to the returned reciever when it finishes.
      */
     pub fn query_route_async(
-        &mut self,
+        &self,
         query_input: route::QueryInput,
     ) -> crossbeam::channel::Receiver<Result<Option<route::Route>, Error>> {
         let (sender, receiver) = crossbeam::channel::bounded(1);
@@ -306,6 +306,9 @@ impl Engine {
             self.trigger_queue
                 .push(crate::behavior::UpdateTraffic {}, 0);
             for agent in self.agents.values() {
+                self.trigger_queue
+                    .push(crate::behavior::AgentLifeDecisions { agent: agent.id }, 0);
+
                 // start the day at 8 am
                 self.trigger_queue.push(
                     crate::behavior::AgentPlanCommuteToWork { agent: agent.id },
@@ -392,7 +395,9 @@ mod trigger_tests {
         });
 
         // NOTE: all triggers have to be defined in the same crate, so we define the trigger in trigger.rs.
-        engine.trigger_queue.push(DoublingTrigger {}, 1);
+        engine
+            .trigger_queue
+            .push(crate::behavior::DoublingTrigger {}, 1);
 
         engine.time_state.playback_rate = 1;
         engine.time_state.paused = false;

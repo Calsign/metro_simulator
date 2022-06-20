@@ -307,6 +307,10 @@ impl<B, L> Quadtree<B, L> {
         };
     }
 
+    pub fn get_root_branch(&self) -> Result<&B, Error> {
+        self.get_branch(Address::from((vec![], self.max_depth)))
+    }
+
     pub fn split<A: Into<Address>>(
         &mut self,
         address: A,
