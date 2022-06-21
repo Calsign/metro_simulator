@@ -51,6 +51,7 @@ CRATES = {
         version = "4.0",
         features = ["cgmath", "serde"],
     ),
+    "fastblur": "0.1.1",
 
     # parallelism
     "rayon": "1.5.2",

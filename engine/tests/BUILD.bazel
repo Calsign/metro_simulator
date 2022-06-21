@@ -20,3 +20,24 @@ rust_test(
         "@crates//:uom",
     ],
 )
+
+rust_binary(
+    name = "fields_timer",
+    srcs = ["fields_timer.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+    ],
+)
+
+rust_test(
+    name = "fields_idempotent_test",
+    srcs = ["fields_idempotent_test.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+        "//engine/quadtree",
+        "//engine/state",
+        "@crates//:anyhow",
+    ],
+)

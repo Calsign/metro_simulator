@@ -258,18 +258,6 @@ impl Engine {
         receiver
     }
 
-    pub fn update_fields(&mut self) -> Result<(), Error> {
-        // TODO: Pass in more pieces of state once that is necessary. It's not possible to pass all
-        // of Engine because it can't be borrowed both mutably and immutably at the same time.
-        let mut fold = UpdateFieldsFold {
-            field_computation_data: FieldsComputationData {
-                agents: &self.agents,
-            },
-        };
-        self.state.qtree.fold_mut(&mut fold)?;
-        Ok(())
-    }
-
     /**
      * Re-compute the weights on the fast graph used for querying routes.
      * This makes newly computed routes use the predicted traffic conditions.
@@ -302,7 +290,9 @@ impl Engine {
      */
     pub fn init_trigger_queue(&mut self) {
         if self.time_state.current_time == 0 {
-            self.trigger_queue.push(crate::behavior::Tick {}, 0);
+            self.trigger_queue.push(crate::behavior::UpdateFields {}, 0);
+            self.trigger_queue
+                .push(crate::behavior::UpdateCollectTiles {}, 0);
             self.trigger_queue
                 .push(crate::behavior::UpdateTraffic {}, 0);
             for agent in self.agents.values() {
@@ -337,47 +327,6 @@ impl Engine {
         if time_step > 0 {
             self.advance_trigger_queue(time_step, time_budget);
         }
-    }
-}
-
-struct UpdateFieldsFold<'a> {
-    field_computation_data: FieldsComputationData<'a>,
-}
-
-impl<'a>
-    quadtree::MutFold<
-        state::BranchState<FieldsState>,
-        state::LeafState<FieldsState>,
-        (bool, FieldsState),
-        Error,
-    > for UpdateFieldsFold<'a>
-{
-    fn fold_leaf(
-        &mut self,
-        leaf: &mut state::LeafState<FieldsState>,
-        data: &quadtree::VisitData,
-    ) -> Result<(bool, FieldsState), Error> {
-        let changed = leaf
-            .fields
-            .compute_leaf(&leaf.tile, data, &self.field_computation_data);
-        Ok((changed, leaf.fields.clone()))
-    }
-
-    fn fold_branch(
-        &mut self,
-        branch: &mut state::BranchState<FieldsState>,
-        children: &quadtree::QuadMap<(bool, FieldsState)>,
-        data: &quadtree::VisitData,
-    ) -> Result<(bool, FieldsState), Error> {
-        let changed = children.values().iter().any(|(c, _)| *c);
-        if changed {
-            // only recompute branch if at least one of the children changed
-            let fields = children.clone().map_into(&|(_, f)| f);
-            branch
-                .fields
-                .compute_branch(&fields, data, &self.field_computation_data);
-        }
-        Ok((changed, branch.fields.clone()))
     }
 }
 

@@ -2,16 +2,17 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-struct ComputeLeafData<'a, 'b, 'c, 'd> {
+struct ComputeLeafData<'a, 'b, 'c, 'd, 'e, 'f> {
     tile: &'a tiles::Tile,
     data: &'b quadtree::VisitData,
-    extra: &'c FieldsComputationData<'d>,
+    extra: &'c FieldsComputationData<'d, 'e>,
+    current: &'f FieldsState,
 }
 
-struct ComputeBranchData<'a, 'b, 'c, 'd> {
+struct ComputeBranchData<'a, 'b, 'c, 'd, 'e> {
     fields: &'a quadtree::QuadMap<FieldsState>,
     data: &'b quadtree::VisitData,
-    extra: &'c FieldsComputationData<'d>,
+    extra: &'c FieldsComputationData<'d, 'e>,
 }
 
 trait Field: std::fmt::Debug + Default + Clone {
@@ -68,6 +69,14 @@ impl WeightedAverage {
     fn add_sample(&mut self, value: f64) {
         *self = *self + Self::one(value)
     }
+
+    fn add_weighted_sample(&mut self, value: f64, weight: usize) {
+        *self = *self
+            + Self {
+                value,
+                count: weight,
+            }
+    }
 }
 
 impl std::ops::Add for WeightedAverage {
@@ -90,7 +99,7 @@ impl std::ops::Add for WeightedAverage {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, derive_more::Add)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
 pub struct Population {
     pub people: SimpleDensity,
     pub housing: SimpleDensity,
@@ -135,31 +144,26 @@ impl Population {
 
 impl Field for Population {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (people, housing, employed_people, workplace_happiness, commute_duration) =
-            match leaf.tile {
-                tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
-                    let mut employed_people = 0;
-                    let mut workplace_happiness = WeightedAverage::zero();
-                    let mut commute_duration = WeightedAverage::zero();
-                    for agent_id in agents {
-                        let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
-                        if let Some(workplace) = agent.workplace {
-                            employed_people += 1;
-                            workplace_happiness
-                                .add_sample(agent.workplace_happiness_score().unwrap() as f64);
-                            commute_duration.add_sample(agent.average_commute_length() as f64);
-                        }
-                    }
-                    (
-                        agents.len(),
-                        *density,
-                        employed_people,
-                        workplace_happiness,
-                        commute_duration,
-                    )
+        let mut people = 0;
+        let mut housing = 0;
+        let mut employed_people = 0;
+        let mut workplace_happiness = WeightedAverage::zero();
+        let mut commute_duration = WeightedAverage::zero();
+
+        if let tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) = leaf.tile {
+            people = agents.len();
+            housing = *density;
+            for agent_id in agents {
+                let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
+                if let Some(workplace) = agent.workplace {
+                    employed_people += 1;
+                    workplace_happiness
+                        .add_sample(agent.workplace_happiness_score().unwrap() as f64);
+                    commute_duration.add_sample(agent.average_commute_length() as f64);
                 }
-                _ => (0, 0, 0, WeightedAverage::zero(), WeightedAverage::zero()),
-            };
+            }
+        }
+
         Some(Self {
             people: SimpleDensity::from_total(people, leaf.data),
             housing: SimpleDensity::from_total(housing, leaf.data),
@@ -176,7 +180,7 @@ impl Field for Population {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, derive_more::Add)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
 pub struct Employment {
     pub workers: SimpleDensity,
     pub jobs: SimpleDensity,
@@ -207,25 +211,21 @@ impl Employment {
 
 impl Field for Employment {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        let (workers, jobs, workplace_happiness, commute_duration) = match leaf.tile {
-            tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }) => {
-                let mut workplace_happiness = WeightedAverage::zero();
-                let mut commute_duration = WeightedAverage::zero();
-                for agent_id in agents {
-                    let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
-                    workplace_happiness
-                        .add_sample(agent.workplace_happiness_score().unwrap() as f64);
-                    commute_duration.add_sample(agent.average_commute_length() as f64);
-                }
-                (
-                    agents.len(),
-                    *density,
-                    workplace_happiness,
-                    commute_duration,
-                )
+        let mut workers = 0;
+        let mut jobs = 0;
+        let mut workplace_happiness = WeightedAverage::zero();
+        let mut commute_duration = WeightedAverage::zero();
+
+        if let tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }) = leaf.tile {
+            workers = agents.len();
+            jobs = *density;
+            for agent_id in agents {
+                let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
+                workplace_happiness.add_sample(agent.workplace_happiness_score().unwrap() as f64);
+                commute_duration.add_sample(agent.average_commute_length() as f64);
             }
-            _ => (0, 0, WeightedAverage::zero(), WeightedAverage::zero()),
-        };
+        }
+
         Some(Self {
             workers: SimpleDensity::from_total(workers, leaf.data),
             jobs: SimpleDensity::from_total(jobs, leaf.data),
@@ -241,46 +241,132 @@ impl Field for Employment {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
+pub struct RawLandValue {
+    /// total density of constructed tiles
+    pub combined_density: SimpleDensity,
+    pub raw_land_value: WeightedAverage,
+    pub raw_construction_cost: WeightedAverage,
+}
+
+impl Field for RawLandValue {
+    fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
+        let mut raw_land_value = WeightedAverage::zero();
+        let mut raw_construction_cost = WeightedAverage::zero();
+
+        let combined_density = leaf.current.population.housing + leaf.current.employment.jobs;
+        let area = leaf.data.area(leaf.extra.config.min_tile_size) as usize;
+        let area_f64 = area as f64;
+
+        match leaf.tile {
+            tiles::Tile::EmptyTile(_) => {
+                // land has an inherent value
+                raw_land_value.add_weighted_sample(1.0, area);
+                // TODO: account for terrain
+                raw_construction_cost.add_weighted_sample(1.0, area); // 1x
+            }
+            tiles::Tile::WaterTile(_) => {
+                // construction cost drops off a lot faster than land value, so the result should be
+                // very rare construction on water, but high land values and reasonable construction
+                // costs near water
+
+                // water has a high base land value
+                raw_land_value.add_weighted_sample(10.0, area);
+                // high cost to building on water
+                raw_construction_cost.add_weighted_sample(100.0, area); // 100x
+            }
+            tiles::Tile::MetroStationTile(_) => {
+                // metro stations have high land value
+                raw_land_value.add_weighted_sample(1000.0, area);
+                // it's difficult to build near metro stations
+                raw_construction_cost.add_weighted_sample(10.0, area); // 10x
+            }
+            _ => {
+                // TODO: should really depend on the *types* of housing and jobs that are here
+                raw_land_value.add_weighted_sample(combined_density.density() * 1000.0, area);
+                raw_construction_cost
+                    .add_weighted_sample((combined_density.density() * 200.0).max(1.0), area);
+            }
+        }
+
+        // this is a cost multiplier
+        assert!(raw_construction_cost.value >= 1.0);
+
+        Some(Self {
+            combined_density,
+            raw_land_value,
+            raw_construction_cost,
+        })
+    }
+
+    fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
+        Some(sum_iter(
+            branch.fields.values().iter().map(|f| f.raw_land_value),
+        ))
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
 pub struct LandValue {
-    pub value: f64,
+    /// average value of land, per tile, in dollars
+    pub land_value: WeightedAverage,
+    /// average cost multiplier for performing construction here
+    pub construction_cost: WeightedAverage,
 }
 
 impl Field for LandValue {
     fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
-        Some(Self { value: 0.0 })
+        Some(leaf.current.land_value)
     }
 
     fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
-        Some(Self { value: 0.0 })
+        Some(sum_iter(
+            branch.fields.values().iter().map(|f| f.land_value),
+        ))
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
+pub enum FieldPass {
+    First,
+    Second,
+}
+
 // TODO: write a procedural macro to make this less painful
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct FieldsState {
     pub population: Population,
     pub employment: Employment,
+    pub raw_land_value: RawLandValue,
     pub land_value: LandValue,
 }
 
 // TODO: it could make sense to split this out of Engine into a separate state, like State
-pub struct FieldsComputationData<'a> {
-    pub agents: &'a HashMap<u64, agent::Agent>,
+pub struct FieldsComputationData<'a, 'b> {
+    pub config: &'a state::Config,
+    pub agents: &'b HashMap<u64, agent::Agent>,
 }
 
 impl FieldsState {
-    pub(crate) fn compute_leaf<'a>(
+    pub(crate) fn compute_leaf<'a, 'b>(
         &mut self,
         tile: &tiles::Tile,
         data: &quadtree::VisitData,
-        extra: &FieldsComputationData<'a>,
+        extra: &FieldsComputationData<'a, 'b>,
+        pass: FieldPass,
     ) -> bool {
         let mut changed = false;
 
         macro_rules! each_field {
             ($field:ty, $name:ident) => {{
-                match <$field>::compute_leaf(ComputeLeafData { tile, data, extra }) {
+                match <$field>::compute_leaf(ComputeLeafData {
+                    tile,
+                    data,
+                    extra,
+                    current: self,
+                }) {
                     Some(val) => {
                         self.$name = val;
                         changed = true;
@@ -290,18 +376,26 @@ impl FieldsState {
             }};
         }
 
-        each_field!(Population, population);
-        each_field!(Employment, employment);
-        each_field!(LandValue, land_value);
+        match pass {
+            FieldPass::First => {
+                each_field!(Population, population);
+                each_field!(Employment, employment);
+                each_field!(RawLandValue, raw_land_value);
+            }
+            FieldPass::Second => {
+                each_field!(LandValue, land_value);
+            }
+        }
 
         changed
     }
 
-    pub(crate) fn compute_branch<'a>(
+    pub(crate) fn compute_branch<'a, 'b>(
         &mut self,
         fields: &quadtree::QuadMap<FieldsState>,
         data: &quadtree::VisitData,
-        extra: &FieldsComputationData<'a>,
+        extra: &FieldsComputationData<'a, 'b>,
+        pass: FieldPass,
     ) -> bool {
         let mut changed = false;
 
@@ -321,9 +415,16 @@ impl FieldsState {
             }};
         }
 
-        each_field!(Population, population);
-        each_field!(Employment, employment);
-        each_field!(LandValue, land_value);
+        match pass {
+            FieldPass::First => {
+                each_field!(Population, population);
+                each_field!(Employment, employment);
+                each_field!(RawLandValue, raw_land_value);
+            }
+            FieldPass::Second => {
+                each_field!(LandValue, land_value);
+            }
+        }
 
         changed
     }

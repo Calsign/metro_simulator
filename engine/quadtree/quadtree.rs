@@ -66,6 +66,15 @@ impl VisitData {
             Ok(Quadrant::from_sides(right, bottom))
         }
     }
+
+    /// area, in meters
+    pub fn area(&self, min_tile_size: u32) -> u64 {
+        (self.width * min_tile_size as u64).pow(2)
+    }
+
+    pub fn center(&self) -> (u64, u64) {
+        (self.x + self.width / 2, self.y + self.width / 2)
+    }
 }
 
 pub trait Visitor<B, L, E> {

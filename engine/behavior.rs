@@ -15,7 +15,8 @@ pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
 #[serde(tag = "type")]
 #[non_exhaustive]
 pub enum Trigger {
-    Tick,
+    UpdateFields,
+    UpdateCollectTiles,
     UpdateTraffic,
     AgentPlanCommuteToWork,
     AgentPlanCommuteHome,
@@ -29,12 +30,25 @@ pub enum Trigger {
 // This is a common place to define triggers which produce important behavior.
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct Tick {}
+pub struct UpdateFields {}
 
-impl TriggerType for Tick {
+impl TriggerType for UpdateFields {
     fn execute(self, engine: &mut Engine, time: u64) {
         // TODO: only re-run these when the underlying data updates
         engine.update_fields().unwrap();
+
+        // re-trigger every day of simulated time
+        engine
+            .trigger_queue
+            .push_rel(self, Time::new::<day>(1).value);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct UpdateCollectTiles {}
+
+impl TriggerType for UpdateCollectTiles {
+    fn execute(self, engine: &mut Engine, time: u64) {
         engine.state.update_collect_tiles().unwrap();
 
         // re-trigger every hour of simulated time

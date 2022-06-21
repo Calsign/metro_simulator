@@ -24,8 +24,11 @@ pub(crate) enum FieldType {
     WorkplaceHappinessWork,
     CommuteDurationWork,
 
-    // ...
+    // land value-related
+    RawLandValue,
+    RawConstructionCost,
     LandValue,
+    ConstructionCost,
 }
 
 impl FieldType {
@@ -46,7 +49,10 @@ impl FieldType {
             Self::WorkplaceHappinessWork => "Workplace happiness (work)",
             Self::CommuteDurationWork => "Commute duration (work)",
 
+            Self::RawLandValue => "Land value (raw)",
+            Self::RawConstructionCost => "Construction cost (raw)",
             Self::LandValue => "Land value",
+            Self::ConstructionCost => "Construction cost",
         }
     }
 
@@ -67,7 +73,8 @@ impl FieldType {
             Self::WorkplaceHappinessWork => 1.0,
             Self::CommuteDurationWork => *COMMUTE_DURATION_MAX_SCALE,
 
-            Self::LandValue => 1.0,
+            Self::RawLandValue | Self::LandValue => 60.0,
+            Self::RawConstructionCost | Self::ConstructionCost => 20.0,
         }
     }
 
@@ -88,7 +95,10 @@ impl FieldType {
             Self::WorkplaceHappinessWork => fields.employment.workplace_happiness.value as f32,
             Self::CommuteDurationWork => fields.employment.commute_duration.value as f32,
 
-            Self::LandValue => 0.0,
+            Self::RawLandValue => fields.raw_land_value.raw_land_value.value as f32,
+            Self::RawConstructionCost => fields.raw_land_value.raw_construction_cost.value as f32,
+            Self::LandValue => fields.land_value.land_value.value as f32,
+            Self::ConstructionCost => fields.land_value.construction_cost.value as f32,
         }
     }
 

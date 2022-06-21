@@ -5,6 +5,8 @@ rust_library(
     srcs = [
         "behavior.rs",
         "engine.rs",
+        "field_blur.rs",
+        "field_update.rs",
         "fields.rs",
         "lib.rs",
         "time_state.rs",
@@ -25,6 +27,7 @@ rust_library(
         "@crates//:cgmath",
         "@crates//:chrono",
         "@crates//:crossbeam",
+        "@crates//:fastblur",
         "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:rand",
