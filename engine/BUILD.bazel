@@ -4,8 +4,8 @@ rust_library(
     name = "engine",
     srcs = [
         "behavior.rs",
+        "consistency.rs",
         "engine.rs",
-        "field_blur.rs",
         "field_update.rs",
         "fields.rs",
         "lib.rs",
@@ -31,6 +31,7 @@ rust_library(
         "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:rand",
+        "@crates//:rand_distr",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:splines",

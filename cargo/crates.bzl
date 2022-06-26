@@ -21,12 +21,6 @@ CRATES = {
     ),
     "ordered-float": "3.0.0",
     "bencher": "0.1.5",
-    "rand": "0.8.5",
-    "uom": dict(
-        version = "0.32.0",
-        features = ["u64", "serde"],
-    ),
-    "num": "0.4.0",
 
     # serde
     "serde": dict(
@@ -52,6 +46,13 @@ CRATES = {
         features = ["cgmath", "serde"],
     ),
     "fastblur": "0.1.1",
+    "rand": "0.8.5",
+    "rand_distr": "0.4.3",
+    "uom": dict(
+        version = "0.32.0",
+        features = ["u64", "serde"],
+    ),
+    "num": "0.4.0",
 
     # parallelism
     "rayon": "1.5.2",

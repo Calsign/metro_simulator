@@ -43,8 +43,8 @@ pub struct LeafState<F: Fields> {
     pub fields: F,
 }
 
-impl<F: Fields> LeafState<F> {
-    pub fn default() -> Self {
+impl<F: Fields> Default for LeafState<F> {
+    fn default() -> Self {
         Self {
             tile: tiles::EmptyTile {}.into(),
             fields: F::default(),
@@ -145,6 +145,75 @@ impl<F: Fields> State<F> {
         self.metro_lines.insert(id, metro_line);
 
         id
+    }
+
+    /**
+     * Insert a tile at the specified address, preserving the existing tile. Will split the tile if
+     * needed, or possibly place the new tile in an adjacent empty tile instead.
+     *
+     * Returns the addresses of the existing tile (which may have been moved) and the new tile,
+     * (existing_tile, new_tile). The existing tile may be None if it was empty and replaced, and
+     * the new tile may be none if the qtree depth was too high for a new tile to be added.
+     *
+     * This function should not be used directly, instead use Engine::insert_tile.
+     */
+    pub fn insert_tile(
+        &mut self,
+        address: quadtree::Address,
+        tile: tiles::Tile,
+    ) -> Result<(Option<quadtree::Address>, Option<quadtree::Address>), Error> {
+        use itertools::Itertools;
+        use rand::seq::SliceRandom;
+
+        // TODO: this could be improved by moving instead of cloning
+        let current_leaf = self.qtree.get_leaf(address)?.clone();
+
+        if let tiles::Tile::EmptyTile(_) = current_leaf.tile {
+            // replace the empty tile
+
+            self.qtree.get_leaf_mut(address)?.tile = tile;
+            Ok((None, Some(address)))
+        } else {
+            // split the tile
+
+            // TODO: we should be able to place the new tile into an adjacent empty tile instead of
+            // splitting every time
+
+            let mut rng = rand::thread_rng();
+
+            // choose_multiple is without replacement, which is important
+            let (current_quadrant, new_quadrant) = quadtree::QUADRANTS
+                .choose_multiple(&mut rng, 2)
+                .collect_tuple()
+                .unwrap();
+
+            let empty_quadrants: [LeafState<F>; 4] = Default::default();
+            let mut quad_map = quadtree::QuadMap::from(empty_quadrants);
+            quad_map[*current_quadrant] = LeafState {
+                tile: current_leaf.tile,
+                fields: F::default(),
+            };
+            quad_map[*new_quadrant] = LeafState {
+                tile,
+                fields: F::default(),
+            };
+
+            match self.qtree.split(
+                address,
+                BranchState {
+                    fields: current_leaf.fields,
+                },
+                quad_map,
+            ) {
+                Ok(()) => Ok((
+                    Some(address.child(*current_quadrant)),
+                    Some(address.child(*new_quadrant)),
+                )),
+                // TODO: handle this case
+                Err(quadtree::Error::MaxDepthExceeded(_)) => Ok((Some(address), None)),
+                Err(err) => Err(err.into()),
+            }
+        }
     }
 }
 

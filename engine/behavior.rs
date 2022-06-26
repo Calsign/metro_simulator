@@ -23,6 +23,7 @@ pub enum Trigger {
     AgentRouteStart,
     AgentRouteAdvance,
     AgentLifeDecisions,
+    WorkplaceDecisions,
     DummyTrigger,
     DoublingTrigger,
 }
@@ -376,6 +377,46 @@ impl TriggerType for AgentLifeDecisions {
         self.maybe_find_new_job(engine);
 
         // TODO: a longer cadence would make sense, but doing this for testing purposes
+        engine
+            .trigger_queue
+            .push_rel(self, Time::new::<day>(2).value);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct WorkplaceDecisions {}
+
+impl TriggerType for WorkplaceDecisions {
+    fn execute(self, engine: &mut Engine, time: u64) {
+        let root_branch = engine.state.qtree.get_root_branch().unwrap();
+        // this should be a reasonable number
+        let new_workplaces = root_branch.fields.raw_demand.raw_workplace_demand.count / 100;
+
+        let mut rng = rand::thread_rng();
+        for _ in 0..new_workplaces {
+            let address = match engine
+                .blurred_fields
+                .workplace_demand
+                .sample(&mut rng, &engine.state.qtree)
+            {
+                Some(address) => address,
+                None => {
+                    // no valid distribution, so just give up
+                    break;
+                }
+            };
+
+            engine
+                .insert_tile(
+                    address,
+                    tiles::Tile::WorkplaceTile(tiles::WorkplaceTile {
+                        density: 1,
+                        agents: vec![],
+                    }),
+                )
+                .unwrap();
+        }
+
         engine
             .trigger_queue
             .push_rel(self, Time::new::<day>(2).value);

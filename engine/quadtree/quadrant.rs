@@ -7,7 +7,7 @@ pub enum Quadrant {
 }
 
 impl Quadrant {
-    fn index(self) -> u8 {
+    pub fn index(self) -> u8 {
         self as u8
     }
 
@@ -96,6 +96,12 @@ impl<T> From<Vec<T>> for QuadMap<T> {
                 .try_into()
                 .unwrap_or_else(|v: Vec<T>| panic!("vec must have size 4")),
         }
+    }
+}
+
+impl<T> From<[T; 4]> for QuadMap<T> {
+    fn from(arr: [T; 4]) -> Self {
+        Self { data: arr }
     }
 }
 

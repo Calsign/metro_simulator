@@ -26,6 +26,8 @@ pub enum Error {
     StateError(#[from] state::Error),
     #[error("Route error: {0}")]
     RouteError(#[from] route::Error),
+    #[error("Quadtree error: {0}")]
+    QuadtreeError(#[from] quadtree::Error),
 }
 
 #[derive(Debug)]
@@ -125,6 +127,8 @@ pub struct Engine {
     pub trigger_queue: TriggerQueue,
     #[serde(skip, default = "Engine::create_thread_pool")]
     pub(crate) thread_pool: threadpool::ThreadPool,
+    #[serde(skip)]
+    pub(crate) blurred_fields: crate::field_update::BlurredFields,
 }
 
 impl Engine {
@@ -139,6 +143,7 @@ impl Engine {
             agent_counter: 0,
             trigger_queue: TriggerQueue::new(),
             thread_pool: Self::create_thread_pool(),
+            blurred_fields: Default::default(),
         }
     }
 
@@ -220,6 +225,50 @@ impl Engine {
             .insert(id, agent::Agent::new(id, data, housing, workplace));
 
         id
+    }
+
+    /**
+     * When a tile moves, there are some relations, such as agents, that need to be updated
+     * accordingly. Call this to patch the tile at a given address.
+     */
+    pub fn patch_tile(&mut self, address: quadtree::Address) -> Result<(), Error> {
+        match &mut self.state.qtree.get_leaf_mut(address)?.tile {
+            tiles::Tile::HousingTile(tiles::HousingTile { agents, .. }) => {
+                for agent_id in agents {
+                    self.agents
+                        .get_mut(&agent_id)
+                        .expect("missing agent")
+                        .housing = address;
+                }
+            }
+            tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { agents, .. }) => {
+                for agent_id in agents {
+                    self.agents
+                        .get_mut(&agent_id)
+                        .expect("missing agent")
+                        .workplace = Some(address);
+                }
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
+
+    /**
+     * Forwards to State::insert_tile, but takes care of calling patch_tile. This should always be
+     * used instead of calling insert_tile in State directly.
+     */
+    pub fn insert_tile(
+        &mut self,
+        address: quadtree::Address,
+        tile: tiles::Tile,
+    ) -> Result<(Option<quadtree::Address>, Option<quadtree::Address>), Error> {
+        let new_addresses = self.state.insert_tile(address, tile)?;
+        if let (Some(existing_tile), _) = new_addresses {
+            self.patch_tile(existing_tile)?;
+        }
+        Ok(new_addresses)
     }
 
     pub fn query_route(
@@ -305,6 +354,8 @@ impl Engine {
                     Time::new::<hour>(8).value,
                 );
             }
+            self.trigger_queue
+                .push(crate::behavior::WorkplaceDecisions {}, 0);
         }
     }
 

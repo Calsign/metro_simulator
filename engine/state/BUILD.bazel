@@ -13,6 +13,8 @@ rust_library(
         "//engine/metro",
         "//engine/quadtree",
         "//engine/tiles",
+        "@crates//:itertools",
+        "@crates//:rand",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",

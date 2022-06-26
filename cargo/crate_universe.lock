@@ -1,5 +1,5 @@
 {
-  "checksum": "4ae8367ed6073a4a6631667e7b7d775889758134a3ca5e798d058782711030b3",
+  "checksum": "0c376bd4c053b0c1f42fa83e72ddbaf79d44c8fd2ffae931adb809ebce7a336f",
   "crates": {
     "ab_glyph 0.2.15": {
       "name": "ab_glyph",
@@ -2186,13 +2186,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "clap 3.2.5": {
+    "clap 3.2.6": {
       "name": "clap",
-      "version": "3.2.5",
+      "version": "3.2.6",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/clap/3.2.5/download",
-          "sha256": "d53da17d37dba964b9b3ecb5c5a1f193a2762c700e6829201e645b9381c99dc7"
+          "url": "https://crates.io/api/v1/crates/clap/3.2.6/download",
+          "sha256": "9f1fe12880bae935d142c8702d500c63a4e8634b6c3c57ad72bf978fc7b6249a"
         }
       },
       "targets": [
@@ -2249,11 +2249,11 @@
               "target": "bitflags"
             },
             {
-              "id": "clap_lex 0.2.2",
+              "id": "clap_lex 0.2.3",
               "target": "clap_lex"
             },
             {
-              "id": "indexmap 1.9.0",
+              "id": "indexmap 1.9.1",
               "target": "indexmap"
             },
             {
@@ -2279,23 +2279,23 @@
         "proc_macro_deps": {
           "common": [
             {
-              "id": "clap_derive 3.2.5",
+              "id": "clap_derive 3.2.6",
               "target": "clap_derive"
             }
           ],
           "selects": {}
         },
-        "version": "3.2.5"
+        "version": "3.2.6"
       },
       "license": "MIT OR Apache-2.0"
     },
-    "clap_complete 3.2.1": {
+    "clap_complete 3.2.2": {
       "name": "clap_complete",
-      "version": "3.2.1",
+      "version": "3.2.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/clap_complete/3.2.1/download",
-          "sha256": "0f6ebaab5f25e4f0312dfa07cb30a755204b96e6531457c2cfdecfdf5f2adf40"
+          "url": "https://crates.io/api/v1/crates/clap_complete/3.2.2/download",
+          "sha256": "c09fbb00fb6e20e92f785598ecbf0c118f269737490c57af28b1ed07f392be16"
         }
       },
       "targets": [
@@ -2323,24 +2323,24 @@
         "deps": {
           "common": [
             {
-              "id": "clap 3.2.5",
+              "id": "clap 3.2.6",
               "target": "clap"
             }
           ],
           "selects": {}
         },
         "edition": "2021",
-        "version": "3.2.1"
+        "version": "3.2.2"
       },
       "license": "MIT OR Apache-2.0"
     },
-    "clap_derive 3.2.5": {
+    "clap_derive 3.2.6": {
       "name": "clap_derive",
-      "version": "3.2.5",
+      "version": "3.2.6",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/clap_derive/3.2.5/download",
-          "sha256": "c11d40217d16aee8508cc8e5fde8b4ff24639758608e5374e731b53f85749fb9"
+          "url": "https://crates.io/api/v1/crates/clap_derive/3.2.6/download",
+          "sha256": "ed6db9e867166a43a53f7199b5e4d1f522a1e5bd626654be263c999ce59df39a"
         }
       },
       "targets": [
@@ -2391,17 +2391,17 @@
           "selects": {}
         },
         "edition": "2021",
-        "version": "3.2.5"
+        "version": "3.2.6"
       },
       "license": "MIT OR Apache-2.0"
     },
-    "clap_lex 0.2.2": {
+    "clap_lex 0.2.3": {
       "name": "clap_lex",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/clap_lex/0.2.2/download",
-          "sha256": "5538cd660450ebeb4234cfecf8f2284b844ffc4c50531e66d584ad5b91293613"
+          "url": "https://crates.io/api/v1/crates/clap_lex/0.2.3/download",
+          "sha256": "87eba3c8c7f42ef17f6c659fc7416d0f4758cd3e58861ee63c5fa4a4dde649e4"
         }
       },
       "targets": [
@@ -2433,7 +2433,7 @@
           "selects": {}
         },
         "edition": "2021",
-        "version": "0.2.2"
+        "version": "0.2.3"
       },
       "license": "MIT OR Apache-2.0"
     },
@@ -4373,7 +4373,7 @@
               "target": "chrono"
             },
             {
-              "id": "clap 3.2.5",
+              "id": "clap 3.2.6",
               "target": "clap"
             },
             {
@@ -4483,6 +4483,10 @@
             {
               "id": "rand 0.8.5",
               "target": "rand"
+            },
+            {
+              "id": "rand_distr 0.4.3",
+              "target": "rand_distr"
             },
             {
               "id": "rayon 1.5.3",
@@ -6076,11 +6080,11 @@
               "target": "cargo_metadata"
             },
             {
-              "id": "clap 3.2.5",
+              "id": "clap 3.2.6",
               "target": "clap"
             },
             {
-              "id": "clap_complete 3.2.1",
+              "id": "clap_complete 3.2.2",
               "target": "clap_complete"
             },
             {
@@ -9103,13 +9107,13 @@
       },
       "license": "MIT"
     },
-    "indexmap 1.9.0": {
+    "indexmap 1.9.1": {
       "name": "indexmap",
-      "version": "1.9.0",
+      "version": "1.9.1",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/indexmap/1.9.0/download",
-          "sha256": "6c6392766afd7964e2531940894cffe4bd8d7d17dbc3c1c4857040fd4b33bdb3"
+          "url": "https://crates.io/api/v1/crates/indexmap/1.9.1/download",
+          "sha256": "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
         }
       },
       "targets": [
@@ -9153,14 +9157,14 @@
               "target": "hashbrown"
             },
             {
-              "id": "indexmap 1.9.0",
+              "id": "indexmap 1.9.1",
               "target": "build_script_build"
             }
           ],
           "selects": {}
         },
         "edition": "2021",
-        "version": "1.9.0"
+        "version": "1.9.1"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -9443,7 +9447,7 @@
               "target": "dashmap"
             },
             {
-              "id": "indexmap 1.9.0",
+              "id": "indexmap 1.9.1",
               "target": "indexmap"
             },
             {
@@ -10333,6 +10337,68 @@
       },
       "license": "ISC"
     },
+    "libm 0.2.2": {
+      "name": "libm",
+      "version": "0.2.2",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/libm/0.2.2/download",
+          "sha256": "33a33a362ce288760ec6a508b94caaec573ae7d3bbbd91b87aa0bad4456839db"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "libm",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "libm",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "default"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "libm 0.2.2",
+              "target": "build_script_build"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.2.2"
+      },
+      "build_script_attrs": {
+        "data_glob": [
+          "**"
+        ]
+      },
+      "license": "MIT OR Apache-2.0"
+    },
     "lock_api 0.4.7": {
       "name": "lock_api",
       "version": "0.4.7",
@@ -10999,7 +11065,7 @@
               "target": "hexf_parse"
             },
             {
-              "id": "indexmap 1.9.0",
+              "id": "indexmap 1.9.1",
               "target": "indexmap"
             },
             {
@@ -12178,10 +12244,15 @@
         "crate_features": [
           "default",
           "i128",
+          "libm",
           "std"
         ],
         "deps": {
           "common": [
+            {
+              "id": "libm 0.2.2",
+              "target": "libm"
+            },
             {
               "id": "num-traits 0.2.15",
               "target": "build_script_build"
@@ -13589,7 +13660,7 @@
               "target": "fixedbitset"
             },
             {
-              "id": "indexmap 1.9.0",
+              "id": "indexmap 1.9.1",
               "target": "indexmap"
             }
           ],
@@ -14517,7 +14588,7 @@
         "deps": {
           "common": [
             {
-              "id": "indexmap 1.9.0",
+              "id": "indexmap 1.9.1",
               "target": "indexmap"
             },
             {
@@ -15467,6 +15538,57 @@
         },
         "edition": "2018",
         "version": "0.6.3"
+      },
+      "license": "MIT OR Apache-2.0"
+    },
+    "rand_distr 0.4.3": {
+      "name": "rand_distr",
+      "version": "0.4.3",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/rand_distr/0.4.3/download",
+          "sha256": "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "rand_distr",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "rand_distr",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "alloc",
+          "default",
+          "std"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "num-traits 0.2.15",
+              "target": "num_traits"
+            },
+            {
+              "id": "rand 0.8.5",
+              "target": "rand"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.4.3"
       },
       "license": "MIT OR Apache-2.0"
     },
@@ -22272,7 +22394,7 @@
   },
   "binary_crates": [
     "cc 1.0.73",
-    "clap 3.2.5",
+    "clap 3.2.6",
     "flamegraph 0.6.1",
     "fluent-syntax 0.11.0",
     "inferno 0.11.5",

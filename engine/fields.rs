@@ -256,7 +256,6 @@ impl Field for RawLandValue {
 
         let combined_density = leaf.current.population.housing + leaf.current.employment.jobs;
         let area = leaf.data.area(leaf.extra.config.min_tile_size) as usize;
-        let area_f64 = area as f64;
 
         match leaf.tile {
             tiles::Tile::EmptyTile(_) => {
@@ -307,6 +306,33 @@ impl Field for RawLandValue {
 }
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
+pub struct RawDemand {
+    pub raw_workplace_demand: WeightedAverage,
+}
+
+impl Field for RawDemand {
+    fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
+        let mut raw_workplace_demand = WeightedAverage::zero();
+
+        if leaf.current.employment.jobs.total > 0 && leaf.current.employment.job_saturation() >= 0.9
+        {
+            // if a workplace is nearly fully-staffed, they open more positions
+            raw_workplace_demand.add_weighted_sample(leaf.current.employment.jobs.total as f64, 1);
+        }
+
+        Some(Self {
+            raw_workplace_demand,
+        })
+    }
+
+    fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
+        Some(sum_iter(
+            branch.fields.values().iter().map(|f| f.raw_demand),
+        ))
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
 pub struct LandValue {
     /// average value of land, per tile, in dollars
     pub land_value: WeightedAverage,
@@ -326,6 +352,21 @@ impl Field for LandValue {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
+pub struct Demand {
+    pub workplace_demand: WeightedAverage,
+}
+
+impl Field for Demand {
+    fn compute_leaf(leaf: ComputeLeafData) -> Option<Self> {
+        Some(leaf.current.demand)
+    }
+
+    fn compute_branch(branch: ComputeBranchData) -> Option<Self> {
+        Some(sum_iter(branch.fields.values().iter().map(|f| f.demand)))
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub enum FieldPass {
@@ -340,7 +381,9 @@ pub struct FieldsState {
     pub population: Population,
     pub employment: Employment,
     pub raw_land_value: RawLandValue,
+    pub raw_demand: RawDemand,
     pub land_value: LandValue,
+    pub demand: Demand,
 }
 
 // TODO: it could make sense to split this out of Engine into a separate state, like State
@@ -381,9 +424,11 @@ impl FieldsState {
                 each_field!(Population, population);
                 each_field!(Employment, employment);
                 each_field!(RawLandValue, raw_land_value);
+                each_field!(RawDemand, raw_demand);
             }
             FieldPass::Second => {
                 each_field!(LandValue, land_value);
+                each_field!(Demand, demand);
             }
         }
 
@@ -420,9 +465,11 @@ impl FieldsState {
                 each_field!(Population, population);
                 each_field!(Employment, employment);
                 each_field!(RawLandValue, raw_land_value);
+                each_field!(RawDemand, raw_demand);
             }
             FieldPass::Second => {
                 each_field!(LandValue, land_value);
+                each_field!(Demand, demand);
             }
         }
 

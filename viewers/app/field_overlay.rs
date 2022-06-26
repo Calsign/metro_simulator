@@ -29,6 +29,10 @@ pub(crate) enum FieldType {
     RawConstructionCost,
     LandValue,
     ConstructionCost,
+
+    // demand-related
+    RawWorkplaceDemand,
+    WorkplaceDemand,
 }
 
 impl FieldType {
@@ -53,6 +57,9 @@ impl FieldType {
             Self::RawConstructionCost => "Construction cost (raw)",
             Self::LandValue => "Land value",
             Self::ConstructionCost => "Construction cost",
+
+            Self::RawWorkplaceDemand => "Workplace demand (raw)",
+            Self::WorkplaceDemand => "Workplace demand",
         }
     }
 
@@ -75,6 +82,8 @@ impl FieldType {
 
             Self::RawLandValue | Self::LandValue => 60.0,
             Self::RawConstructionCost | Self::ConstructionCost => 20.0,
+
+            Self::RawWorkplaceDemand | Self::WorkplaceDemand => 4.0,
         }
     }
 
@@ -99,6 +108,9 @@ impl FieldType {
             Self::RawConstructionCost => fields.raw_land_value.raw_construction_cost.value as f32,
             Self::LandValue => fields.land_value.land_value.value as f32,
             Self::ConstructionCost => fields.land_value.construction_cost.value as f32,
+
+            Self::RawWorkplaceDemand => fields.raw_demand.raw_workplace_demand.value as f32,
+            Self::WorkplaceDemand => fields.demand.workplace_demand.value as f32,
         }
     }
 
