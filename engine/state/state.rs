@@ -41,6 +41,8 @@ pub struct LeafState<F: Fields> {
     pub tile: tiles::Tile,
     #[serde(skip)]
     pub fields: F,
+    // NOTE: i64 so that we can use i64::MIN to represent tiles that are part of the original map.
+    pub creation_time: i64,
 }
 
 impl<F: Fields> Default for LeafState<F> {
@@ -48,6 +50,7 @@ impl<F: Fields> Default for LeafState<F> {
         Self {
             tile: tiles::EmptyTile {}.into(),
             fields: F::default(),
+            creation_time: i64::MIN,
         }
     }
 }
@@ -161,6 +164,7 @@ impl<F: Fields> State<F> {
         &mut self,
         address: quadtree::Address,
         tile: tiles::Tile,
+        current_time: i64,
     ) -> Result<(Option<quadtree::Address>, Option<quadtree::Address>), Error> {
         use itertools::Itertools;
         use rand::seq::SliceRandom;
@@ -192,10 +196,12 @@ impl<F: Fields> State<F> {
             quad_map[*current_quadrant] = LeafState {
                 tile: current_leaf.tile,
                 fields: F::default(),
+                creation_time: current_leaf.creation_time,
             };
             quad_map[*new_quadrant] = LeafState {
                 tile,
                 fields: F::default(),
+                creation_time: current_time,
             };
 
             match self.qtree.split(

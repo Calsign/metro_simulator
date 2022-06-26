@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 struct ComputeLeafData<'a, 'b, 'c, 'd, 'e, 'f> {
     tile: &'a tiles::Tile,
+    creation_time: i64,
     data: &'b quadtree::VisitData,
     extra: &'c FieldsComputationData<'d, 'e>,
     current: &'f FieldsState,
@@ -95,6 +96,41 @@ impl std::ops::Add for WeightedAverage {
         Self {
             value: self.value as f64 * self_share + other.value as f64 * other_share,
             count: total,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct MinMax {
+    pub min: Option<i64>,
+    pub max: Option<i64>,
+}
+
+impl Default for MinMax {
+    fn default() -> Self {
+        Self {
+            min: None,
+            max: None,
+        }
+    }
+}
+
+impl std::ops::Add for MinMax {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            min: self.min.iter().chain(other.min.iter()).min().map(|v| *v),
+            max: self.max.iter().chain(other.max.iter()).max().map(|v| *v),
+        }
+    }
+}
+
+impl From<i64> for MinMax {
+    fn from(val: i64) -> Self {
+        Self {
+            min: Some(val),
+            max: Some(val),
         }
     }
 }
@@ -245,6 +281,8 @@ impl Field for Employment {
 pub struct RawLandValue {
     /// total density of constructed tiles
     pub combined_density: SimpleDensity,
+    /// average tile creation time
+    pub tile_creation_time: MinMax,
     pub raw_land_value: WeightedAverage,
     pub raw_construction_cost: WeightedAverage,
 }
@@ -293,6 +331,7 @@ impl Field for RawLandValue {
 
         Some(Self {
             combined_density,
+            tile_creation_time: leaf.creation_time.into(),
             raw_land_value,
             raw_construction_cost,
         })
@@ -396,6 +435,7 @@ impl FieldsState {
     pub(crate) fn compute_leaf<'a, 'b>(
         &mut self,
         tile: &tiles::Tile,
+        creation_time: i64,
         data: &quadtree::VisitData,
         extra: &FieldsComputationData<'a, 'b>,
         pass: FieldPass,
@@ -406,6 +446,7 @@ impl FieldsState {
             ($field:ty, $name:ident) => {{
                 match <$field>::compute_leaf(ComputeLeafData {
                     tile,
+                    creation_time,
                     data,
                     extra,
                     current: self,
@@ -525,6 +566,38 @@ mod tests {
             WeightedAverage {
                 value: 2.0,
                 count: 15,
+            }
+        );
+    }
+
+    #[test]
+    fn min_max_test() {
+        assert_eq!(
+            MinMax::from(10) + MinMax::from(10),
+            MinMax {
+                min: Some(10),
+                max: Some(10)
+            }
+        );
+        assert_eq!(
+            MinMax::from(10) + MinMax::default(),
+            MinMax {
+                min: Some(10),
+                max: Some(10),
+            }
+        );
+        assert_eq!(
+            MinMax::default() + MinMax::default(),
+            MinMax {
+                min: None,
+                max: None,
+            }
+        );
+        assert_eq!(
+            MinMax::from(10) + MinMax::from(20),
+            MinMax {
+                min: Some(10),
+                max: Some(20),
             }
         );
     }

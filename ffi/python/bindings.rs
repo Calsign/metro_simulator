@@ -605,6 +605,11 @@ impl AgentData {
     }
 }
 
+#[pyfunction]
+fn min_creation_time() -> i64 {
+    i64::MIN
+}
+
 #[pymodule]
 fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Config>()?;
@@ -624,6 +629,8 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<Date>()?;
     m.add_class::<AgentData>()?;
+
+    m.add_function(wrap_pyfunction!(min_creation_time, m)?)?;
 
     return Ok(());
 }

@@ -264,7 +264,9 @@ impl Engine {
         address: quadtree::Address,
         tile: tiles::Tile,
     ) -> Result<(Option<quadtree::Address>, Option<quadtree::Address>), Error> {
-        let new_addresses = self.state.insert_tile(address, tile)?;
+        let new_addresses =
+            self.state
+                .insert_tile(address, tile, self.time_state.current_time as i64)?;
         if let (Some(existing_tile), _) = new_addresses {
             self.patch_tile(existing_tile)?;
         }

@@ -141,6 +141,7 @@ def write_qtree(state, qtree):
                 engine.LeafState(),
             )
         else:
+            node.data["creation_time"] = engine.min_creation_time()
             dumped = json.dumps(node.data)
             try:
                 state.set_leaf_json(address, dumped)

@@ -258,7 +258,7 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
         let threshold = self.app.options.field_resolution as f32;
         if is_leaf || (width >= threshold && width < threshold * 2.0) {
             if let Some(field) = self.app.overlay.field {
-                let hue = field.hue(fields, data);
+                let hue = field.hue(&self.app.engine, fields, data);
                 let color = egui::color::Hsva::new(hue, 0.8, 0.8, 0.5);
                 let rect = self.get_full_rect(data);
                 self.painter

@@ -16,7 +16,7 @@ class Tile:
             "tile": {
                 "type": self.kind,
                 **self.fields,
-            }
+            },
         }
 
 

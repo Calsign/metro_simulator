@@ -1,8 +1,11 @@
-use uom::si::time::hour;
+use uom::si::time::{day, hour};
 use uom::si::u64::Time;
 
 lazy_static::lazy_static! {
     static ref COMMUTE_DURATION_MAX_SCALE: f32 = Time::new::<hour>(2).value as f32;
+    /// how far back into the past we consider a tile to be "maximum" old
+    // TODO: make this horizon longer; short for now for testing purposes
+    static ref TILE_CREATION_TIME_HORIZON: i64 = Time::new::<day>(20).value as i64;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, enum_iterator::IntoEnumIterator)]
@@ -25,9 +28,11 @@ pub(crate) enum FieldType {
     CommuteDurationWork,
 
     // land value-related
+    TileCreationTimeOldest,
+    TileCreationTimeNewest,
     RawLandValue,
-    RawConstructionCost,
     LandValue,
+    RawConstructionCost,
     ConstructionCost,
 
     // demand-related
@@ -53,9 +58,11 @@ impl FieldType {
             Self::WorkplaceHappinessWork => "Workplace happiness (work)",
             Self::CommuteDurationWork => "Commute duration (work)",
 
+            Self::TileCreationTimeOldest => "Tile creation time (oldest)",
+            Self::TileCreationTimeNewest => "Tile creation time (newest)",
             Self::RawLandValue => "Land value (raw)",
-            Self::RawConstructionCost => "Construction cost (raw)",
             Self::LandValue => "Land value",
+            Self::RawConstructionCost => "Construction cost (raw)",
             Self::ConstructionCost => "Construction cost",
 
             Self::RawWorkplaceDemand => "Workplace demand (raw)",
@@ -63,7 +70,16 @@ impl FieldType {
         }
     }
 
-    fn peak(&self) -> f32 {
+    fn min(&self, engine: &engine::Engine) -> f32 {
+        match self {
+            Self::TileCreationTimeOldest | Self::TileCreationTimeNewest => {
+                (engine.time_state.current_time as i64 - *TILE_CREATION_TIME_HORIZON) as f32
+            }
+            _ => 0.0,
+        }
+    }
+
+    fn max(&self, engine: &engine::Engine) -> f32 {
         match self {
             Self::Population => 0.3,
             Self::TotalHousing => 0.3,
@@ -80,6 +96,9 @@ impl FieldType {
             Self::WorkplaceHappinessWork => 1.0,
             Self::CommuteDurationWork => *COMMUTE_DURATION_MAX_SCALE,
 
+            Self::TileCreationTimeOldest | Self::TileCreationTimeNewest => {
+                engine.time_state.current_time as f32
+            }
             Self::RawLandValue | Self::LandValue => 60.0,
             Self::RawConstructionCost | Self::ConstructionCost => 20.0,
 
@@ -104,9 +123,19 @@ impl FieldType {
             Self::WorkplaceHappinessWork => fields.employment.workplace_happiness.value as f32,
             Self::CommuteDurationWork => fields.employment.commute_duration.value as f32,
 
+            Self::TileCreationTimeOldest => fields
+                .raw_land_value
+                .tile_creation_time
+                .min
+                .unwrap_or(i64::MIN) as f32,
+            Self::TileCreationTimeNewest => fields
+                .raw_land_value
+                .tile_creation_time
+                .max
+                .unwrap_or(i64::MIN) as f32,
             Self::RawLandValue => fields.raw_land_value.raw_land_value.value as f32,
-            Self::RawConstructionCost => fields.raw_land_value.raw_construction_cost.value as f32,
             Self::LandValue => fields.land_value.land_value.value as f32,
+            Self::RawConstructionCost => fields.raw_land_value.raw_construction_cost.value as f32,
             Self::ConstructionCost => fields.land_value.construction_cost.value as f32,
 
             Self::RawWorkplaceDemand => fields.raw_demand.raw_workplace_demand.value as f32,
@@ -114,10 +143,17 @@ impl FieldType {
         }
     }
 
-    pub fn hue(&self, fields: &engine::FieldsState, data: &quadtree::VisitData) -> f32 {
-        if self.peak() > 0.0 {
+    pub fn hue(
+        &self,
+        engine: &engine::Engine,
+        fields: &engine::FieldsState,
+        data: &quadtree::VisitData,
+    ) -> f32 {
+        let max = self.max(engine);
+        let min = self.min(engine);
+        if max > min {
             // ranges from 0.0 (reddish) to 0.5 (blueish)
-            f32::min(self.value(fields, data), self.peak()) / self.peak() * 0.5
+            (f32::min(f32::max(self.value(fields, data), min), max) - min) / (max - min) * 0.5
         } else {
             0.0
         }

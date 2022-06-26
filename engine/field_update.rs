@@ -187,9 +187,13 @@ impl<'a, 'b>
         leaf: &mut LeafState<FieldsState>,
         data: &VisitData,
     ) -> Result<(bool, FieldsState), Error> {
-        let changed =
-            leaf.fields
-                .compute_leaf(&leaf.tile, data, &self.field_computation_data, self.pass);
+        let changed = leaf.fields.compute_leaf(
+            &leaf.tile,
+            leaf.creation_time,
+            data,
+            &self.field_computation_data,
+            self.pass,
+        );
         Ok((changed, leaf.fields.clone()))
     }
 
