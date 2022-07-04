@@ -138,7 +138,7 @@ class Handler(osmium.SimpleHandler):
         return {field: getattr(self, field) for field in self.FIELDS}
 
 
-def main(path: str, output: str) -> None:
+def main(path: str, output: str, *patches: str) -> None:
     """
     Entrypoint to preprocessor.
 
@@ -146,10 +146,16 @@ def main(path: str, output: str) -> None:
     :param output: path to dump json to
     """
 
+    reader = osmium.MergeInputReader()
+    reader.add_file(path)
+    for patch in patches:
+        reader.add_file(patch)
+
     handler = Handler()
-    # NOTE: need to set locations=True to get locations, but it takes several
-    # times longer.
-    handler.apply_file(path, locations=True)
+
+    # NOTE: need to provide idx to store locations.
+    # NOTE: simplify merges patches into the underlying data, but is possibly slower.
+    reader.apply(handler, idx="flex_mem", simplify=True)
 
     with open(output, "w") as f:
         json.dump(handler.to_json(), f)
