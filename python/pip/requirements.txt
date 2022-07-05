@@ -1,7 +1,7 @@
 pygame>=2.1.0
 pygame_gui>=0.6.1
 argh>=0.23.3
-gdal>=3.4.0
+gdal=={{GDAL_VERSION}}  # auto-populated by config_gdal.bzl
 numpy>=1.21.5
 matplotlib>=3.5.1
 toml>=0.10.2

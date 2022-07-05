@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo add-apt-repository ppa:ubuntugis/ubuntugis-unstable &&
           sudo apt-get update &&
-          sudo apt-get install libgdal-dev libgtk-3-dev libexpat1-dev
+          sudo apt-get install gdal-bin libgdal-dev libgtk-3-dev libexpat1-dev
 
       - name: bazel cache
         uses: actions/cache@v2
@@ -61,7 +61,8 @@ jobs:
       # packages getting out of sync, we just install the entire requirements file.
       - name: install pip packages
         run: |
-          pip install -r python/pip/requirements.txt
+          bazel build @local_config_gdal//:requirements.txt &&
+          pip install -r $(bazel info output_base)/external/local_config_gdal/requirements.txt
 
       - name: tmate debugging
         uses: mxschmitt/action-tmate@v3

@@ -137,6 +137,15 @@ http_archive(
 
 register_toolchains("//python:python_toolchain")
 
+# GDAL
+
+load("//python/pip:config_gdal.bzl", "config_gdal")
+
+config_gdal(
+    name = "local_config_gdal",
+    requirements = "//python/pip:requirements.txt",
+)
+
 # PIP
 
 load("@rules_python//python:pip.bzl", "pip_install")
@@ -144,7 +153,7 @@ load("@rules_python//python:pip.bzl", "pip_install")
 pip_install(
     name = "pip_pkgs",
     python_interpreter = "python3.10",
-    requirements = "//python/pip:requirements.txt",
+    requirements = "@local_config_gdal//:requirements.txt",
 )
 
 # MYPY
