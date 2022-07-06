@@ -62,7 +62,7 @@ impl App {
                     ui.collapsing("Display options", |ui| self.options.draw(ui));
 
                     ui.collapsing("Diagnostics", |ui| {
-                        self.diagnostics.draw(ui);
+                        self.diagnostics.draw(&self, ui);
                         match self.get_hovered_pos(&ui) {
                             Some((x, y)) => ui.label(format!("Coords: {}, {}", x, y)),
                             None => ui.label("Coords: n/a"),
@@ -567,12 +567,22 @@ pub(crate) struct Diagnostics {
 }
 
 impl Diagnostics {
-    fn draw(&self, ui: &mut egui::Ui) {
+    fn draw(&self, app: &App, ui: &mut egui::Ui) {
         ui.label(format!("Frame rate: {:.1}", self.frame_rate));
         ui.label(format!("Tiles: {}", self.tiles));
         ui.label(format!("Metro vertices: {}", self.metro_vertices));
         ui.label(format!("Highway vertices: {}", self.highway_vertices));
         ui.label(format!("Agents: {}", self.agents));
+
+        let graph_stats = app.engine.base_graph.read().unwrap().get_stats();
+        ui.label(format!(
+            "Graph nodes: {}",
+            graph_stats.map(|s| s.node_count).unwrap_or(0)
+        ));
+        ui.label(format!(
+            "Graph edges: {}",
+            graph_stats.map(|s| s.edge_count).unwrap_or(0)
+        ));
     }
 }
 

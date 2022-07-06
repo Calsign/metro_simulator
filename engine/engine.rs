@@ -112,6 +112,10 @@ impl BaseGraph {
             .get_or(|| std::cell::RefCell::new(self.base_graph.get().unwrap().clone()))
             .borrow_mut()
     }
+
+    pub fn get_stats(&self) -> Option<route::BaseGraphStats> {
+        self.base_graph.get().map(|g| g.get_stats())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,7 +124,7 @@ pub struct Engine {
     pub world_state: route::WorldStateImpl,
     pub world_state_history: route::WorldStateHistory,
     #[serde(skip)]
-    base_graph: Arc<RwLock<BaseGraph>>,
+    pub base_graph: Arc<RwLock<BaseGraph>>,
     pub time_state: TimeState,
     pub agents: HashMap<u64, agent::Agent>,
     agent_counter: u64,

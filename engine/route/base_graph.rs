@@ -38,6 +38,12 @@ pub struct Parking {
 
 pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<NodeIndex>>;
 
+#[derive(Debug, Clone, Copy)]
+pub struct BaseGraphStats {
+    pub node_count: usize,
+    pub edge_count: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct Graph {
     pub graph: FastGraphWrapper,
@@ -54,6 +60,13 @@ impl Graph {
         state: &state::State<F>,
     ) {
         self.graph.update_weights(world_state, state);
+    }
+
+    pub fn get_stats(&self) -> BaseGraphStats {
+        BaseGraphStats {
+            node_count: self.graph.node_count(),
+            edge_count: self.graph.edge_count(),
+        }
     }
 }
 
