@@ -16,6 +16,7 @@ fn no_car_benchmark(bench: &mut Bencher) {
             GRAPH.lock().unwrap().borrow_mut(),
             &sf_routes::TESTS[0],
         )
+        .unwrap()
     });
 }
 
@@ -26,6 +27,7 @@ fn with_car_benchmark(bench: &mut Bencher) {
             GRAPH.lock().unwrap().borrow_mut(),
             &sf_routes::TESTS[3],
         )
+        .unwrap()
     });
 }
 

@@ -151,11 +151,15 @@ impl FieldType {
     ) -> f32 {
         let max = self.max(engine);
         let min = self.min(engine);
-        if max > min {
-            // ranges from 0.0 (reddish) to 0.5 (blueish)
-            (f32::min(f32::max(self.value(fields, data), min), max) - min) / (max - min) * 0.5
-        } else {
-            0.0
-        }
+        calc_hue(self.value(fields, data), min, max)
+    }
+}
+
+pub fn calc_hue(val: f32, min: f32, max: f32) -> f32 {
+    if max > min {
+        // ranges from 0.0 (reddish) to 0.5 (blueish)
+        (f32::min(f32::max(val, min), max) - min) / (max - min) * 0.5
+    } else {
+        0.0
     }
 }

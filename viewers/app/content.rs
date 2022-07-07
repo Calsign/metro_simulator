@@ -196,15 +196,43 @@ impl App {
             }
         }
 
-        if let crate::app::AgentDetail::Querying = self.agent_detail {
-            if response.clicked() {
-                if let Some(pos) = { response.ctx.input().pointer.interact_pos() } {
-                    let (mx, my) = self.pan.to_model_fu(pos.into());
-                    match self.engine.state.qtree.get_address(mx, my) {
+        if response.clicked() {
+            if let Some(pos) = { response.ctx.input().pointer.interact_pos() } {
+                let (mx, my) = self.pan.to_model_fu(pos.into());
+                let address = self.engine.state.qtree.get_address(mx, my);
+
+                if let crate::app::AgentDetail::Querying = self.agent_detail {
+                    match address {
                         Ok(address) => {
                             self.agent_detail = crate::app::AgentDetail::Query { address }
                         }
                         Err(_) => self.agent_detail = crate::app::AgentDetail::Empty,
+                    }
+                } else if let crate::app::IsochroneQueryState::Querying = self.isochrone_query.state
+                {
+                    match address {
+                        Ok(address) => {
+                            match self
+                                .engine
+                                .query_isochrone_map(address, self.isochrone_query.mode)
+                            {
+                                Ok(isochrone_map) => {
+                                    // TODO: perform asynchronously, and use intermediary "calculating" state
+                                    self.isochrone_query.state =
+                                        crate::app::IsochroneQueryState::Calculated {
+                                            isochrone_map,
+                                        }
+                                }
+                                Err(err) => {
+                                    eprintln!("Error calculating isochrone map: {}", err);
+                                    self.isochrone_query.state =
+                                        crate::app::IsochroneQueryState::Empty;
+                                }
+                            };
+                        }
+                        Err(_) => {
+                            self.isochrone_query.state = crate::app::IsochroneQueryState::Empty
+                        }
                     }
                 }
             }
@@ -257,8 +285,32 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
         let width = data.width as f32 * self.app.pan.scale;
         let threshold = self.app.options.field_resolution as f32;
         if is_leaf || (width >= threshold && width < threshold * 2.0) {
-            if let Some(field) = self.app.overlay.field {
-                let hue = field.hue(&self.app.engine, fields, data);
+            // if we have selected an isochrone, draw that instead of the field
+            let hue = if let crate::app::IsochroneQueryState::Calculated { isochrone_map } =
+                &self.app.isochrone_query.state
+            {
+                let (x, y) = data.center();
+                let travel_time = isochrone_map.get_travel_time(x, y) / 60.0; // convert seconds to minutes
+                let max = self.app.isochrone_query.max_travel_time as f32;
+
+                // quantize
+                let step = self.app.isochrone_query.quantization_step.max(1.0);
+                // adding the 1.0 allows including times that are at the threshold
+                let quantized = ((travel_time / step + 1.0).ceil() - 1.0) * step;
+
+                Some(crate::field_overlay::calc_hue(
+                    // reverse direction to make shorter times "good" and longer times "bad"
+                    max - quantized as f32,
+                    0.0,
+                    max,
+                ))
+            } else if let Some(field) = self.app.overlay.field {
+                Some(field.hue(&self.app.engine, fields, data))
+            } else {
+                None
+            };
+
+            if let Some(hue) = hue {
                 let color = egui::color::Hsva::new(hue, 0.8, 0.8, 0.5);
                 let rect = self.get_full_rect(data);
                 self.painter

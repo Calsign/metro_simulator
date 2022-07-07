@@ -15,7 +15,7 @@ fn sf_routes_benchmark(bench: &mut bencher::Bencher) {
         .unwrap();
     let state = engine::state::State::load(&data).unwrap();
     let mut graph = state.construct_base_route_graph().unwrap();
-    bench.iter(|| sf_routes::perform_query(&state, &mut graph, &sf_routes::TESTS[0]));
+    bench.iter(|| sf_routes::perform_query(&state, &mut graph, &sf_routes::TESTS[0]).unwrap());
 }
 
 #[cfg_attr(

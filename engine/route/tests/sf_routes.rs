@@ -7,6 +7,7 @@ use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route, WorldSt
 
 #[derive(Debug, Clone)]
 pub enum StringPredicate {
+    Any,
     MatchesStr(&'static str),
     MatchesString(String),
     ContainsStr(&'static str),
@@ -17,6 +18,7 @@ impl StringPredicate {
     fn matches(&self, test: &str) -> bool {
         use StringPredicate::*;
         match self {
+            Any => true,
             MatchesStr(s) => &test == s,
             MatchesString(s) => &test == s,
             ContainsStr(s) => test.contains(s),
@@ -121,6 +123,8 @@ lazy_static! {
     static ref SAN_MATEO: Coord = (2318, 2662);
     static ref STANFORD: Coord = (2590, 2994);
     static ref SUNNYVALE: Coord = (2893, 3079);
+    static ref FAIRFIELD: Coord = (2892, 716);
+    static ref UC_BERKELEY: Coord = (2406, 1770);
 
     pub static ref TESTS: Box<[RouteTest]> = Box::new([
         RouteTest::new(
@@ -147,11 +151,14 @@ lazy_static! {
         ),
         RouteTest::new("pittsburg -> pleasanton", *PITTSBURG, *PLEASANTON, vec![], None),
         RouteTest::new(
-            "sf -> oakland driving",
+            "sf -> oakland",
             *SF_DOWNTOWN,
             *OAKLAND_DOWNTOWN,
             vec![
-                HasHighwaySegmentRef("I 80".into()),
+                Or(vec![
+                    HasHighwaySegmentRef("I 80".into()),
+                    HasMetroStop(StringPredicate::Any),
+                ]),
             ],
             Some(CarConfig::StartWithCar),
         ),
@@ -164,6 +171,34 @@ lazy_static! {
             ],
             Some(CarConfig::StartWithCar),
         ),
+        // this test ensures we can drive, park at a metro station, and take the metro to the destination
+        RouteTest::new(
+            "fairfield -> UC berkeley (park and ride)",
+            *FAIRFIELD,
+            *UC_BERKELEY,
+            vec![
+                HasHighwaySegmentName(StringPredicate::Any),
+                HasMetroStop(StringPredicate::Any),
+            ],
+            Some(CarConfig::StartWithCar),
+        ),
+        // this test addresses a past issue where car routes starting near metro stations didn't work
+        RouteTest::new(
+            "stanford -> fairfield (regression)",
+            *STANFORD,
+            *FAIRFIELD,
+            vec![
+                Not(HasMetroStop(StringPredicate::Any).into()),
+            ],
+            Some(CarConfig::StartWithCar),
+        ),
+        RouteTest::new(
+            "sf -> fairfield (driving across bridge)",
+            *SF_DOWNTOWN,
+            *FAIRFIELD,
+            vec![HasHighwaySegmentRef("I 80".into())],
+            Some(CarConfig::StartWithCar),
+        ),
     ]);
 }
 
@@ -173,7 +208,11 @@ pub fn setup() -> (Engine, std::cell::RefCell<Graph>) {
     (engine, std::cell::RefCell::new(graph))
 }
 
-pub fn perform_query(engine: &Engine, graph: std::cell::RefMut<Graph>, test: &RouteTest) -> Route {
+pub fn perform_query(
+    engine: &Engine,
+    graph: std::cell::RefMut<Graph>,
+    test: &RouteTest,
+) -> Option<Route> {
     let start = engine
         .state
         .qtree
@@ -193,6 +232,5 @@ pub fn perform_query(engine: &Engine, graph: std::cell::RefMut<Graph>, test: &Ro
             car_config: test.car_config.clone(),
         },
     )
-    .unwrap()
     .unwrap()
 }

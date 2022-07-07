@@ -9,7 +9,7 @@ use crate::engine::{Engine, Error};
 use crate::fields::{FieldPass, FieldsComputationData, FieldsState, WeightedAverage};
 
 // size of downsampled block, in meters. important for getting good performance out of the blur.
-const BLOCK_SIZE: f32 = 200.0;
+pub(crate) const BLOCK_SIZE: f32 = 200.0;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct BlurredField {

@@ -84,6 +84,12 @@ crates_repository(
                 patches = ["@//patches:egui_winit_platform__touch.patch"],
             ),
         ],
+        "imageproc": [
+            crate.annotation(
+                patch_args = ["-p1"],
+                patches = ["@//patches:imageproc__weighted_distance_transform.patch"],
+            ),
+        ],
     },
     generator = "@cargo_bazel_bootstrap//:cargo-bazel",
     lockfile = "//cargo:crate_universe.lock",

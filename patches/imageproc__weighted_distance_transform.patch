@@ -1,0 +1,36 @@
+diff --git a/src/distance_transform.rs b/src/distance_transform.rs
+index d2ac140..02b5797 100644
+--- a/src/distance_transform.rs
++++ b/src/distance_transform.rs
+@@ -181,7 +181,7 @@ unsafe fn check(
+ /// in the size of the image.
+ ///
+ /// [Distance Transforms of Sampled Functions]: https://www.cs.cornell.edu/~dph/papers/dt.pdf
+-pub fn euclidean_squared_distance_transform(image: &Image<Luma<u8>>) -> Image<Luma<f64>> {
++pub fn euclidean_squared_distance_transform(image: &Image<Luma<f64>>) -> Image<Luma<f64>> {
+     let (width, height) = image.dimensions();
+     let mut result = ImageBuffer::new(width, height);
+     let mut column_envelope = LowerEnvelope::new(height as usize);
+@@ -296,18 +296,15 @@ impl Source for [f64] {
+ }
+ 
+ struct Column<'a> {
+-    image: &'a Image<Luma<u8>>,
++    image: &'a Image<Luma<f64>>,
+     column: u32,
+ }
+ 
+ impl<'a> Source for Column<'a> {
+     fn get(&self, idx: usize) -> f64 {
+-        let pixel = unsafe { self.image.unsafe_get_pixel(self.column, idx as u32)[0] as f64 };
+-        if pixel > 0f64 {
+-            0f64
+-        } else {
+-            f64::INFINITY
+-        }
++        let pixel = unsafe { self.image.unsafe_get_pixel(self.column, idx as u32)[0] };
++        assert!(pixel >= 0.0);
++        pixel
+     }
+     fn len(&self) -> usize {
+         self.image.height() as usize

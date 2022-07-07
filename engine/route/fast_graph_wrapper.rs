@@ -54,7 +54,7 @@ impl FastGraphWrapper {
     }
 
     pub fn add_node(&mut self, node: Node) -> NodeId {
-        debug_assert!(!self.is_prepared());
+        assert!(!self.is_prepared());
         let id = self.node_map.len();
         self.node_map.insert(id, node);
         id
@@ -67,12 +67,12 @@ impl FastGraphWrapper {
         edge: Edge,
         state: &state::State<F>,
     ) {
-        debug_assert!(!self.is_prepared());
+        assert!(!self.is_prepared());
         debug_assert!(self.node_map.contains_key(&from));
         debug_assert!(self.node_map.contains_key(&to));
         // NOTE: fast_paths disallows negative weights...
         let weight = edge.base_cost(state) as Weight;
-        debug_assert!(weight > 0, "base weight for {} -> {} is 0", from, to);
+        assert!(weight > 0, "base weight for {} -> {} is 0", from, to);
         self.input.add_edge(from, to, weight);
         self.edge_map.insert((from, to), edge);
     }
@@ -94,7 +94,7 @@ impl FastGraphWrapper {
     }
 
     pub fn prepare(&mut self) {
-        debug_assert!(!self.is_prepared());
+        assert!(!self.is_prepared());
         self.input.freeze();
         // NOTE: the number of nodes may not align if there are orphaned nodes that don't belong to any edges
         // TODO: for some reason this assertion is failing
@@ -127,7 +127,7 @@ impl FastGraphWrapper {
         world_state: &W,
         state: &state::State<F>,
     ) {
-        debug_assert!(self.is_prepared());
+        assert!(self.is_prepared());
         // TODO: Patch fast_paths to allow mutating the edge weights instead of constructing a new graph.
         // This might be nontrivial, but it seems like a worthwhile optimization.
         // At the very least, we should be able to pre-specify the number of nodes in the InputGraph.
@@ -149,7 +149,7 @@ impl FastGraphWrapper {
     }
 
     pub fn query(&mut self, source: NodeId, target: NodeId) -> Option<ShortestPath> {
-        debug_assert!(self.is_prepared());
+        assert!(self.is_prepared());
         let fast_graph = &self.fast_graph.as_ref().unwrap();
         let path_calculator = self.path_calculator.as_mut().unwrap();
         path_calculator.calc_path(fast_graph, source, target)

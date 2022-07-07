@@ -38,16 +38,47 @@ pub struct Parking {
 
 pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<NodeIndex>>;
 
-#[derive(Debug, Clone, Copy)]
+trait NeighborsExt {
+    fn create(max_depth: u32) -> Self;
+    fn mode_insert(&mut self, mode: Mode, index: NodeIndex, x: f64, y: f64);
+}
+
+impl NeighborsExt for Neighbors {
+    fn create(max_depth: u32) -> Self {
+        let mut neighbors = Self::new();
+        for mode in MODES {
+            // TODO: benchmark different load factors
+            neighbors.insert(*mode, quadtree::NeighborsStore::new(4, max_depth));
+        }
+        neighbors
+    }
+
+    fn mode_insert(&mut self, mode: Mode, index: NodeIndex, x: f64, y: f64) {
+        self.get_mut(&mode).unwrap().insert(index, x, y).unwrap();
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct BaseGraphStats {
     pub node_count: usize,
     pub edge_count: usize,
+    pub terminal_node_counts: HashMap<Mode, usize>,
+}
+
+impl Default for BaseGraphStats {
+    fn default() -> Self {
+        Self {
+            node_count: 0,
+            edge_count: 0,
+            terminal_node_counts: MODES.iter().map(|mode| (*mode, 0)).collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Graph {
     pub graph: FastGraphWrapper,
-    pub neighbors: Neighbors,
+    pub terminal_nodes: Neighbors,
     pub parking: HashMap<quadtree::Address, Parking>,
     pub tile_size: f64,
     pub max_depth: u32,
@@ -66,6 +97,11 @@ impl Graph {
         BaseGraphStats {
             node_count: self.graph.node_count(),
             edge_count: self.graph.edge_count(),
+            terminal_node_counts: self
+                .terminal_nodes
+                .iter()
+                .map(|(mode, nodes)| (*mode, nodes.count()))
+                .collect(),
         }
     }
 }
@@ -90,30 +126,30 @@ pub fn construct_base_graph<'a, F: state::Fields>(
     }
 
     let mut graph = InnerGraph::new();
-    let mut neighbors = HashMap::new();
-    for mode in MODES {
-        neighbors.insert(
-            *mode,
-            quadtree::NeighborsStore::new(4, input.state.config.max_depth),
-        );
-    }
+    /// nodes from which routes can start and end
+    let mut terminal_nodes = Neighbors::create(input.state.config.max_depth);
+    /// nodes between which we should infer edges based on proximity
+    let mut inference_neighbors = Neighbors::create(input.state.config.max_depth);
     let mut parking = HashMap::new();
 
-    let mut add_parking = |address, graph: &mut InnerGraph, neighbors: &mut Neighbors| {
+    let mut add_parking = |address,
+                           graph: &mut InnerGraph,
+                           terminal_nodes: &mut Neighbors,
+                           inference_neighbors: &mut Neighbors| {
         let walking_node = graph.add_node(Node::Parking { address });
         let driving_node = graph.add_node(Node::Parking { address });
         let (x, y) = address.to_xy();
         let (x, y) = (x as f64, y as f64);
-        neighbors
-            .get_mut(&Mode::Walking)
-            .unwrap()
-            .insert(walking_node, x, y)
-            .unwrap();
-        neighbors
-            .get_mut(&Mode::Driving)
-            .unwrap()
-            .insert(driving_node, x, y)
-            .unwrap();
+
+        // NOTE: Important that we don't add the driving node to the terminal nodes.
+        // This would be invalid since it intentionally has no outgoing edges.
+        terminal_nodes.mode_insert(Mode::Walking, walking_node, x, y);
+        // TODO: remove this! temporary, until we get other fixes in place
+        terminal_nodes.mode_insert(Mode::Driving, driving_node, x, y);
+
+        inference_neighbors.mode_insert(Mode::Walking, walking_node, x, y);
+        inference_neighbors.mode_insert(Mode::Driving, driving_node, x, y);
+
         parking.insert(
             address,
             Parking {
@@ -163,14 +199,16 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                     });
 
                     let (x, y) = station.address.to_xy();
-                    neighbors
-                        .get_mut(&Mode::Walking)
-                        .unwrap()
-                        .insert(station_id, x as f64, y as f64)
-                        .unwrap();
+                    terminal_nodes.mode_insert(Mode::Walking, station_id, x as f64, y as f64);
+                    inference_neighbors.mode_insert(Mode::Walking, station_id, x as f64, y as f64);
 
                     // for now, we assume that every station offers parking
-                    add_parking(station.address, &mut graph, &mut neighbors);
+                    add_parking(
+                        station.address,
+                        &mut graph,
+                        &mut terminal_nodes,
+                        &mut inference_neighbors,
+                    );
 
                     station_id
                 });
@@ -252,11 +290,8 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                 Edge::HighwayRamp { position: (x, y) },
                 &input.state,
             );
-            neighbors
-                .get_mut(&Mode::Driving)
-                .unwrap()
-                .insert(outer_id, x, y)
-                .unwrap();
+            terminal_nodes.mode_insert(Mode::Driving, outer_id, x, y);
+            inference_neighbors.mode_insert(Mode::Driving, outer_id, x, y);
             inner_id
         } else {
             graph.add_node(Node::HighwayJunction {
@@ -301,7 +336,7 @@ pub fn construct_base_graph<'a, F: state::Fields>(
 
     if input.add_inferred_edges {
         for mode in MODES {
-            neighbors[mode].visit_all_radius(
+            inference_neighbors[mode].visit_all_radius(
                 &mut AddEdgesVisitor {
                     graph: &mut graph,
                     state: &input.state,
@@ -317,7 +352,7 @@ pub fn construct_base_graph<'a, F: state::Fields>(
 
     Ok(Graph {
         graph,
-        neighbors,
+        terminal_nodes,
         parking,
         tile_size,
         max_depth: input.state.config.max_depth,

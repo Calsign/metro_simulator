@@ -8,6 +8,8 @@ pub enum Error {
     QuadtreeError(#[from] quadtree::Error),
     #[error("Parking not found: {0:?}")]
     ParkingNotFound(quadtree::Address),
+    #[error("No terminal node found: {0:?}")]
+    NoTerminalNodeFound(quadtree::Address),
 }
 
 /**

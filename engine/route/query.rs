@@ -98,8 +98,8 @@ pub fn best_route<'a>(
 
         // TODO: precompute these values and store in the qtree
         let start_id =
-            base_graph.neighbors[&start_mode].find_nearest(start_x as f64, start_y as f64);
-        let end_id = base_graph.neighbors[&end_mode].find_nearest(end_x as f64, end_y as f64);
+            base_graph.terminal_nodes[&start_mode].find_nearest(start_x as f64, start_y as f64);
+        let end_id = base_graph.terminal_nodes[&end_mode].find_nearest(end_x as f64, end_y as f64);
 
         if let (Some(start_id), Some(end_id)) = (start_id, end_id) {
             let path = perform_query(&mut base_graph.graph, start_id, end_id)?;

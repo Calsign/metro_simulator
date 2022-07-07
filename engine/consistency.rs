@@ -18,7 +18,7 @@ impl Engine {
             housing: HashMap::new(),
             workplaces: HashMap::new(),
         };
-        self.state.qtree.visit(&mut find_agents);
+        self.state.qtree.visit(&mut find_agents).unwrap();
 
         for (id, agent) in &self.agents {
             assert_eq!(*id, agent.id, "agent id does not match key in map");

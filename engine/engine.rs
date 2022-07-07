@@ -313,6 +313,35 @@ impl Engine {
         receiver
     }
 
+    pub fn query_isochrone(
+        &self,
+        focus: quadtree::Address,
+        mode: route::Mode,
+    ) -> Result<route::Isochrone, Error> {
+        let base_graph = self.base_graph.write().unwrap();
+        // TODO: this is necessary to make sure the base graph is constructed
+        let _ = base_graph.get_base_graph(&self.state);
+        Ok(route::calculate_isochrone(
+            base_graph.get_thread_base_graph(),
+            focus,
+            mode,
+        )?)
+    }
+
+    pub fn query_isochrone_map(
+        &self,
+        focus: quadtree::Address,
+        mode: route::Mode,
+    ) -> Result<route::IsochroneMap, Error> {
+        let isochrone = self.query_isochrone(focus, mode)?;
+        Ok(route::calculate_isochrone_map(
+            isochrone,
+            &self.state.qtree,
+            &self.state.config,
+            crate::field_update::BLOCK_SIZE,
+        )?)
+    }
+
     /**
      * Re-compute the weights on the fast graph used for querying routes.
      * This makes newly computed routes use the predicted traffic conditions.

@@ -17,6 +17,7 @@ pub struct App {
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
     pub(crate) route_query: RouteQuery,
+    pub(crate) isochrone_query: IsochroneQuery,
     pub(crate) congestion_analysis: CongestionAnalysis,
     pub(crate) agent_detail: AgentDetail,
 }
@@ -32,6 +33,7 @@ impl App {
             options: Options::new(),
             diagnostics: Diagnostics::default(),
             route_query: RouteQuery::new(),
+            isochrone_query: IsochroneQuery::new(),
             congestion_analysis: CongestionAnalysis::new(),
             agent_detail: AgentDetail::new(),
         }
@@ -60,16 +62,9 @@ impl App {
                     ui.collapsing("Overlay", |ui| self.overlay.draw(ui));
                     ui.collapsing("Stats", |ui| self.draw_stats(ui));
                     ui.collapsing("Display options", |ui| self.options.draw(ui));
-
-                    ui.collapsing("Diagnostics", |ui| {
-                        self.diagnostics.draw(&self, ui);
-                        match self.get_hovered_pos(&ui) {
-                            Some((x, y)) => ui.label(format!("Coords: {}, {}", x, y)),
-                            None => ui.label("Coords: n/a"),
-                        }
-                    });
-
+                    ui.collapsing("Diagnostics", |ui| self.diagnostics.draw(&self, ui));
                     ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
+                    ui.collapsing("Isochrone", |ui| self.draw_isochrone_query(ui));
                     ui.collapsing("Congestion analysis", |ui| {
                         self.draw_congestion_analysis(ui)
                     });
@@ -224,6 +219,64 @@ impl App {
                 Ok(Some(route)) => self.route_query.current_routes = vec![route],
                 Ok(None) => eprintln!("No route found"),
                 Err(err) => eprintln!("Error querying route: {}", err),
+            }
+        }
+    }
+
+    pub fn draw_isochrone_query(&mut self, ui: &mut egui::Ui) {
+        match &self.isochrone_query.state {
+            IsochroneQueryState::Empty => {
+                if ui.button("Pick tile").clicked() {
+                    self.isochrone_query.state = IsochroneQueryState::Querying;
+                }
+                ui.separator();
+
+                for mode in route::MODES {
+                    ui.radio_value(&mut self.isochrone_query.mode, *mode, format!("{}", mode));
+                }
+            }
+            IsochroneQueryState::Querying => {
+                if ui.button("Clear").clicked() {
+                    self.isochrone_query.state = IsochroneQueryState::Empty;
+                }
+                ui.separator();
+
+                ui.label("<waiting for tile selection>");
+            }
+            IsochroneQueryState::Calculating => {
+                if ui.button("Clear").clicked() {
+                    self.isochrone_query.state = IsochroneQueryState::Empty;
+                }
+                ui.separator();
+
+                ui.label("Calculating...");
+            }
+            IsochroneQueryState::Calculated { isochrone_map } => {
+                let (x, y) = isochrone_map.isochrone.focus.to_xy();
+                let mode = isochrone_map.isochrone.mode;
+
+                if ui.button("Clear").clicked() {
+                    self.isochrone_query.state = IsochroneQueryState::Empty;
+                }
+                ui.separator();
+
+                ui.label(format!("Focus: ({}, {})", x, y));
+                ui.label(format!("Mode: {}", mode));
+
+                ui.label("Max travel time (minutes):");
+                ui.add(
+                    egui::Slider::new(
+                        &mut self.isochrone_query.max_travel_time,
+                        0.0..=6.0 * 60.0, // six hours, in minutes
+                    )
+                    .step_by(5.0),
+                );
+
+                ui.label("Quantization step (minutes):");
+                ui.add(
+                    egui::Slider::new(&mut self.isochrone_query.quantization_step, 0.0..=60.0)
+                        .step_by(5.0),
+                );
             }
         }
     }
@@ -574,15 +627,30 @@ impl Diagnostics {
         ui.label(format!("Highway vertices: {}", self.highway_vertices));
         ui.label(format!("Agents: {}", self.agents));
 
-        let graph_stats = app.engine.base_graph.read().unwrap().get_stats();
-        ui.label(format!(
-            "Graph nodes: {}",
-            graph_stats.map(|s| s.node_count).unwrap_or(0)
-        ));
-        ui.label(format!(
-            "Graph edges: {}",
-            graph_stats.map(|s| s.edge_count).unwrap_or(0)
-        ));
+        ui.separator();
+
+        let graph_stats = app
+            .engine
+            .base_graph
+            .read()
+            .unwrap()
+            .get_stats()
+            .unwrap_or_default();
+        ui.label(format!("Graph nodes: {}", graph_stats.node_count));
+        ui.label(format!("Graph edges: {}", graph_stats.edge_count));
+        for mode in route::MODES {
+            ui.label(format!(
+                "Terminal nodes ({}): {}",
+                mode, graph_stats.terminal_node_counts[mode],
+            ));
+        }
+
+        ui.separator();
+
+        match app.get_hovered_pos(&ui) {
+            Some((x, y)) => ui.label(format!("Coords: {}, {}", x, y)),
+            None => ui.label("Coords: n/a"),
+        };
     }
 }
 
@@ -658,6 +726,37 @@ impl RouteQuery {
             current_routes: Vec::new(),
         }
     }
+}
+
+pub(crate) struct IsochroneQuery {
+    pub(crate) state: IsochroneQueryState,
+    pub(crate) mode: route::Mode,
+    /// in minutes
+    pub(crate) max_travel_time: f64,
+    /// time difference between steps in the displayed map, in minutes
+    pub(crate) quantization_step: f64,
+}
+
+impl IsochroneQuery {
+    pub fn new() -> Self {
+        Self {
+            state: IsochroneQueryState::Empty,
+            mode: route::Mode::Walking,
+            max_travel_time: 2.0 * 60.0, // two hours, in minutes
+            quantization_step: 20.0,
+        }
+    }
+}
+
+pub(crate) enum IsochroneQueryState {
+    /// no selection
+    Empty,
+    /// waiting for user to select a tile
+    Querying,
+    /// calculation in progress (might be slow)
+    Calculating,
+    /// calculation finished, isochrone visible
+    Calculated { isochrone_map: route::IsochroneMap },
 }
 
 #[derive(Debug, enum_iterator::IntoEnumIterator, PartialEq, Copy, Clone)]

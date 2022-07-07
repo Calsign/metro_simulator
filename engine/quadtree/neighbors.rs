@@ -7,10 +7,10 @@ use crate::quadtree::{Error, Quadtree, VisitData};
 use crate::rect::Rect;
 
 #[derive(Debug, Clone)]
-struct Entry<T> {
-    x: f64,
-    y: f64,
-    data: T,
+pub struct Entry<T> {
+    pub x: f64,
+    pub y: f64,
+    pub data: T,
 }
 
 /**
@@ -21,6 +21,7 @@ struct Entry<T> {
 pub struct NeighborsStore<T> {
     qtree: Quadtree<(), Vec<Entry<T>>>,
     load_factor: u32,
+    entries: Vec<Entry<T>>,
 }
 
 pub trait NeighborsVisitor<T, E> {
@@ -31,12 +32,38 @@ pub trait AllNeighborsVisitor<T, E> {
     fn visit(&mut self, base: &T, entry: &T, distance: f64) -> Result<(), E>;
 }
 
+impl<T: Clone> NeighborsStore<T> {
+    pub fn insert(&mut self, data: T, x: f64, y: f64) -> Result<(), Error> {
+        if x < 0.0 || x > self.qtree.width() as f64 || y < 0.0 || y > self.qtree.width() as f64 {
+            Err(crate::quadtree::Error::CoordsOutOfBoundsF64(x, y))
+        } else {
+            let visit_data = self.qtree.get_visit_data(x as u64, y as u64)?;
+            let entry = Entry { x, y, data };
+            self.qtree
+                .get_leaf_mut(visit_data.address.clone())?
+                .push(entry.clone());
+            self.split_if_needed(visit_data)?;
+            self.entries.push(entry);
+            Ok(())
+        }
+    }
+}
+
 impl<T> NeighborsStore<T> {
     pub fn new(load_factor: u32, max_depth: u32) -> Self {
         Self {
             qtree: Quadtree::new(Vec::new(), max_depth),
             load_factor,
+            entries: Vec::new(),
         }
+    }
+
+    pub fn count(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn entries(&self) -> &Vec<Entry<T>> {
+        &self.entries
     }
 
     fn split_if_needed(&mut self, visit_data: VisitData) -> Result<(), Error> {
@@ -56,19 +83,6 @@ impl<T> NeighborsStore<T> {
             }
         }
         Ok(())
-    }
-
-    pub fn insert(&mut self, entry: T, x: f64, y: f64) -> Result<(), Error> {
-        if x < 0.0 || x > self.qtree.width() as f64 || y < 0.0 || y > self.qtree.width() as f64 {
-            Err(crate::quadtree::Error::CoordsOutOfBoundsF64(x, y))
-        } else {
-            let visit_data = self.qtree.get_visit_data(x as u64, y as u64)?;
-            self.qtree
-                .get_leaf_mut(visit_data.address.clone())?
-                .push(Entry { x, y, data: entry });
-            self.split_if_needed(visit_data)?;
-            Ok(())
-        }
     }
 
     pub fn visit_radius<V, E>(&self, visitor: &mut V, x: f64, y: f64, radius: f64) -> Result<(), E>

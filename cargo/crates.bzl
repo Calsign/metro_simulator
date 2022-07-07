@@ -46,6 +46,8 @@ CRATES = {
         features = ["cgmath", "serde"],
     ),
     "fastblur": "0.1.1",
+    "image": "0.24.2",
+    "imageproc": "0.23.0",
     "rand": "0.8.5",
     "rand_distr": "0.4.3",
     "uom": dict(
