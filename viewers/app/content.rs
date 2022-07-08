@@ -296,7 +296,7 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
                 // quantize
                 let step = self.app.isochrone_query.quantization_step.max(1.0);
                 // adding the 1.0 allows including times that are at the threshold
-                let quantized = ((travel_time / step + 1.0).ceil() - 1.0) * step;
+                let quantized = ((travel_time / step + 1.0).floor() - 1.0) * step;
 
                 Some(crate::field_overlay::calc_hue(
                     // reverse direction to make shorter times "good" and longer times "bad"
