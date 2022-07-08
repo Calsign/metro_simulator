@@ -45,6 +45,7 @@ CRATES = {
         version = "4.0",
         features = ["cgmath", "serde"],
     ),
+    "spade": "2.0.0",
     "fastblur": "0.1.1",
     "image": "0.24.2",
     "imageproc": "0.23.0",

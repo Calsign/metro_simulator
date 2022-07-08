@@ -1,5 +1,5 @@
 {
-  "checksum": "bbd9250eb04ffd39b35614ca1fd4081eff75988299f0894ae23e1ff54c05693c",
+  "checksum": "0c15380489459cf4ef32947d0f4a807c9bc8692dfe4ff8d81daa9c15146eca1d",
   "crates": {
     "ab_glyph 0.2.15": {
       "name": "ab_glyph",
@@ -4731,6 +4731,10 @@
             {
               "id": "serde_json 1.0.82",
               "target": "serde_json"
+            },
+            {
+              "id": "spade 2.0.0",
+              "target": "spade"
             },
             {
               "id": "splines 4.1.0",
@@ -13523,6 +13527,39 @@
       },
       "license": "MIT OR Apache-2.0"
     },
+    "optional 0.5.0": {
+      "name": "optional",
+      "version": "0.5.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/optional/0.5.0/download",
+          "sha256": "978aa494585d3ca4ad74929863093e87cac9790d81fe7aba2b3dc2890643a0fc"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "optional",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "optional",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2015",
+        "version": "0.5.0"
+      },
+      "license": "MIT OR Apache-2.0"
+    },
     "ordered-float 3.0.0": {
       "name": "ordered-float",
       "version": "3.0.0",
@@ -17457,6 +17494,39 @@
       },
       "license": "MIT"
     },
+    "robust 0.2.3": {
+      "name": "robust",
+      "version": "0.2.3",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/robust/0.2.3/download",
+          "sha256": "e5864e7ef1a6b7bcf1d6ca3f655e65e724ed3b52546a0d0a663c991522f552ea"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "robust",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "robust",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2018",
+        "version": "0.2.3"
+      },
+      "license": "MIT/Apache-2.0"
+    },
     "rustc-hash 1.1.0": {
       "name": "rustc-hash",
       "version": "1.1.0",
@@ -18805,6 +18875,60 @@
         }
       },
       "license": "MIT"
+    },
+    "spade 2.0.0": {
+      "name": "spade",
+      "version": "2.0.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/spade/2.0.0/download",
+          "sha256": "333b8c21ebd9a45c5e955f3d7a1f0c4a2214847dd7e8e1abb69f34ec9b88882d"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "spade",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "spade",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "num-traits 0.2.15",
+              "target": "num_traits"
+            },
+            {
+              "id": "optional 0.5.0",
+              "target": "optional"
+            },
+            {
+              "id": "robust 0.2.3",
+              "target": "robust"
+            },
+            {
+              "id": "smallvec 1.9.0",
+              "target": "smallvec"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2021",
+        "version": "2.0.0"
+      },
+      "license": "MIT OR Apache-2.0"
     },
     "spin 0.9.3": {
       "name": "spin",

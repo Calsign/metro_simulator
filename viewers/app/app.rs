@@ -193,6 +193,17 @@ impl App {
             }
         }
 
+        if self.route_query.current_routes.len() > 0 {
+            ui.separator();
+            ui.label("Current routes:");
+
+            for (i, route) in self.route_query.current_routes.iter().enumerate() {
+                if let Some(duration) = format_duration(route.cost) {
+                    ui.label(format!("Route #{} duration: {}", i + 1, duration));
+                }
+            }
+        }
+
         if changed {
             self.update_route_query();
         }
@@ -532,14 +543,8 @@ impl App {
 
         // TODO: use some better way to format durations. chrono::Duration itself is not
         // formattable.
-        if let Some(average_commute) = chrono::NaiveTime::from_num_seconds_from_midnight_opt(
-            agent.average_commute_length() as u32,
-            0,
-        ) {
-            ui.label(format!(
-                "Average commute: {}",
-                average_commute.format("%H:%M:%S"),
-            ));
+        if let Some(average_commute) = format_duration(agent.average_commute_length()) {
+            ui.label(format!("Average commute: {}", average_commute,));
         }
 
         if let Some(workplace_happiness_score) = agent.workplace_happiness_score() {
@@ -831,4 +836,11 @@ impl AgentDetail {
     fn new() -> Self {
         Self::Empty
     }
+}
+
+fn format_duration<'a>(
+    duration: f32,
+) -> Option<chrono::format::DelayedFormat<chrono::format::strftime::StrftimeItems<'a>>> {
+    chrono::NaiveTime::from_num_seconds_from_midnight_opt(duration as u32, 0)
+        .map(|datetime| datetime.format("%H:%M:%S").into())
 }

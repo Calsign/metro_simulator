@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::common::{Error, Mode, MODES};
+use crate::common::{Error, Mode, ModeMap, MODES};
 use crate::edge::Edge;
 use crate::fast_graph_wrapper::FastGraphWrapper;
 use crate::node::Node;
@@ -34,28 +34,6 @@ pub struct Parking {
     pub address: quadtree::Address,
     pub walking_node: NodeIndex,
     pub driving_node: NodeIndex,
-}
-
-pub type Neighbors = HashMap<Mode, quadtree::NeighborsStore<NodeIndex>>;
-
-trait NeighborsExt {
-    fn create(max_depth: u32) -> Self;
-    fn mode_insert(&mut self, mode: Mode, index: NodeIndex, x: f64, y: f64);
-}
-
-impl NeighborsExt for Neighbors {
-    fn create(max_depth: u32) -> Self {
-        let mut neighbors = Self::new();
-        for mode in MODES {
-            // TODO: benchmark different load factors
-            neighbors.insert(*mode, quadtree::NeighborsStore::new(4, max_depth));
-        }
-        neighbors
-    }
-
-    fn mode_insert(&mut self, mode: Mode, index: NodeIndex, x: f64, y: f64) {
-        self.get_mut(&mode).unwrap().insert(index, x, y).unwrap();
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -97,10 +75,9 @@ impl Graph {
         BaseGraphStats {
             node_count: self.graph.node_count(),
             edge_count: self.graph.edge_count(),
-            terminal_node_counts: self
-                .terminal_nodes
+            terminal_node_counts: MODES
                 .iter()
-                .map(|(mode, nodes)| (*mode, nodes.count()))
+                .map(|mode| (*mode, self.terminal_nodes[*mode].count()))
                 .collect(),
         }
     }
@@ -111,13 +88,83 @@ where
     W: std::io::Write,
 {
     unimplemented!();
-    Ok(())
 }
+
+// put this into a mod so that we can't construct TriangulationVertex directly, for safety
+mod triangulation_ext {
+    use crate::base_graph::NodeIndex;
+    use crate::common::Error;
+
+    #[derive(Debug, Clone, Copy)]
+    pub(crate) struct TriangulationVertex {
+        index: NodeIndex,
+        x: f64,
+        y: f64,
+    }
+
+    impl TriangulationVertex {
+        fn new(index: NodeIndex, x: f64, y: f64) -> Self {
+            Self { index, x, y }
+        }
+
+        pub fn index(&self) -> NodeIndex {
+            self.index
+        }
+    }
+
+    impl spade::HasPosition for TriangulationVertex {
+        type Scalar = f64;
+        fn position(&self) -> spade::Point2<f64> {
+            spade::Point2::new(self.x, self.y)
+        }
+    }
+
+    pub(crate) trait SafeTriangulationInsert {
+        /**
+         * By default, inserting a vertex at the position of an existing vertex replaces the
+         * existing vertex. We do not want this! Instead, return an error in this case.
+         */
+        fn safe_insert(
+            &mut self,
+            node: NodeIndex,
+            x: f64,
+            y: f64,
+        ) -> Result<spade::handles::FixedVertexHandle, Error>;
+    }
+
+    impl SafeTriangulationInsert for spade::DelaunayTriangulation<TriangulationVertex> {
+        fn safe_insert(
+            &mut self,
+            index: NodeIndex,
+            x: f64,
+            y: f64,
+        ) -> Result<spade::handles::FixedVertexHandle, Error> {
+            use spade::HasPosition;
+            use spade::Triangulation;
+
+            let new_vertex = TriangulationVertex { index, x, y };
+            if let Some(existing_vertex) = self.locate_vertex(new_vertex.position()) {
+                // We could do an error instead, but I don't want to risk letting this slip through.
+                panic!(
+                    "Attempted to insert vertex {:?}, but existing vertex {:?} was found at that location!",
+                    new_vertex, existing_vertex
+                );
+            } else {
+                Ok(self.insert(new_vertex)?)
+            }
+        }
+    }
+}
+
+type Neighbors = ModeMap<quadtree::NeighborsStore<NodeIndex>>;
+type Triangulations = ModeMap<spade::DelaunayTriangulation<triangulation_ext::TriangulationVertex>>;
 
 pub fn construct_base_graph<'a, F: state::Fields>(
     input: BaseGraphInput<'a, F>,
 ) -> Result<Graph, Error> {
     use itertools::Itertools;
+    use spade::Triangulation;
+    use triangulation_ext::SafeTriangulationInsert;
 
     let tile_size = input.state.config.min_tile_size as f64;
 
@@ -126,16 +173,18 @@ pub fn construct_base_graph<'a, F: state::Fields>(
     }
 
     let mut graph = InnerGraph::new();
-    /// nodes from which routes can start and end
-    let mut terminal_nodes = Neighbors::create(input.state.config.max_depth);
-    /// nodes between which we should infer edges based on proximity
-    let mut inference_neighbors = Neighbors::create(input.state.config.max_depth);
+    // nodes from which routes can start and end
+    let mut terminal_nodes =
+        ModeMap::new(|_| quadtree::NeighborsStore::new(4, input.state.config.max_depth));
+    // we use a Delaunay triangulation to infer edges based on proximity
+    let mut inference_triangulation = ModeMap::new(|_| spade::DelaunayTriangulation::new());
     let mut parking = HashMap::new();
 
     let mut add_parking = |address,
                            graph: &mut InnerGraph,
                            terminal_nodes: &mut Neighbors,
-                           inference_neighbors: &mut Neighbors| {
+                           inference_triangulation: &mut Triangulations|
+     -> Result<(NodeIndex, NodeIndex), Error> {
         let walking_node = graph.add_node(Node::Parking { address });
         let driving_node = graph.add_node(Node::Parking { address });
         let (x, y) = address.to_xy();
@@ -143,12 +192,10 @@ pub fn construct_base_graph<'a, F: state::Fields>(
 
         // NOTE: Important that we don't add the driving node to the terminal nodes.
         // This would be invalid since it intentionally has no outgoing edges.
-        terminal_nodes.mode_insert(Mode::Walking, walking_node, x, y);
-        // TODO: remove this! temporary, until we get other fixes in place
-        terminal_nodes.mode_insert(Mode::Driving, driving_node, x, y);
+        terminal_nodes[Mode::Walking].insert(walking_node, x, y)?;
 
-        inference_neighbors.mode_insert(Mode::Walking, walking_node, x, y);
-        inference_neighbors.mode_insert(Mode::Driving, driving_node, x, y);
+        inference_triangulation[Mode::Walking].safe_insert(walking_node, x, y)?;
+        inference_triangulation[Mode::Driving].safe_insert(driving_node, x, y)?;
 
         parking.insert(
             address,
@@ -167,6 +214,8 @@ pub fn construct_base_graph<'a, F: state::Fields>(
             },
             &input.state,
         );
+
+        Ok((walking_node, driving_node))
     };
 
     let mut station_map = HashMap::new();
@@ -198,16 +247,34 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                         station: station.clone(),
                     });
 
-                    let (x, y) = station.address.to_xy();
-                    terminal_nodes.mode_insert(Mode::Walking, station_id, x as f64, y as f64);
-                    inference_neighbors.mode_insert(Mode::Walking, station_id, x as f64, y as f64);
-
                     // for now, we assume that every station offers parking
-                    add_parking(
+                    let (parking_walking, _) = add_parking(
                         station.address,
                         &mut graph,
                         &mut terminal_nodes,
-                        &mut inference_neighbors,
+                        &mut inference_triangulation,
+                    )
+                    .unwrap();
+
+                    // NOTE: can't put this node into the inference triangulation because it
+                    // occupies the same point as the parking node.
+                    graph.add_edge(
+                        station_id,
+                        parking_walking,
+                        Edge::ModeSegment {
+                            mode: Mode::Walking,
+                            distance: 0.0,
+                        },
+                        &input.state,
+                    );
+                    graph.add_edge(
+                        parking_walking,
+                        station_id,
+                        Edge::ModeSegment {
+                            mode: Mode::Walking,
+                            distance: 0.0,
+                        },
+                        &input.state,
                     );
 
                     station_id
@@ -290,8 +357,8 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                 Edge::HighwayRamp { position: (x, y) },
                 &input.state,
             );
-            terminal_nodes.mode_insert(Mode::Driving, outer_id, x, y);
-            inference_neighbors.mode_insert(Mode::Driving, outer_id, x, y);
+            terminal_nodes[Mode::Driving].insert(outer_id, x, y)?;
+            inference_triangulation[Mode::Driving].safe_insert(outer_id, x, y)?;
             inner_id
         } else {
             graph.add_node(Node::HighwayJunction {
@@ -336,15 +403,24 @@ pub fn construct_base_graph<'a, F: state::Fields>(
 
     if input.add_inferred_edges {
         for mode in MODES {
-            inference_neighbors[mode].visit_all_radius(
-                &mut AddEdgesVisitor {
-                    graph: &mut graph,
-                    state: &input.state,
-                    tile_size,
-                    mode: *mode,
-                },
-                |_| mode.bridge_radius() / tile_size,
-            )?;
+            let max_radius_sq = (mode.bridge_radius() / tile_size).powi(2);
+            // TODO: use bulk_load instead of a bunch of individual insertions
+            for edge in inference_triangulation[*mode].undirected_edges() {
+                if edge.length_2() <= max_radius_sq {
+                    let [a, b] = edge.vertices();
+                    for (start, end) in [(a, b), (b, a)] {
+                        graph.add_edge(
+                            start.data().index(),
+                            end.data().index(),
+                            Edge::ModeSegment {
+                                mode: *mode,
+                                distance: edge.length_2().sqrt() * tile_size,
+                            },
+                            &input.state,
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -357,32 +433,6 @@ pub fn construct_base_graph<'a, F: state::Fields>(
         tile_size,
         max_depth: input.state.config.max_depth,
     })
-}
-
-struct AddEdgesVisitor<'a, 'b, F: state::Fields> {
-    graph: &'a mut InnerGraph,
-    state: &'b state::State<F>,
-    tile_size: f64,
-    mode: Mode,
-}
-
-impl<'a, 'b, F: state::Fields> quadtree::AllNeighborsVisitor<NodeIndex, Error>
-    for AddEdgesVisitor<'a, 'b, F>
-{
-    fn visit(&mut self, base: &NodeIndex, entry: &NodeIndex, distance: f64) -> Result<(), Error> {
-        if base != entry {
-            self.graph.add_edge(
-                *base,
-                *entry,
-                Edge::ModeSegment {
-                    mode: self.mode,
-                    distance: distance * self.tile_size,
-                },
-                &self.state,
-            );
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]

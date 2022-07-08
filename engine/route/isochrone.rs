@@ -26,13 +26,13 @@ pub fn calculate_isochrone(
     };
 
     let (start_x, start_y) = focus.to_xy_f64();
-    let nearest = match base_graph.terminal_nodes[&mode].find_nearest(start_x, start_y) {
+    let nearest = match base_graph.terminal_nodes[mode].find_nearest(start_x, start_y) {
         Some(nearest) => nearest,
         None => return Err(Error::NoTerminalNodeFound(focus)),
     };
 
     // TODO: using this clone to avoid borrowing issues, but it shouldn't be necessary
-    for entry in base_graph.terminal_nodes[&mode].entries().clone() {
+    for entry in base_graph.terminal_nodes[mode].entries().clone() {
         // f64 is unhashable
         let (x, y) = (entry.x as u64, entry.y as u64);
         let travel_time = match base_graph.graph.query(nearest, entry.data) {

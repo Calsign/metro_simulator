@@ -41,3 +41,25 @@ rust_shared_library(
         "@crates//:ndk-glue",
     ],
 )
+
+rust_binary(
+    name = "isochrone_benchmark",
+    srcs = ["isochrone_benchmark.rs"],
+    deps = [
+        ":sf_routes",
+        "//engine",
+        "//engine/quadtree",
+        "//engine/route",
+        "@crates//:bencher",
+        "@crates//:once_cell",
+    ],
+)
+
+rust_binary(
+    name = "base_graph_timer",
+    srcs = ["base_graph_timer.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+    ],
+)

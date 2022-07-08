@@ -10,6 +10,8 @@ pub enum Error {
     ParkingNotFound(quadtree::Address),
     #[error("No terminal node found: {0:?}")]
     NoTerminalNodeFound(quadtree::Address),
+    #[error("Spade (Delaunay Triangulation) error: {0:?}")]
+    SpadeError(#[from] spade::InsertionError),
 }
 
 /**
@@ -49,36 +51,21 @@ impl Mode {
         match self {
             Walking => 1.5,  // normal walking speed
             Biking => 6.7,   // 15mph, average biking speed
-            Driving => 13.4, // 30mph, a standard city driving speed limit
+            Driving => 11.2, // 25mph, a standard city driving speed limit
         }
     }
 
     /**
      * Max distance it is reasonable to travel on local routes, i.e. bridging the gap beteen
-     * existing nodes. This number should be relatively small to avoid making the problem
-     * intractable, as edges are added between all pairs of nodes within this radius.
+     * existing nodes. Inferred edges are added for each edge in the Delaunay triangulation of
+     * available nodes for each mode, as long as the edge length is within this bridge radius.
      */
     pub fn bridge_radius(&self) -> f64 {
         use Mode::*;
         match self {
-            Walking => 800.0, // about 0.5 miles
-            Biking => 3200.0, // about 2 miles
-            // TODO: this seems to make fast_paths intractable for some reason
-            Driving => 1000.0,
-            // Driving => 8000.0, // about 5 miles
-        }
-    }
-
-    /**
-     * Max distance it is reasonable to travel for the first or last segment of a trip, in meters.
-     * This is used for adding inferred edges in the base graph and the augmented graph.
-     */
-    pub fn max_radius(&self) -> f64 {
-        use Mode::*;
-        match self {
-            Walking => 3000.0,  // about 2 miles
-            Biking => 16000.0,  // about 10 miles
-            Driving => 80000.0, // about 50 miles
+            Walking => 800.0,  // about 0.5 miles
+            Biking => 3200.0,  // about 2 miles
+            Driving => 8000.0, // about 5 miles
         }
     }
 }
@@ -91,5 +78,54 @@ impl std::fmt::Display for Mode {
             Biking => write!(f, "biking"),
             Driving => write!(f, "driving"),
         }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModeMap<T> {
+    data: [T; 3],
+}
+
+impl<T> ModeMap<T> {
+    pub fn new<F>(mut init: F) -> Self
+    where
+        F: FnMut(Mode) -> T,
+    {
+        let data: Vec<T> = MODES.iter().map(|mode| init(*mode)).collect();
+        Self {
+            data: data
+                .try_into()
+                .unwrap_or_else(|_| panic!("should be impossible")),
+        }
+    }
+}
+
+impl<T> std::ops::Index<Mode> for ModeMap<T> {
+    type Output = T;
+    fn index(&self, mode: Mode) -> &T {
+        &self.data[mode as usize]
+    }
+}
+
+impl<T> std::ops::IndexMut<Mode> for ModeMap<T> {
+    fn index_mut(&mut self, mode: Mode) -> &mut T {
+        &mut self.data[mode as usize]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::common::*;
+
+    #[test]
+    fn mode_map() {
+        let map = ModeMap::new(|mode| match mode {
+            Mode::Walking => 0,
+            Mode::Biking => 1,
+            Mode::Driving => 2,
+        });
+        assert_eq!(map[Mode::Walking], 0);
+        assert_eq!(map[Mode::Biking], 1);
+        assert_eq!(map[Mode::Driving], 2);
     }
 }

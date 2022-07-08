@@ -5,9 +5,6 @@ use crate::node::Node;
 use crate::route_key::RouteKey;
 use crate::traffic::WorldState;
 
-// time it takes to wait for a train, on average
-// TODO: replace this with correct accounting for train schedules
-pub const EMBARK_TIME: f64 = 480.0;
 // time it takes to enter or leave a highway
 pub const RAMP_TIME: f64 = 30.0;
 

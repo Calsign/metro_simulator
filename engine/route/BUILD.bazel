@@ -33,6 +33,7 @@ rust_library(
         "@crates//:itertools",
         "@crates//:once_cell",
         "@crates//:serde",
+        "@crates//:spade",
         "@crates//:splines",
         "@crates//:thiserror",
         "@crates//:uom",

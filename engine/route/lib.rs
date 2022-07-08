@@ -10,8 +10,7 @@ mod route_key;
 mod traffic;
 
 pub use base_graph::{
-    construct_base_graph, dump_graph, BaseGraphInput, BaseGraphStats, Graph, InnerGraph, Neighbors,
-    Parking,
+    construct_base_graph, dump_graph, BaseGraphInput, BaseGraphStats, Graph, InnerGraph, Parking,
 };
 pub use common::{CarConfig, Error, Mode, QueryInput, MODES};
 pub use edge::Edge;
