@@ -326,6 +326,15 @@ impl App {
             }
         };
 
+        let local_road_zone_in_bounds = |(x, y)| {
+            // TODO: it would be better to include the bottom-right corner as well
+            if self.congestion_analysis.filter_visible {
+                bounding_box.contains(x, y)
+            } else {
+                true
+            }
+        };
+
         let current_time = self.engine.time_state.current_time;
         let current_snapshot_index = self
             .engine
@@ -355,6 +364,12 @@ impl App {
                                 .filter(|k, v| metro_segment_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
+                        CongestionType::LocalRoads => {
+                            let data = snapshot
+                                .iter_local_road_zones()
+                                .filter(|k, v| local_road_zone_in_bounds(k));
+                            self.congestion_analysis.historical_quantity.get(data)
+                        }
                     };
                     // if this snapshot is the current snapshot, display the current value as well
                     let extra = (i == current_snapshot_index).then(|| {
@@ -375,6 +390,14 @@ impl App {
                                     .filter(|k, v| metro_segment_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
+                            CongestionType::LocalRoads => {
+                                let data = self
+                                    .engine
+                                    .world_state
+                                    .iter_local_road_zones()
+                                    .filter(|k, v| local_road_zone_in_bounds(k));
+                                self.congestion_analysis.historical_quantity.get(data)
+                            }
                         };
                         current_value - history_value
                     });
@@ -390,16 +413,24 @@ impl App {
                     .engine
                     .world_state
                     .iter_highway_segments()
-                    .filter(|k, v| v > 0 && highway_segment_in_bounds(k));
-                data.histogram(48, 200)
+                    .filter(|k, v| v > 0.0 && highway_segment_in_bounds(k));
+                data.histogram(48, 200.0)
             }
             CongestionType::MetroSegments => {
                 let data = self
                     .engine
                     .world_state
                     .iter_metro_segments()
-                    .filter(|k, v| v > 0 && metro_segment_in_bounds(k));
-                data.histogram(48, 200)
+                    .filter(|k, v| v > 0.0 && metro_segment_in_bounds(k));
+                data.histogram(48, 200.0)
+            }
+            CongestionType::LocalRoads => {
+                let data = self
+                    .engine
+                    .world_state
+                    .iter_local_road_zones()
+                    .filter(|k, v| v > 0.0 && local_road_zone_in_bounds(k));
+                data.histogram(48, 200.0)
             }
         };
 
@@ -768,6 +799,7 @@ pub(crate) enum IsochroneQueryState {
 pub(crate) enum CongestionType {
     HighwaySegments,
     MetroSegments,
+    LocalRoads,
 }
 
 impl CongestionType {
@@ -775,6 +807,7 @@ impl CongestionType {
         match self {
             Self::HighwaySegments => "Highways",
             Self::MetroSegments => "Metros",
+            Self::LocalRoads => "Local roads",
         }
     }
 }

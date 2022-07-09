@@ -34,4 +34,19 @@ impl Config {
     pub fn dump_file(&self, path: &std::path::Path) -> Result<(), Error> {
         return Ok(std::fs::write(path, self.dump()?)?);
     }
+
+    /**
+     * The width of the map, denominated by the smallest possible tile size.
+     */
+    pub fn tile_width(&self) -> u32 {
+        2_u32.pow(self.max_depth)
+    }
+
+    /**
+     * Given a target downsampled block size, returns a factor which downsamples the map evenly,
+     * i.e. by a power of two.
+     */
+    pub fn even_downsample(&self, block_size: f32) -> u32 {
+        2_u32.pow((block_size / self.min_tile_size as f32).log2().floor() as u32)
+    }
 }

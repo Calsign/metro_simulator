@@ -3,6 +3,7 @@ mod common;
 mod edge;
 mod fast_graph_wrapper;
 mod isochrone;
+pub mod local_traffic;
 mod node;
 mod query;
 mod route;

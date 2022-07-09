@@ -6,6 +6,7 @@ use uom::si::u64::Time;
 
 use quadtree::Address;
 
+use crate::common::Mode;
 use crate::edge::Edge;
 use crate::node::Node;
 use crate::route::Route;
@@ -15,76 +16,190 @@ use crate::route::Route;
 pub const OBSERVATION_WEIGHT: f64 = 0.3;
 
 pub trait WorldState {
-    fn get_highway_segment_travelers(&self, segment: u64) -> u64;
-    fn get_metro_segment_travelers(&self, segment: u64, start: Address, end: Address) -> u64;
+    fn get_highway_segment_travelers(&self, segment: u64) -> f64;
+    fn get_metro_segment_travelers(&self, segment: u64, start: Address, end: Address) -> f64;
+    fn get_local_road_zone_travelers(&self, x: u64, y: u64) -> f64;
+    fn get_local_road_travelers(&self, start: (f64, f64), end: (f64, f64), distance: f64) -> f64;
 
     fn iter_highway_segments<'a>(&'a self) -> CongestionIterator<'a, u64>;
     fn iter_metro_segments<'a>(&'a self) -> CongestionIterator<'a, (u64, Address, Address)>;
+    fn iter_local_road_zones<'a>(&'a self) -> CongestionIterator<'a, (u64, u64)>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct WorldStateImpl {
     /// map from highway segment IDs to number of travelers
-    highway_segments: HashMap<u64, u64>,
+    highway_segments: HashMap<u64, f64>,
     /// map from (metro line ID, start station address, end station address) pairs to number of
     /// travelers
-    metro_segments: HashMap<(u64, Address, Address), u64>,
+    metro_segments: HashMap<(u64, Address, Address), f64>,
+    /// flattened grid of local traffic zones, row major
+    local_roads: Vec<f64>,
+
+    pub grid_downsample: u32,
+    grid_width: u32,
+    min_tile_size: u32,
 }
 
 impl WorldStateImpl {
-    pub fn new() -> Self {
+    pub fn new(config: &state::Config) -> Self {
+        let grid_downsample = crate::local_traffic::grid_downsample(config);
+        let grid_width = config.tile_width() / grid_downsample;
+
         Self {
             highway_segments: HashMap::new(),
             metro_segments: HashMap::new(),
+            local_roads: vec![0.0; grid_width.pow(2) as usize],
+            grid_downsample,
+            grid_width,
+            min_tile_size: config.min_tile_size,
         }
     }
 
-    fn edge_entry<F: state::Fields>(
+    fn apply_edge_entries<F: state::Fields, G>(
         &mut self,
         edge: &Edge,
         state: &state::State<F>,
-    ) -> Option<&mut u64> {
+        mut f: G,
+    ) where
+        G: FnMut(&mut f64, f64),
+    {
         match edge {
             Edge::Highway { segment, .. } => {
-                Some(self.highway_segments.entry(*segment).or_insert(0))
+                f(self.highway_segments.entry(*segment).or_insert(0.0), 1.0)
             }
             Edge::MetroSegment {
                 metro_line,
                 start,
                 stop,
                 ..
-            } => Some(
+            } => f(
                 self.metro_segments
                     .entry((*metro_line, *start, *stop))
-                    .or_insert(0),
+                    .or_insert(0.0),
+                1.0,
             ),
-            _ => None,
+            Edge::ModeSegment {
+                mode: Mode::Driving,
+                distance,
+                start,
+                stop,
+            } => {
+                let local_path: Vec<_> = self.local_path(*start, *stop).collect();
+                for ((x, y), value) in local_path {
+                    f(self.local_road_zone_mut(x, y), value / distance);
+                }
+            }
+            _ => (),
         }
     }
 
+    pub fn local_path<'a>(
+        &'a self,
+        start: (f64, f64),
+        stop: (f64, f64),
+    ) -> impl Iterator<Item = ((u64, u64), f64)> + 'a {
+        let start = self.local_zone_downscale(start);
+        let stop = self.local_zone_downscale(stop);
+        line_drawing::XiaolinWu::<f64, i64>::new(start, stop).filter_map(|((x, y), value)| {
+            // NOTE: XiaolinWu will return coordinates outside the grid, but only one
+            // row/column past the grid; we can just ignore them
+            assert!(
+                x >= -1 && x <= self.grid_width as i64,
+                "x: {}, grid_width: {}",
+                x,
+                self.grid_width
+            );
+            assert!(
+                y >= -1 && y <= self.grid_width as i64,
+                "y: {}, grid_width: {}",
+                y,
+                self.grid_width
+            );
+            if x >= 0 && x < self.grid_width as i64 && y >= 0 && y < self.grid_width as i64 {
+                // scale number of people appropriately so that 1.0 is spread out across all
+                // blocks
+                let scaled_value = value * self.grid_downsample as f64 * self.min_tile_size as f64;
+                Some(((x as u64, y as u64), scaled_value))
+            } else {
+                None
+            }
+        })
+    }
+
     pub fn increment_edge<F: state::Fields>(&mut self, edge: &Edge, state: &state::State<F>) {
-        self.edge_entry(edge, state).map(|e| *e += 1);
+        self.apply_edge_entries(edge, state, |e, v| *e += v);
     }
 
     pub fn decrement_edge<F: state::Fields>(&mut self, edge: &Edge, state: &state::State<F>) {
-        self.edge_entry(edge, state).map(|e| {
-            assert!(*e > 0);
-            *e -= 1;
+        self.apply_edge_entries(edge, state, |e, v| {
+            assert!(*e > 0.0);
+            *e -= v;
         });
+    }
+
+    fn local_zone_downscale(&self, (x, y): (f64, f64)) -> (f64, f64) {
+        (
+            (x / self.grid_downsample as f64),
+            (y / self.grid_downsample as f64),
+        )
+    }
+
+    fn local_zone_upscale(&self, (x, y): (u64, u64)) -> (u64, u64) {
+        (
+            (x as f64 * self.grid_downsample as f64) as u64,
+            (y as f64 * self.grid_downsample as f64) as u64,
+        )
+    }
+
+    fn local_zone_index(&self, x: u64, y: u64) -> usize {
+        assert!(x <= self.grid_width as u64);
+        assert!(y <= self.grid_width as u64);
+        (self.grid_width as u64 * y + x) as usize
+    }
+
+    fn local_zone_coords(&self, index: usize) -> (u64, u64) {
+        assert!(index < self.local_roads.len());
+        (
+            (index as u64 % self.grid_width as u64),
+            (index as u64 / self.grid_width as u64),
+        )
+    }
+
+    fn local_road_zone(&self, x: u64, y: u64) -> &f64 {
+        &self.local_roads[self.local_zone_index(x, y)]
+    }
+
+    fn local_road_zone_mut(&mut self, x: u64, y: u64) -> &mut f64 {
+        let index = self.local_zone_index(x, y);
+        &mut self.local_roads[index]
     }
 }
 
 impl WorldState for WorldStateImpl {
-    fn get_highway_segment_travelers(&self, segment: u64) -> u64 {
-        *self.highway_segments.get(&segment).unwrap_or(&0)
+    fn get_highway_segment_travelers(&self, segment: u64) -> f64 {
+        *self.highway_segments.get(&segment).unwrap_or(&0.0)
     }
 
-    fn get_metro_segment_travelers(&self, metro_line: u64, start: Address, end: Address) -> u64 {
+    fn get_metro_segment_travelers(&self, metro_line: u64, start: Address, end: Address) -> f64 {
         *self
             .metro_segments
             .get(&(metro_line, start, end))
-            .unwrap_or(&0)
+            .unwrap_or(&0.0)
+    }
+
+    fn get_local_road_zone_travelers(&self, x: u64, y: u64) -> f64 {
+        let (x, y) = self.local_zone_downscale((x as f64, y as f64));
+        self.local_roads[self.local_zone_index(x as u64, y as u64)]
+    }
+
+    fn get_local_road_travelers(&self, start: (f64, f64), end: (f64, f64), distance: f64) -> f64 {
+        // we pass in the distance to avoid having to do a sqrt. a little gross but maybe worthwhile?
+        self.local_path(start, end)
+            .map(|((x, y), value)| self.local_road_zone(x, y))
+            .sum::<f64>()
+            / distance
     }
 
     fn iter_highway_segments<'a>(&'a self) -> CongestionIterator<'a, u64> {
@@ -100,6 +215,18 @@ impl WorldState for WorldStateImpl {
             total: self.metro_segments.len(),
         }
     }
+
+    fn iter_local_road_zones<'a>(&'a self) -> CongestionIterator<'a, (u64, u64)> {
+        CongestionIterator {
+            iterator: Box::new(
+                self.local_roads
+                    .iter()
+                    .enumerate()
+                    .map(|(i, v)| (self.local_zone_upscale(self.local_zone_coords(i)), *v)),
+            ),
+            total: self.local_roads.len(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,10 +236,10 @@ pub struct WorldStateHistory {
 }
 
 impl WorldStateHistory {
-    pub fn new(num_snapshots: usize) -> Self {
+    pub fn new(config: &state::Config, num_snapshots: usize) -> Self {
         let mut snapshots = Vec::with_capacity(num_snapshots);
         for _ in 0..num_snapshots {
-            snapshots.push(WorldStateImpl::new());
+            snapshots.push(WorldStateImpl::new(config));
         }
         Self {
             snapshots,
@@ -138,10 +265,9 @@ impl WorldStateHistory {
         self.period
     }
 
-    fn update_prior(prior: &mut u64, observation: u64) {
+    fn update_prior(prior: &mut f64, observation: f64) {
         // TODO: use f64, store likelihood estimate, turn this into a real estimator.
-        *prior = (*prior as f64 * (1.0 - OBSERVATION_WEIGHT)
-            + observation as f64 * OBSERVATION_WEIGHT) as u64;
+        *prior = *prior * (1.0 - OBSERVATION_WEIGHT) + observation * OBSERVATION_WEIGHT;
     }
 
     /**
@@ -164,7 +290,7 @@ impl WorldStateHistory {
                 self.snapshots[snapshot_index]
                     .highway_segments
                     .entry(*highway_segment)
-                    .or_insert(0),
+                    .or_insert(0.0),
                 *observation,
             );
         }
@@ -174,7 +300,14 @@ impl WorldStateHistory {
                 self.snapshots[snapshot_index]
                     .metro_segments
                     .entry(*metro_segment)
-                    .or_insert(0),
+                    .or_insert(0.0),
+                *observation,
+            );
+        }
+
+        for (index, observation) in world_state.local_roads.iter().enumerate() {
+            Self::update_prior(
+                &mut self.snapshots[snapshot_index].local_roads[index],
                 *observation,
             );
         }
@@ -202,9 +335,9 @@ impl WorldStateHistory {
         }
     }
 
-    fn interpolate<M>(&self, prediction_time: u64, measure: M) -> u64
+    fn interpolate<M>(&self, prediction_time: u64, measure: M) -> f64
     where
-        M: Fn(&WorldStateImpl) -> u64,
+        M: Fn(&WorldStateImpl) -> f64,
     {
         let first_snapshot = self.get_current_snapshot_index(prediction_time, false);
         let second_snapshot = self.get_current_snapshot_index(prediction_time, true);
@@ -213,8 +346,8 @@ impl WorldStateHistory {
 
         // simple linear interpolation function
         // in the future we could potentially do something fancier
-        (measure(&self.snapshots[first_snapshot]) as f64 * (1.0 - fraction)
-            + measure(&self.snapshots[second_snapshot]) as f64 * 1.0) as u64
+        measure(&self.snapshots[first_snapshot]) * (1.0 - fraction)
+            + measure(&self.snapshots[second_snapshot]) * 1.0
     }
 }
 
@@ -225,17 +358,31 @@ pub struct WorldStatePredictor<'a> {
 }
 
 impl<'a> WorldState for WorldStatePredictor<'a> {
-    fn get_highway_segment_travelers(&self, segment: u64) -> u64 {
+    fn get_highway_segment_travelers(&self, segment: u64) -> f64 {
         self.history
             .interpolate(self.prediction_time, |world_state| {
                 world_state.get_highway_segment_travelers(segment)
             })
     }
 
-    fn get_metro_segment_travelers(&self, metro_line: u64, start: Address, end: Address) -> u64 {
+    fn get_metro_segment_travelers(&self, metro_line: u64, start: Address, end: Address) -> f64 {
         self.history
             .interpolate(self.prediction_time, |world_state| {
                 world_state.get_metro_segment_travelers(metro_line, start, end)
+            })
+    }
+
+    fn get_local_road_zone_travelers(&self, x: u64, y: u64) -> f64 {
+        self.history
+            .interpolate(self.prediction_time, |world_state| {
+                world_state.get_local_road_zone_travelers(x, y)
+            })
+    }
+
+    fn get_local_road_travelers(&self, start: (f64, f64), end: (f64, f64), distance: f64) -> f64 {
+        self.history
+            .interpolate(self.prediction_time, |world_state| {
+                world_state.get_local_road_travelers(start, end, distance)
             })
     }
 
@@ -270,10 +417,25 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
             total: self.history.snapshots[snapshot].metro_segments.len(),
         }
     }
+
+    fn iter_local_road_zones<'b>(&'b self) -> CongestionIterator<'b, (u64, u64)> {
+        let snapshot_index = self
+            .history
+            .get_current_snapshot_index(self.prediction_time, true);
+        let total = self.history.snapshots[snapshot_index].local_roads.len();
+        CongestionIterator {
+            iterator: Box::new((0..total).map(move |i| {
+                let snapshot = &self.history.snapshots[snapshot_index];
+                let (x, y) = snapshot.local_zone_upscale(snapshot.local_zone_coords(i));
+                ((x, y), self.get_local_road_zone_travelers(x, y))
+            })),
+            total,
+        }
+    }
 }
 
 pub struct CongestionIterator<'a, K> {
-    iterator: Box<dyn Iterator<Item = (K, u64)> + 'a>,
+    iterator: Box<dyn Iterator<Item = (K, f64)> + 'a>,
     total: usize,
 }
 
@@ -282,7 +444,7 @@ impl<'a, K: 'a> CongestionIterator<'a, K> {
         Box::new(self.iterator.map(|(k, _)| k))
     }
 
-    pub fn values(self) -> Box<dyn Iterator<Item = u64> + 'a> {
+    pub fn values(self) -> Box<dyn Iterator<Item = f64> + 'a> {
         Box::new(self.iterator.map(|(_, v)| v))
     }
 }
@@ -290,7 +452,7 @@ impl<'a, K: 'a> CongestionIterator<'a, K> {
 impl<'a, K: 'a + Copy> CongestionIterator<'a, K> {
     pub fn filter<F: 'a>(self, filter: F) -> Self
     where
-        F: Fn(K, u64) -> bool,
+        F: Fn(K, f64) -> bool,
     {
         Self {
             iterator: Box::new(self.iterator.filter(move |(k, v)| filter(*k, *v))),
@@ -300,9 +462,9 @@ impl<'a, K: 'a + Copy> CongestionIterator<'a, K> {
     }
 }
 
-pub trait CongestionStats<T> {
+pub trait CongestionStats {
     /// sum of all items
-    fn sum(self) -> T;
+    fn sum(self) -> f64;
 
     /// calculate the mean of all items
     fn mean(self) -> f64;
@@ -311,47 +473,47 @@ pub trait CongestionStats<T> {
     fn rms(self) -> f64;
 
     /// constructs a histogram
-    fn histogram(self, buckets: usize, max: T) -> Vec<u64>;
+    fn histogram(self, buckets: usize, max: f64) -> Vec<u64>;
 }
 
-impl<'a, K> CongestionStats<u64> for CongestionIterator<'a, K> {
-    fn sum(self) -> u64 {
+impl<'a, K> CongestionStats for CongestionIterator<'a, K> {
+    fn sum(self) -> f64 {
         self.values().sum()
     }
 
     fn mean(self) -> f64 {
-        let mut sum = 0;
+        let mut sum = 0.0;
         let mut total = 0;
         for (_, value) in self.iterator {
             sum += value;
             total += 1;
         }
         if total > 0 {
-            sum as f64 / total as f64
+            sum / total as f64
         } else {
             0.0
         }
     }
 
     fn rms(self) -> f64 {
-        let mut sum = 0;
+        let mut sum = 0.0;
         let mut total = 0;
         for (_, value) in self.iterator {
-            sum += value.pow(2);
+            sum += value.powi(2);
             total += 1;
         }
         if total > 0 {
-            (sum as f64 / total as f64).sqrt()
+            (sum / total as f64).sqrt()
         } else {
             0.0
         }
     }
 
-    fn histogram(self, buckets: usize, max: u64) -> Vec<u64> {
-        assert!(max > 0);
+    fn histogram(self, buckets: usize, max: f64) -> Vec<u64> {
+        assert!(max > 0.0);
         let mut histogram = vec![0; buckets];
         for (_, value) in self.iterator {
-            let bucket = ((value as f32 / max as f32) * buckets as f32) as usize;
+            let bucket = ((value / max) * buckets as f64) as usize;
             histogram[bucket.min(buckets - 1)] += 1;
         }
         histogram

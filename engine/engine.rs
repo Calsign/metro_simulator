@@ -138,9 +138,12 @@ pub struct Engine {
 impl Engine {
     pub fn new(config: state::Config) -> Self {
         Self {
+            world_state: route::WorldStateImpl::new(&config),
+            world_state_history: route::WorldStateHistory::new(
+                &config,
+                WORLD_STATE_HISTORY_SNAPSHOTS,
+            ),
             state: state::State::new(config),
-            world_state: route::WorldStateImpl::new(),
-            world_state_history: route::WorldStateHistory::new(WORLD_STATE_HISTORY_SNAPSHOTS),
             base_graph: Arc::new(RwLock::new(BaseGraph::default())),
             time_state: TimeState::new(),
             agents: HashMap::new(),
@@ -336,7 +339,6 @@ impl Engine {
         let isochrone = self.query_isochrone(focus, mode)?;
         Ok(route::calculate_isochrone_map(
             isochrone,
-            &self.state.qtree,
             &self.state.config,
             crate::field_update::BLOCK_SIZE,
         )?)

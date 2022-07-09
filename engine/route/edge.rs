@@ -36,6 +36,8 @@ pub enum Edge {
     ModeSegment {
         mode: Mode,
         distance: f64,
+        start: (f64, f64),
+        stop: (f64, f64),
     },
     ModeTransition {
         from: Mode,
@@ -72,7 +74,7 @@ impl Edge {
             } => 0.0,
             Highway { time, .. } => *time,
             HighwayRamp { .. } => RAMP_TIME,
-            ModeSegment { mode, distance } => distance / mode.linear_speed(),
+            ModeSegment { mode, distance, .. } => distance / mode.linear_speed(),
             ModeTransition { .. } => 0.0,
         };
         f64::max(cost, 1.0)
@@ -143,11 +145,30 @@ impl Edge {
                 segment.congested_travel_time(
                     state.config.min_tile_size,
                     state.config.people_per_sim,
-                    travelers as u32,
+                    travelers,
                 )
             }
             HighwayRamp { .. } => RAMP_TIME,
-            ModeSegment { mode, distance } => distance / mode.linear_speed(),
+            ModeSegment {
+                mode,
+                distance,
+                start,
+                stop,
+            } => {
+                let base_travel_time = distance / mode.linear_speed();
+                match mode {
+                    Mode::Driving => {
+                        let travelers =
+                            world_state.get_local_road_travelers(*start, *stop, *distance);
+                        crate::local_traffic::congested_travel_time(
+                            base_travel_time,
+                            &state.config,
+                            travelers,
+                        )
+                    }
+                    _ => base_travel_time,
+                }
+            }
             ModeTransition { .. } => 0.0,
         };
         f64::max(cost, 1.0)
@@ -252,8 +273,17 @@ impl Edge {
                 segment.is_jammed(
                     state.config.min_tile_size,
                     state.config.people_per_sim,
-                    travelers as u32,
+                    travelers,
                 )
+            }
+            Edge::ModeSegment {
+                mode: Mode::Driving,
+                distance,
+                start,
+                stop,
+            } => {
+                let travelers = world_state.get_local_road_travelers(*start, *stop, *distance);
+                crate::local_traffic::is_jammed(&state.config, travelers)
             }
             _ => false,
         }
@@ -285,7 +315,7 @@ impl std::fmt::Display for Edge {
                 write!(f, "highway:{}:{}:{}:{:.2}", segment, name, refs, time)
             }
             HighwayRamp { .. } => write!(f, "ramp"),
-            ModeSegment { mode, distance } => {
+            ModeSegment { mode, distance, .. } => {
                 write!(
                     f,
                     "{}:{:.2}m:{:.2}s",

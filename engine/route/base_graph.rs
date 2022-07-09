@@ -110,6 +110,10 @@ mod triangulation_ext {
         pub fn index(&self) -> NodeIndex {
             self.index
         }
+
+        pub fn coords(&self) -> (f64, f64) {
+            (self.x, self.y)
+        }
     }
 
     impl spade::HasPosition for TriangulationVertex {
@@ -256,6 +260,8 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                     )
                     .unwrap();
 
+                    let location = station.address.to_xy_f64();
+
                     // NOTE: can't put this node into the inference triangulation because it
                     // occupies the same point as the parking node.
                     graph.add_edge(
@@ -264,6 +270,8 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                         Edge::ModeSegment {
                             mode: Mode::Walking,
                             distance: 0.0,
+                            start: location,
+                            stop: location,
                         },
                         &input.state,
                     );
@@ -273,6 +281,8 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                         Edge::ModeSegment {
                             mode: Mode::Walking,
                             distance: 0.0,
+                            start: location,
+                            stop: location,
                         },
                         &input.state,
                     );
@@ -409,12 +419,17 @@ pub fn construct_base_graph<'a, F: state::Fields>(
                 if edge.length_2() <= max_radius_sq {
                     let [a, b] = edge.vertices();
                     for (start, end) in [(a, b), (b, a)] {
+                        let start = start.data();
+                        let end = end.data();
+
                         graph.add_edge(
-                            start.data().index(),
-                            end.data().index(),
+                            start.index(),
+                            end.index(),
                             Edge::ModeSegment {
                                 mode: *mode,
                                 distance: edge.length_2().sqrt() * tile_size,
+                                start: start.coords(),
+                                stop: start.coords(),
                             },
                             &input.state,
                         );

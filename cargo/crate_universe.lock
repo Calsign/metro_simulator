@@ -1,5 +1,5 @@
 {
-  "checksum": "0c15380489459cf4ef32947d0f4a807c9bc8692dfe4ff8d81daa9c15146eca1d",
+  "checksum": "c4bc2bffdc8ba368a15869fa8f060fcf2944d1cbeaedc8caec87fc6853e18bb8",
   "crates": {
     "ab_glyph 0.2.15": {
       "name": "ab_glyph",
@@ -4663,6 +4663,10 @@
             {
               "id": "lazy_static 1.4.0",
               "target": "lazy_static"
+            },
+            {
+              "id": "line_drawing 1.0.0",
+              "target": "line_drawing"
             },
             {
               "id": "log 0.4.17",
@@ -11147,6 +11151,48 @@
         ]
       },
       "license": "MIT OR Apache-2.0"
+    },
+    "line_drawing 1.0.0": {
+      "name": "line_drawing",
+      "version": "1.0.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/line_drawing/1.0.0/download",
+          "sha256": "3d1478a313008a3e6c8149995e90a99ee9094034b5c5c3da1eeb81183cb61d1d"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "line_drawing",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "line_drawing",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "num-traits 0.2.15",
+              "target": "num_traits"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2015",
+        "version": "1.0.0"
+      },
+      "license": "MIT"
     },
     "lock_api 0.4.7": {
       "name": "lock_api",

@@ -54,6 +54,12 @@ fn construct_route(
         once(Edge::ModeSegment {
             mode: start_mode,
             distance: start_dist,
+            start: start.to_xy_f64(),
+            stop: base_graph
+                .get_node_map()
+                .get(path.first().unwrap())
+                .unwrap()
+                .location(),
         })
         .chain(path.iter().tuple_windows().map(|(a, b)| {
             base_graph
@@ -64,6 +70,12 @@ fn construct_route(
         .chain(once(Edge::ModeSegment {
             mode: end_mode,
             distance: end_dist,
+            start: base_graph
+                .get_node_map()
+                .get(path.last().unwrap())
+                .unwrap()
+                .location(),
+            stop: end.to_xy_f64(),
         }))
         .collect(),
         cost as f32,

@@ -70,15 +70,14 @@ impl IsochroneMap {
     }
 }
 
-pub fn calculate_isochrone_map<F: state::Fields>(
+pub fn calculate_isochrone_map(
     isochrone: Isochrone,
-    qtree: &quadtree::Quadtree<state::BranchState<F>, state::LeafState<F>>,
     config: &state::Config,
     block_size: f32,
 ) -> Result<IsochroneMap, Error> {
     // round to power of two
-    let downsample = 2_u64.pow((block_size / config.min_tile_size as f32).log2().floor() as u32);
-    let dim = (qtree.width() / downsample) as u32;
+    let downsample = config.even_downsample(block_size) as u64;
+    let dim = config.tile_width() / downsample as u32;
 
     // we need to scale up so that each pixel corresponds to one second
     let meters_per_pixel = config.min_tile_size as u64 * downsample;

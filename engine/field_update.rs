@@ -251,7 +251,7 @@ where
     S: Fn(&mut FieldsState, u8, &VisitData),
 {
     // round to power of two
-    let downsample = 2_u64.pow((block_size / config.min_tile_size as f32).log2().floor() as u32);
+    let downsample = config.even_downsample(block_size) as u64;
     let sigma = radius / config.min_tile_size as f32 / downsample as f32;
     // from here on out, don't use radius and block_size, just use downsample and sigma
 
@@ -330,7 +330,7 @@ where
             let scaled_value = value / (self.downsample - data.width + 1).pow(2) as u8;
             let index =
                 coords_to_index(data.x / self.downsample, data.y / self.downsample, self.dim);
-            self.buffer[index] += value;
+            self.buffer[index] += scaled_value;
         }
     }
 }

@@ -7,7 +7,7 @@ pub const DEFAULT_SPEED: u32 = 27; // ~60 mph
 pub const DEFAULT_LANES: u32 = 2;
 
 /// the number of cars that can pass through a 1m stretch at 1m/s before congestion passes the
-/// critical threshold where a significant slowdowns begins to occur
+/// critical threshold where a significant slowdown begins to occur
 // TODO: figure out what the correct value should be
 pub const K_CRITICAL_CAPACITY: f64 = 0.04;
 
@@ -45,40 +45,29 @@ impl HighwaySegment {
      * NOTE: This is a really primitive modeling of traffic flow. It is sufficient for now,
      * but could be worth investigating more sophisticated techniques in the future.
      */
-    pub fn critical_capacity(&self, tile_size: u32, people_per_sim: u32) -> u32 {
+    pub fn critical_capacity(&self, tile_size: u32, people_per_sim: u32) -> f64 {
         let length = self.length() * tile_size as f64; // meters
         let speed = self.data.speed_limit.unwrap_or(DEFAULT_SPEED) as f64; // meters per second
         let lanes = self.data.lanes.unwrap_or(DEFAULT_LANES) as f64;
         let car_factor = people_per_sim as f64;
-        (length * speed * lanes / car_factor * K_CRITICAL_CAPACITY).ceil() as u32
+        (length * speed * lanes / car_factor * K_CRITICAL_CAPACITY).ceil()
     }
 
     pub fn congested_travel_factor(
         &self,
         tile_size: u32,
         people_per_sim: u32,
-        travelers: u32,
+        travelers: f64,
     ) -> f64 {
-        let travelers_f64 = travelers as f64;
         let critical_capacity = self.critical_capacity(tile_size, people_per_sim);
-        let critical_capacity_f64 = critical_capacity as f64;
-
-        if travelers <= critical_capacity {
-            // we get linearly slower
-            1.0 + travelers_f64 / critical_capacity_f64 * (K_LINEAR_FACTOR - 1.0)
-        } else {
-            // we get exponentially slower
-            K_LINEAR_FACTOR
-                + 2.0_f64.powf((travelers_f64 - critical_capacity_f64) / critical_capacity_f64)
-                    * K_EXPONENTIAL_FACTOR
-        }
+        congested_travel_factor(critical_capacity, travelers)
     }
 
     pub fn congested_travel_time(
         &self,
         tile_size: u32,
         people_per_sim: u32,
-        travelers: u32,
+        travelers: f64,
     ) -> f64 {
         let base_travel_time = self.travel_time(tile_size as f64);
         let factor = self.congested_travel_factor(tile_size, people_per_sim, travelers);
@@ -86,8 +75,24 @@ impl HighwaySegment {
         (base_travel_time * factor).min(MAX_CONGESTED_TIME)
     }
 
-    pub fn is_jammed(&self, tile_size: u32, people_per_sim: u32, travelers: u32) -> bool {
+    pub fn is_jammed(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> bool {
         let critical_capacity = self.critical_capacity(tile_size, people_per_sim);
-        travelers as f64 > critical_capacity as f64 * K_JAM_FACTOR
+        is_jammed(critical_capacity, travelers)
     }
+}
+
+pub fn congested_travel_factor(critical_capacity: f64, travelers: f64) -> f64 {
+    if travelers <= critical_capacity {
+        // we get linearly slower
+        1.0 + travelers / critical_capacity * (K_LINEAR_FACTOR - 1.0)
+    } else {
+        // we get exponentially slower
+        K_LINEAR_FACTOR
+            + 2.0_f64.powf((travelers - critical_capacity) / critical_capacity)
+                * K_EXPONENTIAL_FACTOR
+    }
+}
+
+pub fn is_jammed(critical_capacity: f64, travelers: f64) -> bool {
+    travelers > critical_capacity * K_JAM_FACTOR
 }
