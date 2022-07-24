@@ -6,6 +6,7 @@ rust_library(
         "agent.rs",
         "agent_data.rs",
         "agent_route_state.rs",
+        "common.rs",
         "lib.rs",
     ],
     visibility = ["//visibility:public"],
@@ -15,7 +16,9 @@ rust_library(
         "//engine/state",
         "@crates//:chrono",
         "@crates//:enum-iterator",
+        "@crates//:lazy_static",
         "@crates//:serde",
+        "@crates//:thiserror",
         "@crates//:uom",
     ],
 )

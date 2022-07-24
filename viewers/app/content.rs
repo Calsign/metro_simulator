@@ -316,6 +316,19 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
                     travelers,
                 );
                 Some(traffic_hue(traffic_factor))
+            } else if self.app.overlay.parking {
+                // TODO: consolidate this with fields
+                use route::WorldState;
+                let parked_cars = self
+                    .app
+                    .engine
+                    .world_state
+                    .get_parking(data.x as f64, data.y as f64);
+                Some(crate::field_overlay::calc_hue(
+                    parked_cars as f32,
+                    0.0,
+                    40.0,
+                ))
             } else if let Some(field) = self.app.overlay.field {
                 Some(field.hue(&self.app.engine, fields, data))
             } else {

@@ -42,6 +42,7 @@ pub enum Edge {
     ModeTransition {
         from: Mode,
         to: Mode,
+        address: quadtree::Address,
     },
 }
 
@@ -324,7 +325,10 @@ impl std::fmt::Display for Edge {
                     distance / mode.linear_speed(),
                 )
             }
-            ModeTransition { from, to } => write!(f, "{}->{}", from, to),
+            ModeTransition { from, to, address } => {
+                let (x, y) = address.to_xy_f64();
+                write!(f, "{}->{}:({:.1}, {:.1})", from, to, x, y)
+            }
         }
     }
 }

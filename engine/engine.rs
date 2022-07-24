@@ -28,6 +28,8 @@ pub enum Error {
     RouteError(#[from] route::Error),
     #[error("Quadtree error: {0}")]
     QuadtreeError(#[from] quadtree::Error),
+    #[error("Agent error: {0}")]
+    AgentError(#[from] agent::Error),
 }
 
 #[derive(Debug)]
@@ -133,10 +135,17 @@ pub struct Engine {
     pub(crate) thread_pool: threadpool::ThreadPool,
     #[serde(skip)]
     pub(crate) blurred_fields: crate::field_update::BlurredFields,
+    /// NOTE: This is the main RNG. For determinism, all randomness in the simulation must be
+    /// derived from this RNG. Note that this implies that all random values must be obtained on the
+    /// main simulation thread, since a mutable reference to rng is needed and it is not behind a
+    /// mutex; this in turn gurantees that no non-determinism can be introduced by variable
+    /// interleaving of threads.
+    pub rng: rand_chacha::ChaCha12Rng,
 }
 
 impl Engine {
     pub fn new(config: state::Config) -> Self {
+        use rand::SeedableRng;
         Self {
             world_state: route::WorldStateImpl::new(&config),
             world_state_history: route::WorldStateHistory::new(
@@ -151,6 +160,8 @@ impl Engine {
             trigger_queue: TriggerQueue::new(),
             thread_pool: Self::create_thread_pool(),
             blurred_fields: Default::default(),
+            // initialize once randomly
+            rng: rand_chacha::ChaCha12Rng::from_rng(rand::thread_rng()).unwrap(),
         }
     }
 
@@ -228,6 +239,9 @@ impl Engine {
             }
         }
 
+        // initialize parking data
+        self.world_state.increment_parking(housing).unwrap();
+
         self.agents
             .insert(id, agent::Agent::new(id, data, housing, workplace));
 
@@ -236,16 +250,20 @@ impl Engine {
 
     /**
      * When a tile moves, there are some relations, such as agents, that need to be updated
-     * accordingly. Call this to patch the tile at a given address.
+     * accordingly. Call this to patch the tile that moved from one address to another.
      */
-    pub fn patch_tile(&mut self, address: quadtree::Address) -> Result<(), Error> {
-        match &mut self.state.qtree.get_leaf_mut(address)?.tile {
+    pub fn patch_tile(
+        &mut self,
+        from: quadtree::Address,
+        to: quadtree::Address,
+    ) -> Result<(), Error> {
+        match &mut self.state.qtree.get_leaf_mut(to)?.tile {
             tiles::Tile::HousingTile(tiles::HousingTile { agents, .. }) => {
                 for agent_id in agents {
                     self.agents
                         .get_mut(&agent_id)
                         .expect("missing agent")
-                        .housing = address;
+                        .housing = to;
                 }
             }
             tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { agents, .. }) => {
@@ -253,10 +271,22 @@ impl Engine {
                     self.agents
                         .get_mut(&agent_id)
                         .expect("missing agent")
-                        .workplace = Some(address);
+                        .workplace = Some(to);
                 }
             }
             _ => (),
+        }
+
+        // TODO: it would be better to not have to iterate through all of the agents each time
+        for agent in self.agents.values_mut() {
+            let parked_car = agent.parked_car_mut();
+            if *parked_car == Some(from) {
+                *parked_car = Some(to);
+            }
+            if let agent::AgentState::Route(agent::AgentRouteState { route, .. }) = &mut agent.state
+            {
+                route.patch_tile(from, to)?;
+            }
         }
 
         Ok(())
@@ -271,11 +301,15 @@ impl Engine {
         address: quadtree::Address,
         tile: tiles::Tile,
     ) -> Result<(Option<quadtree::Address>, Option<quadtree::Address>), Error> {
-        let new_addresses =
-            self.state
-                .insert_tile(address, tile, self.time_state.current_time as i64)?;
+        let new_addresses = self.state.insert_tile(
+            address,
+            tile,
+            self.time_state.current_time as i64,
+            &mut self.rng,
+        )?;
         if let (Some(existing_tile), _) = new_addresses {
-            self.patch_tile(existing_tile)?;
+            self.patch_tile(address, existing_tile)?;
+            self.world_state.move_parked_cars(address, existing_tile)?;
         }
         Ok(new_addresses)
     }
@@ -396,7 +430,7 @@ impl Engine {
         }
     }
 
-    pub fn update(&mut self, elapsed: f64, time_budget: f64) {
+    pub fn update(&mut self, elapsed: f64, time_budget: f64) -> Result<(), Error> {
         // try to jump forward an amount dictated by the playback rate
         let rate_step = (self.time_state.playback_rate as f64 * elapsed) as u64;
         // if we have recently skipped forward, try to catch up to the skip target time
@@ -413,8 +447,10 @@ impl Engine {
         };
 
         if time_step > 0 {
-            self.advance_trigger_queue(time_step, time_budget);
+            self.advance_trigger_queue(time_step, time_budget)?;
         }
+
+        Ok(())
     }
 }
 
@@ -440,7 +476,7 @@ mod trigger_tests {
         engine.time_state.paused = false;
 
         for i in 1..=6 {
-            engine.update(1.0, f64::INFINITY);
+            engine.update(1.0, f64::INFINITY).unwrap();
             // make sure it added itself back to the queue twice
             assert_eq!(engine.trigger_queue.len(), 2_usize.pow(i));
         }

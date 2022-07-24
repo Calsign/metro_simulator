@@ -17,7 +17,7 @@ fn main() {
     engine.init_trigger_queue();
     let start_time = Instant::now();
     engine.time_state.skip_by(Time::new::<day>(args.days).value);
-    engine.update(0.0, f64::INFINITY);
+    engine.update(0.0, f64::INFINITY).unwrap();
     println!(
         "Total time for {} days: {:.4}",
         args.days,

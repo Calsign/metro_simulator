@@ -82,6 +82,13 @@ impl HighwaySegment {
 }
 
 pub fn congested_travel_factor(critical_capacity: f64, travelers: f64) -> f64 {
+    assert!(critical_capacity.is_normal(), "{}", critical_capacity);
+    assert!(
+        !travelers.is_nan() && travelers.is_finite(),
+        "{}",
+        travelers
+    );
+
     if travelers <= critical_capacity {
         // we get linearly slower
         1.0 + travelers / critical_capacity * (K_LINEAR_FACTOR - 1.0)

@@ -160,11 +160,12 @@ impl<F: Fields> State<F> {
      *
      * This function should not be used directly, instead use Engine::insert_tile.
      */
-    pub fn insert_tile(
+    pub fn insert_tile<R: rand::Rng>(
         &mut self,
         address: quadtree::Address,
         tile: tiles::Tile,
         current_time: i64,
+        rng: &mut R,
     ) -> Result<(Option<quadtree::Address>, Option<quadtree::Address>), Error> {
         use itertools::Itertools;
         use rand::seq::SliceRandom;
@@ -183,11 +184,9 @@ impl<F: Fields> State<F> {
             // TODO: we should be able to place the new tile into an adjacent empty tile instead of
             // splitting every time
 
-            let mut rng = rand::thread_rng();
-
             // choose_multiple is without replacement, which is important
             let (current_quadrant, new_quadrant) = quadtree::QUADRANTS
-                .choose_multiple(&mut rng, 2)
+                .choose_multiple(rng, 2)
                 .collect_tuple()
                 .unwrap();
 

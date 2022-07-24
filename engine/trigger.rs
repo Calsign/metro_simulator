@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 // NOTE: Trigger, and all implementations, are defined in behavior.rs
 use crate::behavior::{Trigger, TriggerType};
+use crate::engine::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct TriggerEntry {
@@ -84,7 +85,7 @@ impl crate::engine::Engine {
     /**
      * Advance time forward to the current time, executing triggers in order until the given time.
      */
-    pub fn advance_trigger_queue(&mut self, time_step: u64, time_budget: f64) {
+    pub fn advance_trigger_queue(&mut self, time_step: u64, time_budget: f64) -> Result<(), Error> {
         let target_time = self.time_state.current_time + time_step;
         let budget_start = std::time::Instant::now();
 
@@ -100,11 +101,24 @@ impl crate::engine::Engine {
                 self.time_state.current_time = target_time;
                 break;
             }
-            let entry = self.trigger_queue.heap.pop().unwrap();
-            assert!(entry.time >= self.trigger_queue.current_time);
-            self.trigger_queue.current_time = entry.time;
-            self.time_state.current_time = entry.time;
-            entry.trigger.execute(self, self.trigger_queue.current_time);
+            self.single_step()?;
         }
+
+        Ok(())
+    }
+
+    pub fn single_step(&mut self) -> Result<(), Error> {
+        let entry = self.trigger_queue.heap.pop().unwrap();
+        assert!(entry.time >= self.trigger_queue.current_time);
+        self.trigger_queue.current_time = entry.time;
+        self.time_state.current_time = entry.time;
+        entry
+            .trigger
+            .execute(self, self.trigger_queue.current_time)?;
+        Ok(())
+    }
+
+    pub fn peek_trigger(&self) -> Option<&Trigger> {
+        self.trigger_queue.heap.peek().map(|entry| &entry.trigger)
     }
 }

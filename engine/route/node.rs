@@ -87,8 +87,14 @@ impl std::fmt::Display for Node {
             HighwayRamp {
                 position: (x, y), ..
             } => write!(f, "ramp:({:.1}, {:.1})", x, y),
-            Parking { .. } => write!(f, "parking"),
-            Endpoint { .. } => write!(f, "endpoint"),
+            Parking { address } => {
+                let (x, y) = address.to_xy_f64();
+                write!(f, "parking:({:.1}, {:.1})", x, y)
+            }
+            Endpoint { address } => {
+                let (x, y) = address.to_xy_f64();
+                write!(f, "endpoint:({:.1}, {:.1})", x, y)
+            }
         }
     }
 }

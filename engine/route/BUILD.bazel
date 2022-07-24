@@ -35,6 +35,7 @@ rust_library(
         "@crates//:line_drawing",
         "@crates//:once_cell",
         "@crates//:serde",
+        "@crates//:serde_with",
         "@crates//:spade",
         "@crates//:splines",
         "@crates//:thiserror",

@@ -9,7 +9,7 @@ pub use spline_util::SplineVisitor;
 use highway::{HighwaySegment, Highways};
 use metro::MetroLine;
 
-use crate::common::{CarConfig, Mode, QueryInput};
+use crate::common::{CarConfig, Error, Mode, QueryInput};
 use crate::edge::Edge;
 use crate::node::Node;
 use crate::route_key::RouteKey;
@@ -69,14 +69,21 @@ impl Route {
         }
     }
 
+    fn verify_node_edge_count(&self) {
+        assert!(
+            self.nodes.len() == self.edges.len() + 1,
+            "nodes: {}, edges: {}",
+            self.nodes.len(),
+            self.edges.len()
+        );
+    }
+
     /**
      * Iterate over ((start_node, end_node), edge) tuples.
      */
-    pub fn iter(
-        &self,
-    ) -> Zip<itertools::TupleWindows<Iter<'_, Node>, (&Node, &Node)>, Iter<'_, Edge>> {
+    pub fn iter(&self) -> impl Iterator<Item = ((&Node, &Node), &Edge)> {
         use itertools::Itertools;
-        assert!(self.nodes.len() == self.edges.len() + 1);
+        self.verify_node_edge_count();
         return self.nodes.iter().tuple_windows().zip(self.edges.iter());
     }
 
@@ -289,5 +296,86 @@ impl Route {
 
     pub fn end(&self) -> quadtree::Address {
         self.query_input.end
+    }
+
+    pub fn join(mut first: Self, mut second: Self) -> Self {
+        assert_eq!(first.end(), second.start());
+
+        // NOTE: We will end up with some extra endpoint nodes in the middle of the route. This
+        // should be fine? We don't currently interpret endpoint nodes as anything special.
+
+        // join together with an edge based on the mode
+        if first.end_mode == second.end_mode {
+            first.edges.push(Edge::ModeSegment {
+                mode: first.end_mode,
+                distance: 0.0,
+                start: first.end().to_xy_f64(),
+                stop: second.start().to_xy_f64(),
+            });
+        } else {
+            first.edges.push(Edge::ModeTransition {
+                from: first.end_mode,
+                to: second.start_mode,
+                address: first.end(),
+            });
+        }
+
+        first.nodes.append(&mut second.nodes);
+        first.edges.append(&mut second.edges);
+
+        Self {
+            nodes: first.nodes,
+            edges: first.edges,
+            query_input: QueryInput {
+                start: first.query_input.start,
+                end: second.query_input.end,
+                car_config: first.query_input.car_config,
+            },
+            cost: first.cost + second.cost,
+            bounds: first.bounds.and(&second.bounds),
+            start_mode: first.start_mode,
+            end_mode: second.end_mode,
+            time_spline: OnceCell::new(),
+            dist_spline: OnceCell::new(),
+        }
+    }
+
+    pub fn patch_tile(
+        &mut self,
+        from: quadtree::Address,
+        to: quadtree::Address,
+    ) -> Result<(), Error> {
+        // TODO: It could make sense to store which nodes and edges need to be patched when the
+        // route is constructed. But on average, each route will be patched much less than once, so
+        // it doesn't make sense to make that optimization yet.
+
+        for node in self.nodes.iter_mut() {
+            match node {
+                Node::Endpoint { address } | Node::Parking { address } if *address == from => {
+                    *address = to
+                }
+                _ => (),
+            }
+        }
+        for edge in self.edges.iter_mut() {
+            match edge {
+                Edge::ModeTransition { address, .. } if *address == from => *address = to,
+                Edge::MetroEmbark { station, .. } | Edge::MetroDisembark { station, .. }
+                    if station.address == from =>
+                {
+                    station.address = to
+                }
+                _ => (),
+            }
+        }
+
+        if self.query_input.start == from {
+            self.query_input.start = to;
+        }
+        if self.query_input.end == from {
+            self.query_input.end = to;
+        }
+
+        Ok(())
     }
 }

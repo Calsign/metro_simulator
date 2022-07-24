@@ -49,7 +49,7 @@ impl App {
 
     pub fn update(&mut self, elapsed: f64) {
         // target 60 fps
-        self.engine.update(elapsed, 1.0 / 60.0);
+        self.engine.update(elapsed, 1.0 / 60.0).unwrap();
     }
 
     pub fn draw(&mut self, ctx: &egui::Context) {
@@ -80,11 +80,7 @@ impl App {
     fn draw_time_state(&mut self, ui: &mut egui::Ui) {
         let time = &mut self.engine.time_state;
         ui.label(format!("Current time: {}", time.current_time));
-        ui.label(
-            time.current_date_time()
-                .format("%a, %b %d, %Y %l:%M %P")
-                .to_string(),
-        );
+        ui.label(time.pretty_current_date_time());
         ui.label("Playback rate:");
         ui.add(egui::Slider::new(&mut time.playback_rate, 60..=86400));
         if ui
@@ -326,7 +322,7 @@ impl App {
             }
         };
 
-        let local_road_zone_in_bounds = |(x, y)| {
+        let local_zone_in_bounds = |(x, y)| {
             // TODO: it would be better to include the bottom-right corner as well
             if self.congestion_analysis.filter_visible {
                 bounding_box.contains(x, y)
@@ -367,7 +363,13 @@ impl App {
                         CongestionType::LocalRoads => {
                             let data = snapshot
                                 .iter_local_road_zones()
-                                .filter(|k, v| local_road_zone_in_bounds(k));
+                                .filter(|k, v| local_zone_in_bounds(k));
+                            self.congestion_analysis.historical_quantity.get(data)
+                        }
+                        CongestionType::Parking => {
+                            let data = snapshot
+                                .iter_parking_zones()
+                                .filter(|k, v| local_zone_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
                     };
@@ -395,7 +397,15 @@ impl App {
                                     .engine
                                     .world_state
                                     .iter_local_road_zones()
-                                    .filter(|k, v| local_road_zone_in_bounds(k));
+                                    .filter(|k, v| local_zone_in_bounds(k));
+                                self.congestion_analysis.historical_quantity.get(data)
+                            }
+                            CongestionType::Parking => {
+                                let data = self
+                                    .engine
+                                    .world_state
+                                    .iter_parking_zones()
+                                    .filter(|k, v| local_zone_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
                         };
@@ -429,7 +439,15 @@ impl App {
                     .engine
                     .world_state
                     .iter_local_road_zones()
-                    .filter(|k, v| v > 0.0 && local_road_zone_in_bounds(k));
+                    .filter(|k, v| v > 0.0 && local_zone_in_bounds(k));
+                data.histogram(48, 200.0)
+            }
+            CongestionType::Parking => {
+                let data = self
+                    .engine
+                    .world_state
+                    .iter_parking_zones()
+                    .filter(|k, v| v > 0.0 && local_zone_in_bounds(k));
                 data.histogram(48, 200.0)
             }
         };
@@ -599,6 +617,7 @@ impl App {
 pub(crate) struct Overlay {
     pub field: Option<crate::field_overlay::FieldType>,
     pub traffic: bool,
+    pub parking: bool,
 }
 
 impl Overlay {
@@ -606,6 +625,7 @@ impl Overlay {
         Self {
             field: None,
             traffic: false,
+            parking: false,
         }
     }
 
@@ -617,6 +637,7 @@ impl Overlay {
             ui.radio_value(&mut self.field, Some(field_type), field_type.label());
         }
         ui.checkbox(&mut self.traffic, "Traffic");
+        ui.checkbox(&mut self.parking, "Parking");
     }
 }
 
@@ -800,6 +821,7 @@ pub(crate) enum CongestionType {
     HighwaySegments,
     MetroSegments,
     LocalRoads,
+    Parking,
 }
 
 impl CongestionType {
@@ -808,6 +830,7 @@ impl CongestionType {
             Self::HighwaySegments => "Highways",
             Self::MetroSegments => "Metros",
             Self::LocalRoads => "Local roads",
+            Self::Parking => "Parking",
         }
     }
 }

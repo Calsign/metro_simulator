@@ -35,4 +35,13 @@ impl Rect {
             && self.max_y > other.min_y
             && self.min_y < other.max_y
     }
+
+    pub fn and(&self, other: &Self) -> Self {
+        Self {
+            min_x: self.min_x.min(other.min_x),
+            max_x: self.max_x.max(other.max_x),
+            min_y: self.min_y.min(other.min_y),
+            max_y: self.max_y.max(other.max_y),
+        }
+    }
 }

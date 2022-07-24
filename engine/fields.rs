@@ -144,6 +144,7 @@ pub struct Population {
     pub employed_people: usize,
     pub workplace_happiness: WeightedAverage,
     pub commute_duration: WeightedAverage,
+    pub car_ownership: WeightedAverage,
 }
 
 impl Population {
@@ -185,6 +186,7 @@ impl Field for Population {
         let mut employed_people = 0;
         let mut workplace_happiness = WeightedAverage::zero();
         let mut commute_duration = WeightedAverage::zero();
+        let mut car_ownership = WeightedAverage::zero();
 
         if let tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) = leaf.tile {
             people = agents.len();
@@ -197,6 +199,7 @@ impl Field for Population {
                         .add_sample(agent.workplace_happiness_score().unwrap() as f64);
                     commute_duration.add_sample(agent.average_commute_length() as f64);
                 }
+                car_ownership.add_sample(agent.owns_car() as u64 as f64);
             }
         }
 
@@ -206,6 +209,7 @@ impl Field for Population {
             employed_people,
             workplace_happiness,
             commute_duration,
+            car_ownership,
         })
     }
 

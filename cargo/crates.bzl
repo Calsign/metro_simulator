@@ -27,6 +27,7 @@ CRATES = {
         version = "1.0",
         features = ["derive"],
     ),
+    "serde_with": "1.14.0",
     "serde_json": "1.0",
     "toml": "0.5",
 
@@ -51,6 +52,10 @@ CRATES = {
     "image": "0.24.2",
     "imageproc": "0.23.0",
     "rand": "0.8.5",
+    "rand_chacha": dict(
+        version = "0.3.1",
+        features = ["serde1"],
+    ),
     "rand_distr": "0.4.3",
     "uom": dict(
         version = "0.32.0",

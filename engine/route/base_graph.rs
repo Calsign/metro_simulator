@@ -191,8 +191,7 @@ pub fn construct_base_graph<'a, F: state::Fields>(
      -> Result<(NodeIndex, NodeIndex), Error> {
         let walking_node = graph.add_node(Node::Parking { address });
         let driving_node = graph.add_node(Node::Parking { address });
-        let (x, y) = address.to_xy();
-        let (x, y) = (x as f64, y as f64);
+        let (x, y) = address.to_xy_f64();
 
         // NOTE: Important that we don't add the driving node to the terminal nodes.
         // This would be invalid since it intentionally has no outgoing edges.
@@ -215,6 +214,7 @@ pub fn construct_base_graph<'a, F: state::Fields>(
             Edge::ModeTransition {
                 from: Mode::Driving,
                 to: Mode::Walking,
+                address,
             },
             &input.state,
         );

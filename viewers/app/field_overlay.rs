@@ -18,6 +18,7 @@ pub(crate) enum FieldType {
     EmploymentRate,
     WorkplaceHappinessHome,
     CommuteDurationHome,
+    CarOwnership,
 
     // employment-related
     Employment,
@@ -50,6 +51,7 @@ impl FieldType {
             Self::EmploymentRate => "Employment rate",
             Self::WorkplaceHappinessHome => "Workplace happiness (home)",
             Self::CommuteDurationHome => "Commute duration (home)",
+            Self::CarOwnership => "Car ownership",
 
             Self::Employment => "Employment",
             Self::TotalJobs => "Total jobs",
@@ -88,6 +90,7 @@ impl FieldType {
             Self::EmploymentRate => 1.0,
             Self::WorkplaceHappinessHome => 1.0,
             Self::CommuteDurationHome => *COMMUTE_DURATION_MAX_SCALE,
+            Self::CarOwnership => 1.0,
 
             Self::Employment => 0.3,
             Self::TotalJobs => 0.3,
@@ -115,6 +118,7 @@ impl FieldType {
             Self::EmploymentRate => fields.population.employment_rate() as f32,
             Self::WorkplaceHappinessHome => fields.population.workplace_happiness.value as f32,
             Self::CommuteDurationHome => fields.population.commute_duration.value as f32,
+            Self::CarOwnership => fields.population.car_ownership.value as f32,
 
             Self::Employment => fields.employment.workers.density() as f32,
             Self::TotalJobs => fields.employment.jobs.density() as f32,

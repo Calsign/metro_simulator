@@ -6,6 +6,7 @@ rust_library(
     data = ["//maps:sf"],
     deps = [
         "//engine",
+        "//engine/quadtree",
         "//engine/route",
         "@crates//:lazy_static",
     ],

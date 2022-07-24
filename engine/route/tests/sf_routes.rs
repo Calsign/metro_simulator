@@ -183,6 +183,16 @@ lazy_static! {
             ],
             Some(CarConfig::StartWithCar),
         ),
+        RouteTest::new(
+            "UC berkeley -> fairfield (collect parked car)",
+            *UC_BERKELEY,
+            *FAIRFIELD,
+            vec![
+                HasHighwaySegmentName(StringPredicate::Any),
+                HasMetroStop(StringPredicate::Any),
+            ],
+            Some(CarConfig::CollectParkedCar { address: quadtree::Address::from_xy(2273, 1631, 12) }),
+        ),
         // this test addresses a past issue where car routes starting near metro stations didn't work
         RouteTest::new(
             "stanford -> fairfield (regression)",

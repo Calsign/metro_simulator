@@ -178,9 +178,14 @@ impl std::fmt::Debug for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // don't show the garbage data
         f.debug_struct("Address")
-            .field("data", &self.data[0..(self.depth as usize)].iter())
+            .field(
+                "data",
+                // makes it easier to read with pretty-printed :#? output
+                &format!("{:?}", &self.data[0..(self.depth as usize)].iter()),
+            )
             .field("max_depth", &self.max_depth)
-            .finish()
+            .field("position", &format!("{:?}", self.to_xy()))
+            .finish_non_exhaustive()
     }
 }
 

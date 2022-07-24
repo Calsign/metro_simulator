@@ -37,6 +37,12 @@ impl TimeState {
         )
     }
 
+    pub fn pretty_current_date_time(&self) -> String {
+        self.current_date_time()
+            .format("%a, %b %d, %Y %l:%M %P")
+            .to_string()
+    }
+
     pub fn current_date(&self) -> chrono::NaiveDate {
         self.current_date_time().date()
     }

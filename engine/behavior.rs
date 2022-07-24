@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use uom::si::time::{day, hour, minute, second};
 use uom::si::u64::Time;
@@ -6,7 +8,12 @@ use crate::engine::{Engine, Error};
 
 #[enum_dispatch::enum_dispatch]
 pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
-    fn execute(self, state: &mut Engine, time: u64);
+    /// Execute the trigger. May schedule additional triggers, including the same trigger for a
+    /// future re-execution.
+    fn execute(self, state: &mut Engine, time: u64) -> Result<(), Error>;
+
+    /// Optionally return a string with extra context for debugging purposes.
+    fn debug_context(&self, state: &Engine) -> Option<String>;
 }
 
 // NOTE: all implementations of TriggerType must be listed here
@@ -34,14 +41,20 @@ pub enum Trigger {
 pub struct UpdateFields {}
 
 impl TriggerType for UpdateFields {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         // TODO: only re-run these when the underlying data updates
-        engine.update_fields().unwrap();
+        engine.update_fields()?;
 
         // re-trigger every day of simulated time
         engine
             .trigger_queue
             .push_rel(self, Time::new::<day>(1).value);
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        None
     }
 }
 
@@ -49,13 +62,19 @@ impl TriggerType for UpdateFields {
 pub struct UpdateCollectTiles {}
 
 impl TriggerType for UpdateCollectTiles {
-    fn execute(self, engine: &mut Engine, time: u64) {
-        engine.state.update_collect_tiles().unwrap();
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+        engine.state.update_collect_tiles()?;
 
         // re-trigger every hour of simulated time
         engine
             .trigger_queue
             .push_rel(self, Time::new::<hour>(1).value);
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        None
     }
 }
 
@@ -63,7 +82,7 @@ impl TriggerType for UpdateCollectTiles {
 pub struct UpdateTraffic {}
 
 impl TriggerType for UpdateTraffic {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         // try to predict traffic 30 minutes in the future
         engine.update_route_weights(Time::new::<minute>(30).value);
 
@@ -71,6 +90,12 @@ impl TriggerType for UpdateTraffic {
         engine
             .trigger_queue
             .push_rel(self, engine.world_state_history.snapshot_period());
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        None
     }
 }
 
@@ -80,16 +105,29 @@ pub struct AgentPlanCommuteToWork {
 }
 
 impl TriggerType for AgentPlanCommuteToWork {
-    fn execute(self, engine: &mut Engine, time: u64) {
-        let agent = engine.agents.get(&self.agent).expect("missing agent");
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+        let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         let id = agent.id;
+
+        if let agent::AgentState::Route(_) = agent.state {
+            agent.log_timestamp(|| "aborting route", engine.time_state.current_time);
+
+            // the agent hasn't finished their previous route yet.
+            agent.abort_route(&mut engine.world_state, &engine.state)?;
+        }
+
         if let Some(workplace) = &agent.workplace {
             // morning commute to work
+
+            agent.log_timestamp(
+                || "planning commute to work",
+                engine.time_state.current_time,
+            );
 
             let query_input = route::QueryInput {
                 start: agent.housing,
                 end: *workplace,
-                car_config: Some(route::CarConfig::StartWithCar),
+                car_config: agent.parked_car().map(|_| route::CarConfig::StartWithCar),
             };
 
             let start_time = engine.time_state.current_time + AgentRouteStart::DEADLINE;
@@ -119,6 +157,12 @@ impl TriggerType for AgentPlanCommuteToWork {
         engine
             .trigger_queue
             .push_rel(self, Time::new::<day>(1).value);
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        Some(format!("{:#?}", state.agents.get(&self.agent)))
     }
 }
 
@@ -128,17 +172,32 @@ pub struct AgentPlanCommuteHome {
 }
 
 impl TriggerType for AgentPlanCommuteHome {
-    fn execute(self, engine: &mut Engine, time: u64) {
-        let agent = engine.agents.get(&self.agent).expect("missing agent");
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+        let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         let id = agent.id;
+
+        if let agent::AgentState::Route(_) = agent.state {
+            agent.log_timestamp(|| "aborting route", engine.time_state.current_time);
+
+            // the agent hasn't finished their previous route yet.
+            agent.abort_route(&mut engine.world_state, &engine.state)?;
+        }
+
         if let Some(workplace) = &agent.workplace {
             // commute back home from work
+
+            agent.log_timestamp(
+                || "planning commute home from work",
+                engine.time_state.current_time,
+            );
 
             let query_input = route::QueryInput {
                 start: *workplace,
                 end: agent.housing,
-                // TODO: if a car is parked somewhere, account for it
-                car_config: Some(route::CarConfig::StartWithCar),
+                // if a car is parked somewhere, account for it
+                car_config: agent
+                    .parked_car()
+                    .map(|address| route::CarConfig::CollectParkedCar { address }),
             };
 
             let start_time = engine.time_state.current_time + AgentRouteStart::DEADLINE;
@@ -156,6 +215,12 @@ impl TriggerType for AgentPlanCommuteHome {
                 start_time,
             );
         }
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        Some(format!("{:#?}", state.agents.get(&self.agent)))
     }
 }
 
@@ -185,17 +250,27 @@ impl AgentRouteStart {
 }
 
 impl TriggerType for AgentRouteStart {
-    fn execute(self, engine: &mut Engine, time: u64) {
-        let route = match self.receiver {
-            Some(receiver) => {
-                // This blocks if the route has not been computed yet.
-                // We can adjust how likely we are to block by twiddling the deadline.
-                receiver
-                    .receiver
-                    .recv()
-                    .expect("channel disconnected unexpectedly")
-            }
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+        agent::agent_log_timestamp(
+            self.agent,
+            || "starting route",
+            engine.time_state.current_time,
+        );
+
+        // This blocks if the route has not been computed yet.
+        // We can adjust how likely we are to block by twiddling the deadline.
+        let route = match self
+            .receiver
+            .and_then(|receiver| receiver.receiver.recv().ok())
+        {
+            Some(route) => route,
             None => {
+                agent::agent_log_timestamp(
+                    self.agent,
+                    || "missing route receiver; performing blocking query",
+                    engine.time_state.current_time,
+                );
+
                 // We don't have a receiver because the engine state was serialized between when the
                 // route query was queued and now. The best we can do is compute the route here.
                 engine.query_route(self.query_input)
@@ -205,27 +280,45 @@ impl TriggerType for AgentRouteStart {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
 
         if let agent::AgentState::Route(_) = agent.state {
-            // the agent hasn't finished their previous route yet.
-            agent.abort_route(&mut engine.world_state, &engine.state);
+            panic!("route should have been aborted before it was queued");
         }
 
         if let Some(route) = route.unwrap() {
-            let route_state = agent::AgentRouteState::new(
+            agent.log_timestamp(|| "route found; starting", engine.time_state.current_time);
+
+            let next_trigger = agent.begin_route(
                 route,
                 engine.time_state.current_time,
                 self.route_type,
                 &mut engine.world_state,
                 &engine.state,
-            );
-            let next_trigger = route_state.next_trigger();
-            agent.state = agent::AgentState::Route(route_state);
+            )?;
 
             if let Some(next_trigger) = next_trigger {
                 engine
                     .trigger_queue
                     .push(AgentRouteAdvance { agent: self.agent }, next_trigger);
             }
+        } else if let agent::RouteType::CommuteFromWork = self.route_type {
+            agent.log_timestamp(
+                || "no route found; teleporting home",
+                engine.time_state.current_time,
+            );
+
+            // teleport the agent home
+            agent.teleport_home(&mut engine.world_state)?;
+        } else {
+            agent.log_timestamp(
+                || "no route found; staying put",
+                engine.time_state.current_time,
+            );
         }
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        Some(format!("{:#?}", state.agents.get(&self.agent)))
     }
 }
 
@@ -235,18 +328,22 @@ pub struct AgentRouteAdvance {
 }
 
 impl TriggerType for AgentRouteAdvance {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
+
+        agent.log_timestamp(|| "advancing", engine.time_state.current_time);
+
         match &mut agent.state {
             agent::AgentState::Route(route_state) => {
-                route_state.advance(&mut engine.world_state, &engine.state);
+                route_state.advance(&mut engine.world_state, &engine.state)?;
                 match route_state.next_trigger() {
                     Some(next_trigger) => {
                         assert!(next_trigger >= engine.time_state.current_time);
                         engine.trigger_queue.push(self, next_trigger);
                     }
                     None => {
-                        agent.finish_route();
+                        agent.log_timestamp(|| "finishing route", engine.time_state.current_time);
+                        agent.finish_route()?;
                     }
                 }
             }
@@ -254,6 +351,12 @@ impl TriggerType for AgentRouteAdvance {
                 // this route was aborted because it took too long
             }
         }
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        Some(format!("{:#?}", state.agents.get(&self.agent)))
     }
 }
 
@@ -263,8 +366,8 @@ pub struct AgentLifeDecisions {
 }
 
 impl AgentLifeDecisions {
-    fn get_agent<'a>(&self, engine: &'a Engine) -> &'a agent::Agent {
-        engine.agents.get(&self.agent).expect("missing agent")
+    fn get_agent<'a>(&self, agents: &'a HashMap<u64, agent::Agent>) -> &'a agent::Agent {
+        agents.get(&self.agent).expect("missing agent")
     }
 
     fn modify_agent<F>(&self, engine: &mut Engine, f: F)
@@ -276,7 +379,7 @@ impl AgentLifeDecisions {
     }
 
     fn maybe_quit_job(&self, engine: &mut Engine) {
-        let agent = self.get_agent(engine);
+        let agent = self.get_agent(&engine.agents);
 
         if let Some(workplace_happiness_score) = agent.workplace_happiness_score() {
             if workplace_happiness_score < 0.1 {
@@ -298,7 +401,7 @@ impl AgentLifeDecisions {
     }
 
     fn maybe_find_new_job(&self, engine: &mut Engine) {
-        let agent = self.get_agent(engine);
+        let agent = self.get_agent(&engine.agents);
 
         // NOTE: if this is slow, it should be easy to parallelize
         if agent.workplace.is_none() {
@@ -307,7 +410,7 @@ impl AgentLifeDecisions {
             // TODO: be smarter about picking workplace candidates; sampling the map at random will
             // lead to the majority being too far away
             let vacant = &engine.state.collect_tiles.vacant_workplaces[..];
-            let best = vacant.choose_multiple(&mut rand::thread_rng(), 100).filter_map(|address| {
+            let best = vacant.choose_multiple(&mut engine.rng, 100).filter_map(|address| {
                 // the CollectTilesVisitor could be out-of-date; make sure the information is still
                 // valid
                 match engine.state.qtree.get_leaf(*address) {
@@ -372,7 +475,7 @@ impl AgentLifeDecisions {
 }
 
 impl TriggerType for AgentLifeDecisions {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         self.maybe_quit_job(engine);
         self.maybe_find_new_job(engine);
 
@@ -380,6 +483,12 @@ impl TriggerType for AgentLifeDecisions {
         engine
             .trigger_queue
             .push_rel(self, Time::new::<day>(2).value);
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        Some(format!("{:#?}", state.agents.get(&self.agent)))
     }
 }
 
@@ -387,17 +496,16 @@ impl TriggerType for AgentLifeDecisions {
 pub struct WorkplaceDecisions {}
 
 impl TriggerType for WorkplaceDecisions {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         let root_branch = engine.state.qtree.get_root_branch().unwrap();
         // this should be a reasonable number
         let new_workplaces = root_branch.fields.raw_demand.raw_workplace_demand.count / 100;
 
-        let mut rng = rand::thread_rng();
         for _ in 0..new_workplaces {
             let address = match engine
                 .blurred_fields
                 .workplace_demand
-                .sample(&mut rng, &engine.state.qtree)
+                .sample(&mut engine.rng, &engine.state.qtree)
             {
                 Some(address) => address,
                 None => {
@@ -420,6 +528,12 @@ impl TriggerType for WorkplaceDecisions {
         engine
             .trigger_queue
             .push_rel(self, Time::new::<day>(2).value);
+
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        None
     }
 }
 
@@ -428,9 +542,14 @@ impl TriggerType for WorkplaceDecisions {
 pub struct DummyTrigger {}
 
 impl TriggerType for DummyTrigger {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         println!("executing {}", time);
         engine.trigger_queue.push_rel(self, 1);
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        None
     }
 }
 
@@ -440,8 +559,13 @@ impl TriggerType for DummyTrigger {
 pub struct DoublingTrigger {}
 
 impl TriggerType for DoublingTrigger {
-    fn execute(self, engine: &mut Engine, time: u64) {
+    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
         engine.trigger_queue.push_rel(DoublingTrigger {}, 1);
         engine.trigger_queue.push_rel(DoublingTrigger {}, 1);
+        Ok(())
+    }
+
+    fn debug_context(&self, state: &Engine) -> Option<String> {
+        None
     }
 }

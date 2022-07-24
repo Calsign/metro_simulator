@@ -12,6 +12,10 @@ pub enum Error {
     NoTerminalNodeFound(quadtree::Address),
     #[error("Spade (Delaunay Triangulation) error: {0:?}")]
     SpadeError(#[from] spade::InsertionError),
+    #[error("Edge counting inconsistency error: {0}")]
+    EdgeCountingError(String),
+    #[error("Parking error: {0}")]
+    ParkingError(String),
 }
 
 /**
