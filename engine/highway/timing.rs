@@ -35,7 +35,7 @@ impl HighwaySegment {
             self.id,
             speed
         );
-        return self.length() * tile_size / speed;
+        self.length() * tile_size / speed
     }
 
     /**

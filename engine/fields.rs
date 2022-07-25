@@ -101,19 +101,10 @@ impl std::ops::Add for WeightedAverage {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub struct MinMax {
     pub min: Option<i64>,
     pub max: Option<i64>,
-}
-
-impl Default for MinMax {
-    fn default() -> Self {
-        Self {
-            min: None,
-            max: None,
-        }
-    }
 }
 
 impl std::ops::Add for MinMax {
@@ -121,8 +112,8 @@ impl std::ops::Add for MinMax {
 
     fn add(self, other: Self) -> Self {
         Self {
-            min: self.min.iter().chain(other.min.iter()).min().map(|v| *v),
-            max: self.max.iter().chain(other.max.iter()).max().map(|v| *v),
+            min: self.min.iter().chain(other.min.iter()).min().copied(),
+            max: self.max.iter().chain(other.max.iter()).max().copied(),
         }
     }
 }

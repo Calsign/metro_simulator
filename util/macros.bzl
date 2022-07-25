@@ -2,6 +2,7 @@ load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_shared_l
 
 RUSTC_FLAGS = [
     "--deny=warnings",
+    "--allow=clippy::too-many-arguments",
 ]
 
 def _patch_kwargs(kwargs, key, lst):

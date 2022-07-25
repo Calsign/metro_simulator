@@ -42,7 +42,7 @@ pub enum Mode {
     Driving,
 }
 
-pub static MODES: &'static [Mode] = &[Mode::Walking, Mode::Biking, Mode::Driving];
+pub static MODES: &[Mode] = &[Mode::Walking, Mode::Biking, Mode::Driving];
 
 impl Mode {
     /**

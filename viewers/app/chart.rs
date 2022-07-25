@@ -147,7 +147,7 @@ where
 
         if let Some(labeler) = self.labeler {
             if let Some(hover_pos) = response.hover_pos() {
-                if self.data.len() > 0 && hover_pos.x > x1 && hover_pos.x < x2 {
+                if !self.data.is_empty() && hover_pos.x > x1 && hover_pos.x < x2 {
                     let width = (x2 - x1) / self.data.len() as f32;
                     let index = ((hover_pos.x - x1) / width).floor() as usize;
                     let label = labeler(index, self.data[index]);

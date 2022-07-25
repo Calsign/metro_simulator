@@ -35,7 +35,7 @@ impl PartialOrd for TriggerEntry {
 // This is a sequential implementation.
 // TODO: replace with a parallel implementation, perhaps using rayon.
 // As long as a trigger can access all of Engine, this will be very difficult.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TriggerQueue {
     /// invariant: for each trigger in heap, we must have trigger.time() >= current_time
     heap: BinaryHeap<TriggerEntry>,
@@ -44,10 +44,7 @@ pub struct TriggerQueue {
 
 impl TriggerQueue {
     pub fn new() -> Self {
-        Self {
-            heap: BinaryHeap::new(),
-            current_time: 0,
-        }
+        Self::default()
     }
 
     /**
@@ -63,10 +60,7 @@ impl TriggerQueue {
             self.current_time,
             trigger
         );
-        self.heap.push(TriggerEntry {
-            trigger: trigger,
-            time,
-        });
+        self.heap.push(TriggerEntry { trigger, time });
     }
 
     pub fn push_rel<T: Into<Trigger>>(&mut self, trigger: T, rel_time: u64) {

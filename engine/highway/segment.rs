@@ -80,7 +80,7 @@ impl HighwaySegment {
     }
 
     pub fn get_spline_keys(&self) -> &[splines::Key<f64, HighwayKey>] {
-        &self.spline.keys()
+        self.spline.keys()
     }
 
     pub fn set_keys(&mut self, keys: Vec<HighwayKey>) {
@@ -141,7 +141,7 @@ impl HighwaySegment {
     where
         V: KeyVisitor<E>,
     {
-        if self.keys.len() == 0 {
+        if self.keys.is_empty() {
             return Ok(());
         }
 

@@ -57,7 +57,7 @@ impl Address {
         }
     }
 
-    pub fn try_from(address: &Vec<u8>, max_depth: u32) -> Option<Self> {
+    pub fn try_from(address: &[u8], max_depth: u32) -> Option<Self> {
         let mut vec = Vec::new();
         for index in address.iter() {
             vec.push(Quadrant::try_from(*index)?);
@@ -80,13 +80,13 @@ impl Address {
             self.depth(),
             self.max_depth,
         );
-        let mut data = self.data.clone();
+        let mut data = self.data;
         data[self.depth()] = quadrant;
-        return Self {
+        Self {
             data,
             depth: self.depth() as u32 + 1,
             max_depth: self.max_depth,
-        };
+        }
     }
 
     /**
@@ -199,7 +199,7 @@ mod tests {
         let address = Address::from_vec(vec![], 3);
         assert_eq!(address.depth(), 0);
         assert_eq!(address.max_depth(), 3);
-        assert_eq!(address.has(0), false);
+        assert!(!address.has(0));
         let vec: Vec<Quadrant> = address.into();
         assert_eq!(vec, vec![]);
     }
@@ -209,9 +209,9 @@ mod tests {
         let address = Address::from_vec(vec![NW, NE], 3);
         assert_eq!(address.depth(), 2);
         assert_eq!(address.max_depth(), 3);
-        assert_eq!(address.has(0), true);
-        assert_eq!(address.has(1), true);
-        assert_eq!(address.has(2), false);
+        assert!(address.has(0));
+        assert!(address.has(1));
+        assert!(!address.has(2));
         let vec: Vec<Quadrant> = address.into();
         assert_eq!(vec, vec![NW, NE]);
     }
@@ -221,7 +221,7 @@ mod tests {
         let zero = Address::from_vec(vec![], 3);
 
         let one = zero.child(NE);
-        let one_vec: Vec<Quadrant> = one.clone().into();
+        let one_vec: Vec<Quadrant> = one.into();
         assert_eq!(one_vec, vec![NE]);
 
         let two = one.child(SW);

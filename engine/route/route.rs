@@ -209,7 +209,7 @@ impl Route {
                 constructed
                     .keys
                     .iter()
-                    .map(|key| Key::new(key.time, key.clone(), Interpolation::Linear))
+                    .map(|key| Key::new(key.time, *key, Interpolation::Linear))
                     .collect(),
             ),
             total: constructed.total_time,
@@ -224,7 +224,7 @@ impl Route {
                 constructed
                     .keys
                     .iter()
-                    .map(|key| Key::new(key.dist, key.clone(), Interpolation::Linear))
+                    .map(|key| Key::new(key.dist, *key, Interpolation::Linear))
                     .collect(),
             ),
             total: constructed.total_dist,

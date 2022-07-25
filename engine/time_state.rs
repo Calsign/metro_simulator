@@ -16,6 +16,12 @@ pub struct TimeState {
     pub engine_start_time: u64,
 }
 
+impl Default for TimeState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimeState {
     pub fn new() -> Self {
         Self {

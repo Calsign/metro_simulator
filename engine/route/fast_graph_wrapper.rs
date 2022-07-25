@@ -28,11 +28,14 @@ impl Clone for FastGraphWrapper {
             edge_map: self.edge_map.clone(),
             fast_graph: self.fast_graph.clone(),
             node_ordering: self.node_ordering.clone(),
-            path_calculator: self
-                .fast_graph
-                .as_ref()
-                .map(|g| fast_paths::create_calculator(&g)),
+            path_calculator: self.fast_graph.as_ref().map(fast_paths::create_calculator),
         }
+    }
+}
+
+impl Default for FastGraphWrapper {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

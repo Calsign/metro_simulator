@@ -115,7 +115,7 @@ impl State {
 
         app.draw(&self.platform.context());
 
-        let full_output = self.platform.end_frame(Some(&window));
+        let full_output = self.platform.end_frame(Some(window));
         let paint_jobs = self.platform.context().tessellate(full_output.shapes);
 
         let mut encoder = self
@@ -153,7 +153,7 @@ impl State {
 }
 
 fn create_state<T>(event_loop: &EventLoopWindowTarget<T>) -> (State, Window) {
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new().build(event_loop).unwrap();
     let state = State::new(&window);
     (state, window)
 }
@@ -176,17 +176,21 @@ pub fn bootstrap(mut app: App, wait_for_resume: bool) {
 
     event_loop.run(
         move |event, event_loop, control_flow| match &mut initialized {
-            None => match event {
-                Event::Resumed => match &initialized {
-                    None => {
-                        println!("received resume; transitioning to initialized");
-                        initialized = Some(create_state(&event_loop));
-                        *control_flow = ControlFlow::Poll;
-                    }
-                    Some(_) => (),
-                },
-                _ => (),
-            },
+            None =>
+            {
+                #[allow(clippy::single_match)]
+                match event {
+                    Event::Resumed => match &initialized {
+                        None => {
+                            println!("received resume; transitioning to initialized");
+                            initialized = Some(create_state(event_loop));
+                            *control_flow = ControlFlow::Poll;
+                        }
+                        Some(_) => (),
+                    },
+                    _ => (),
+                }
+            }
             Some((state, window)) => {
                 state.platform.handle_event(&event);
 

@@ -20,7 +20,7 @@ impl TDynBenchFn for RouteBench {
             sf_routes::perform_query(
                 &ENGINE.lock().unwrap(),
                 GRAPH.lock().unwrap().borrow_mut(),
-                &self.test,
+                self.test,
             )
             .unwrap();
         });

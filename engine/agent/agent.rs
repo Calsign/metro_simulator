@@ -8,6 +8,7 @@ use crate::agent_data::AgentData;
 use crate::agent_route_state::{AgentRoutePhase, AgentRouteState, RouteType};
 use crate::common::{agent_log, agent_log_timestamp, Error};
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentState {
     /// agent is currently at a tile with the given address.
@@ -221,17 +222,16 @@ impl Agent {
 
     pub fn owns_car(&self) -> bool {
         self.parked_car().is_some()
-            || match &self.state {
+            || matches!(
+                &self.state,
                 AgentState::Route(AgentRouteState {
-                    phase:
-                        AgentRoutePhase::InProgress {
-                            current_mode: route::Mode::Driving,
-                            ..
-                        },
+                    phase: AgentRoutePhase::InProgress {
+                        current_mode: route::Mode::Driving,
+                        ..
+                    },
                     ..
-                }) => true,
-                _ => false,
-            }
+                })
+            )
     }
 
     pub fn log<F, S>(&self, msg: F)

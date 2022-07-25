@@ -28,10 +28,10 @@ pub struct VisitData {
 
 impl VisitData {
     pub fn in_bounds(&self, bounds: &Rect) -> bool {
-        return self.x < bounds.max_x
+        self.x < bounds.max_x
             && self.x + self.width > bounds.min_x
             && self.y < bounds.max_y
-            && self.y + self.width > bounds.min_y;
+            && self.y + self.width > bounds.min_y
     }
 
     pub fn get_bounds(&self) -> Rect {
@@ -48,13 +48,13 @@ impl VisitData {
             NW | NE => self.y,
             SW | SE => self.y + self.width / 2,
         };
-        return Self {
+        Self {
             address: self.address.child(quadrant),
             depth: self.depth + 1,
             x,
             y,
             width: self.width / 2,
-        };
+        }
     }
 
     pub fn quadrant_for_coords(&self, x: u64, y: u64) -> Result<Quadrant, Error> {
@@ -129,20 +129,20 @@ enum Node<B, L> {
 }
 
 impl<B, L> Node<B, L> {
-    fn get(&self, quadrant: Quadrant) -> Result<&Box<Node<B, L>>, Error> {
-        return if let Node::Branch { children, .. } = self {
+    fn get(&self, quadrant: Quadrant) -> Result<&Node<B, L>, Error> {
+        if let Node::Branch { children, .. } = self {
             Ok(&children[quadrant])
         } else {
-            Err(Error::ExpectedBranch().into())
-        };
+            Err(Error::ExpectedBranch())
+        }
     }
 
     fn get_mut(&mut self, quadrant: Quadrant) -> Result<&mut Box<Node<B, L>>, Error> {
-        return if let Node::Branch { children, .. } = self {
+        if let Node::Branch { children, .. } = self {
             Ok(&mut children[quadrant])
         } else {
-            Err(Error::ExpectedBranch().into())
-        };
+            Err(Error::ExpectedBranch())
+        }
     }
 
     fn visit<V, E>(&self, visitor: &mut V, visit_data: VisitData) -> Result<(), E>
@@ -249,13 +249,13 @@ impl<B, L> Quadtree<B, L> {
         // NOTE: if the exponent is too big, we panic.
         let width = base.checked_pow(max_depth).unwrap();
 
-        return Quadtree {
+        Quadtree {
             root: Box::new(Node::Leaf { data, depth: 0 }),
             // NOTE: max_depth invariant is maintained because it is unsigned.
             // This try_into should succeed on both 32-bit and 64-bit systems.
-            max_depth: max_depth.try_into().unwrap(),
+            max_depth,
             width,
-        };
+        }
     }
 
     pub fn width(&self) -> u64 {
@@ -268,11 +268,11 @@ impl<B, L> Quadtree<B, L> {
 
     fn get(&self, address: &Address) -> Result<&Node<B, L>, Error> {
         // NOTE: this is an associated function rather than a method to avoid borrowing the arena
-        let mut node = &self.root;
+        let mut node = &*self.root;
         for index in 0..address.depth() {
             node = node.get(address.at(index))?;
         }
-        return Ok(node);
+        Ok(node)
     }
 
     fn get_mut(&mut self, address: &Address) -> Result<&mut Node<B, L>, Error> {
@@ -281,39 +281,39 @@ impl<B, L> Quadtree<B, L> {
         for index in 0..address.depth() {
             node = node.get_mut(address.at(index))?;
         }
-        return Ok(node);
+        Ok(node)
     }
 
     pub fn get_branch<A: Into<Address>>(&self, address: A) -> Result<&B, Error> {
-        return if let Node::Branch { data, .. } = self.get(&address.into())? {
+        if let Node::Branch { data, .. } = self.get(&address.into())? {
             Ok(data)
         } else {
             Err(Error::ExpectedBranch())
-        };
+        }
     }
 
     pub fn get_branch_mut<A: Into<Address>>(&mut self, address: A) -> Result<&mut B, Error> {
-        return if let Node::Branch { data, .. } = self.get_mut(&address.into())? {
+        if let Node::Branch { data, .. } = self.get_mut(&address.into())? {
             Ok(data)
         } else {
             Err(Error::ExpectedBranch())
-        };
+        }
     }
 
     pub fn get_leaf<A: Into<Address>>(&self, address: A) -> Result<&L, Error> {
-        return if let Node::Leaf { data, .. } = self.get(&address.into())? {
+        if let Node::Leaf { data, .. } = self.get(&address.into())? {
             Ok(data)
         } else {
             Err(Error::ExpectedLeaf())
-        };
+        }
     }
 
     pub fn get_leaf_mut<A: Into<Address>>(&mut self, address: A) -> Result<&mut L, Error> {
-        return if let Node::Leaf { data, .. } = self.get_mut(&address.into())? {
+        if let Node::Leaf { data, .. } = self.get_mut(&address.into())? {
             Ok(data)
         } else {
             Err(Error::ExpectedLeaf())
-        };
+        }
     }
 
     pub fn get_root_branch(&self) -> Result<&B, Error> {
@@ -334,9 +334,7 @@ impl<B, L> Quadtree<B, L> {
 
         let existing = self.get_mut(&address)?;
         match existing {
-            Node::Branch { .. } => {
-                return Err(Error::ExpectedLeaf());
-            }
+            Node::Branch { .. } => Err(Error::ExpectedLeaf()),
             Node::Leaf {
                 depth: existing_depth,
                 ..
@@ -373,7 +371,7 @@ impl<B, L> Quadtree<B, L> {
                     node = node.get_mut(address.at(index))?;
                 }
 
-                return Ok(());
+                Ok(())
             }
         }
     }
@@ -551,7 +549,7 @@ where
     }
 
     fn visit_branch_post(&mut self, branch: &B, data: &VisitData) -> Result<(), E> {
-        Ok(self.inner.visit_branch_post(branch, data)?)
+        self.inner.visit_branch_post(branch, data)
     }
 }
 
@@ -580,7 +578,7 @@ where
     }
 
     fn visit_branch_post(&mut self, branch: &mut B, data: &VisitData) -> Result<(), E> {
-        Ok(self.inner.visit_branch_post(branch, data)?)
+        self.inner.visit_branch_post(branch, data)
     }
 }
 
@@ -676,10 +674,10 @@ mod tests {
 
     impl<B: Copy, L: Copy> SeenVisitor<B, L> {
         fn new() -> Self {
-            return Self {
+            Self {
                 branches: Vec::new(),
                 leaves: Vec::new(),
-            };
+            }
         }
     }
 
@@ -707,13 +705,13 @@ mod tests {
         width: u64,
         max_depth: u32,
     ) -> VisitData {
-        return VisitData {
+        VisitData {
             address: Address::from_vec(address, max_depth),
             depth,
             x,
             y,
             width,
-        };
+        }
     }
 
     #[test]

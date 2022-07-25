@@ -44,7 +44,7 @@ impl App {
     }
 
     pub fn load_str(map: &str) -> Self {
-        Self::new(engine::Engine::load(&map).unwrap())
+        Self::new(engine::Engine::load(map).unwrap())
     }
 
     pub fn update(&mut self, elapsed: f64) {
@@ -62,7 +62,7 @@ impl App {
                     ui.collapsing("Overlay", |ui| self.overlay.draw(ui));
                     ui.collapsing("Stats", |ui| self.draw_stats(ui));
                     ui.collapsing("Display options", |ui| self.options.draw(ui));
-                    ui.collapsing("Diagnostics", |ui| self.diagnostics.draw(&self, ui));
+                    ui.collapsing("Diagnostics", |ui| self.diagnostics.draw(self, ui));
                     ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
                     ui.collapsing("Isochrone", |ui| self.draw_isochrone_query(ui));
                     ui.collapsing("Congestion analysis", |ui| {
@@ -167,13 +167,13 @@ impl App {
             // for now, go from home to work
             let start = self.engine.state.collect_tiles.housing.choose(&mut rng);
             let stop = self.engine.state.collect_tiles.workplaces.choose(&mut rng);
-            self.route_query.start_address = start.map(|a| *a);
-            self.route_query.stop_address = stop.map(|a| *a);
+            self.route_query.start_address = start.copied();
+            self.route_query.stop_address = stop.copied();
             changed = true;
         }
 
         if ui.input().keys_down.contains(&egui::Key::A) {
-            if let Some((x, y)) = self.get_hovered_pos(&ui) {
+            if let Some((x, y)) = self.get_hovered_pos(ui) {
                 if let Ok(start) = self.engine.state.qtree.get_address(x, y) {
                     self.route_query.start_address = Some(start);
                     changed = true;
@@ -181,7 +181,7 @@ impl App {
             }
         }
         if ui.input().keys_down.contains(&egui::Key::Z) {
-            if let Some((x, y)) = self.get_hovered_pos(&ui) {
+            if let Some((x, y)) = self.get_hovered_pos(ui) {
                 if let Ok(stop) = self.engine.state.qtree.get_address(x, y) {
                     self.route_query.stop_address = Some(stop);
                     changed = true;
@@ -189,7 +189,7 @@ impl App {
             }
         }
 
-        if self.route_query.current_routes.len() > 0 {
+        if !self.route_query.current_routes.is_empty() {
             ui.separator();
             ui.label("Current routes:");
 
@@ -520,7 +520,7 @@ impl App {
                 let leaf = self.engine.state.qtree.get_leaf(address).unwrap();
                 // TODO: replace with if-let chain once stabilized
                 let agents = leaf.tile.query_agents().and_then(|agents| {
-                    if agents.len() > 0 {
+                    if !agents.is_empty() {
                         Some(agents)
                     } else {
                         None
@@ -703,7 +703,7 @@ impl Diagnostics {
 
         ui.separator();
 
-        match app.get_hovered_pos(&ui) {
+        match app.get_hovered_pos(ui) {
             Some((x, y)) => ui.label(format!("Coords: {}, {}", x, y)),
             None => ui.label("Coords: n/a"),
         };
@@ -847,7 +847,7 @@ impl CongestionHistoricalQuantity {
         }
     }
 
-    fn get<'a, K>(&self, congestion_stats: route::CongestionIterator<'a, K>) -> f32 {
+    fn get<K>(&self, congestion_stats: route::CongestionIterator<'_, K>) -> f32 {
         use route::CongestionStats;
         match self {
             Self::Sum => congestion_stats.sum() as f32,
@@ -894,5 +894,5 @@ fn format_duration<'a>(
     duration: f32,
 ) -> Option<chrono::format::DelayedFormat<chrono::format::strftime::StrftimeItems<'a>>> {
     chrono::NaiveTime::from_num_seconds_from_midnight_opt(duration as u32, 0)
-        .map(|datetime| datetime.format("%H:%M:%S").into())
+        .map(|datetime| datetime.format("%H:%M:%S"))
 }

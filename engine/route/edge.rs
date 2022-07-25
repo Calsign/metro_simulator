@@ -155,8 +155,7 @@ impl Edge {
                             travelers,
                         );
                         assert!(
-                            travel_time >= 0.0
-                                && travel_time <= highway::timing::MAX_CONGESTED_TIME,
+                            (0.0..=highway::timing::MAX_CONGESTED_TIME).contains(&travel_time),
                             "{}",
                             travel_time
                         );
@@ -189,7 +188,7 @@ impl Edge {
             } => {
                 let metro_line = state
                     .metro_lines
-                    .get(&metro_line)
+                    .get(metro_line)
                     .expect("missing metro line");
                 let dist_spline = &metro_line.get_splines().dist_spline;
                 let position_spline = &metro_line.get_splines().spline;
@@ -197,12 +196,12 @@ impl Edge {
                 let start_index = *metro_line
                     .get_splines()
                     .index_map
-                    .get(&start)
+                    .get(start)
                     .expect("start index not found");
                 let end_index = *metro_line
                     .get_splines()
                     .index_map
-                    .get(&stop)
+                    .get(stop)
                     .expect("end index not found");
 
                 let start_key = dist_spline.keys()[start_index];
@@ -306,7 +305,7 @@ impl std::fmt::Display for Edge {
                 data,
                 time,
             } => {
-                let name = data.name.clone().unwrap_or("unknown".to_string());
+                let name = data.name.clone().unwrap_or_else(|| "unknown".to_string());
                 let refs = data.refs.join(";");
                 write!(f, "highway:{}:{}:{}:{:.2}", segment, name, refs, time)
             }

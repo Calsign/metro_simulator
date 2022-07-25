@@ -4,7 +4,7 @@ use crate::edge::Edge;
 use crate::node::Node;
 use crate::route::Route;
 
-fn perform_query<'a>(
+fn perform_query(
     base_graph: &mut InnerGraph,
     start_id: NodeIndex,
     end_id: NodeIndex,
@@ -227,7 +227,7 @@ where
  * TODO: adjust the construction of the problem so that we can always
  * find a route.
  */
-pub fn best_route<'a>(
+pub fn best_route(
     mut base_graph: std::cell::RefMut<Graph>,
     input: QueryInput,
 ) -> Result<Option<Route>, Error> {
@@ -239,7 +239,7 @@ pub fn best_route<'a>(
             Mode::Walking,
             Mode::Walking,
         )?
-        .map(|route| construct_route(&mut base_graph.graph, input, &route)),
+        .map(|route| construct_route(&base_graph.graph, input, &route)),
         Some(CarConfig::StartWithCar) => fastest_route(
             potential_route(
                 &mut base_graph,
@@ -260,7 +260,7 @@ pub fn best_route<'a>(
                 .into_iter(),
             ),
         )
-        .map(|route| construct_route(&mut base_graph.graph, input, &route)),
+        .map(|route| construct_route(&base_graph.graph, input, &route)),
         Some(CarConfig::CollectParkedCar { address }) => {
             // basically just merge two routes together
             let walking_leg = potential_route(
@@ -272,7 +272,7 @@ pub fn best_route<'a>(
             )?
             .map(|route| {
                 construct_route(
-                    &mut base_graph.graph,
+                    &base_graph.graph,
                     QueryInput {
                         start: input.start,
                         end: *address,
@@ -290,7 +290,7 @@ pub fn best_route<'a>(
             )?
             .map(|route| {
                 construct_route(
-                    &mut base_graph.graph,
+                    &base_graph.graph,
                     QueryInput {
                         start: *address,
                         end: input.end,

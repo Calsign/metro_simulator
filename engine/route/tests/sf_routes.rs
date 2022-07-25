@@ -20,7 +20,7 @@ impl StringPredicate {
         match self {
             Any => true,
             MatchesStr(s) => &test == s,
-            MatchesString(s) => &test == s,
+            MatchesString(s) => test == s,
             ContainsStr(s) => test.contains(s),
             ContainsString(s) => test.contains(s),
         }
@@ -75,7 +75,7 @@ impl RoutePredicate {
                                   if data.name.clone().map_or(false, |n| name.matches(&n)))),
             HasHighwaySegmentRef(ref_filter) => {
                 route.edges.iter().any(|e| matches!(e, Edge::Highway { data, .. }
-                                                    if data.refs.iter().any(|r| ref_filter.matches(&r))))
+                                                    if data.refs.iter().any(|r| ref_filter.matches(r))))
             },
             CostInRangeSeconds(min, max) => route.cost >= *min && route.cost <= *max,
             CostInRangeMinutes(min, max) => route.cost >= *min * 60.0 && route.cost <= *max * 60.0,
@@ -240,7 +240,7 @@ pub fn perform_query(
         QueryInput {
             start,
             end,
-            car_config: test.car_config.clone(),
+            car_config: test.car_config,
         },
     )
     .unwrap()

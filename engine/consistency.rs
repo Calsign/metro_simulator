@@ -133,7 +133,7 @@ impl Engine {
         }
 
         let traffic_errs = self.world_state.check_same_traffic(&world_state_comparison);
-        if traffic_errs.len() > 0 {
+        if !traffic_errs.is_empty() {
             return Err(ConsistencyError::TrafficErrors(traffic_errs));
         }
 
@@ -155,9 +155,9 @@ impl Engine {
             {
                 if parked_car.is_some() {
                     if *current_mode == route::Mode::Driving {
-                        return Err(ConsistencyError::ParkingError(format!(
-                            "car is parked but still driving"
-                        )));
+                        return Err(ConsistencyError::ParkingError(
+                            "car is parked but still driving".to_string(),
+                        ));
                     }
                 } else {
                     // TODO: we will need to update this check once not all agents have cars
@@ -179,7 +179,7 @@ impl Engine {
         }
 
         let parking_errs = self.world_state.check_same_parking(&world_state_comparison);
-        if parking_errs.len() > 0 {
+        if !parking_errs.is_empty() {
             return Err(ConsistencyError::ParkingErrors(parking_errs));
         }
 
@@ -222,7 +222,7 @@ impl<'a> quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, Con
                     if let Some(existing) = self.housing.insert(*agent, data.address) {
                         return Err(ConsistencyError::TileError(format!(
                             "two tiles are housing for agent {}: {:?} and {:?}; agent housing is {:?}",
-                            agent, existing, data.address, self.agents.get(&agent).map(|a| a.housing)
+                            agent, existing, data.address, self.agents.get(agent).map(|a| a.housing)
                         )));
                     }
                 }
@@ -238,7 +238,7 @@ impl<'a> quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, Con
                     if let Some(existing) = self.workplaces.insert(*agent, data.address) {
                         return Err(ConsistencyError::TileError(format!(
                             "two tiles are workplace for agent {}: {:?} and {:?}; agent workplace is {:?}",
-                            agent, existing, data.address, self.agents.get(&agent).map(|a| a.workplace),
+                            agent, existing, data.address, self.agents.get(agent).map(|a| a.workplace),
                         )));
                     }
                 }

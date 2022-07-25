@@ -13,23 +13,23 @@ impl Quadrant {
 
     pub fn try_from(index: u8) -> Option<Self> {
         use Quadrant::*;
-        return match index {
+        match index {
             0 => Some(NW),
             1 => Some(NE),
             2 => Some(SW),
             3 => Some(SE),
             _ => None,
-        };
+        }
     }
 
     pub fn from_sides(right: bool, bottom: bool) -> Self {
         use Quadrant::*;
-        return match (right, bottom) {
+        match (right, bottom) {
             (false, false) => NW,
             (true, false) => NE,
             (false, true) => SW,
             (true, true) => SE,
-        };
+        }
     }
 }
 
@@ -79,13 +79,13 @@ impl<T> QuadMap<T> {
 impl<T> std::ops::Index<Quadrant> for QuadMap<T> {
     type Output = T;
     fn index(&self, quadrant: Quadrant) -> &T {
-        return &self.data[quadrant.index() as usize];
+        &self.data[quadrant.index() as usize]
     }
 }
 
 impl<T> std::ops::IndexMut<Quadrant> for QuadMap<T> {
     fn index_mut(&mut self, quadrant: Quadrant) -> &mut T {
-        return &mut self.data[quadrant.index() as usize];
+        &mut self.data[quadrant.index() as usize]
     }
 }
 

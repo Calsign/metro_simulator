@@ -20,19 +20,19 @@ pub struct Config {
 
 impl Config {
     pub fn load(data: &str) -> Result<Self, Error> {
-        return Ok(toml::from_str(data)?);
+        Ok(toml::from_str(data)?)
     }
 
     pub fn load_file(path: &std::path::Path) -> Result<Self, Error> {
-        return Ok(Self::load(&std::fs::read_to_string(path)?)?);
+        Self::load(&std::fs::read_to_string(path)?)
     }
 
     pub fn dump(&self) -> Result<String, Error> {
-        return Ok(toml::to_string(self)?);
+        Ok(toml::to_string(self)?)
     }
 
     pub fn dump_file(&self, path: &std::path::Path) -> Result<(), Error> {
-        return Ok(std::fs::write(path, self.dump()?)?);
+        Ok(std::fs::write(path, self.dump()?)?)
     }
 
     /**

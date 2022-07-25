@@ -40,7 +40,7 @@ impl<T: Clone> NeighborsStore<T> {
             let visit_data = self.qtree.get_visit_data(x as u64, y as u64)?;
             let entry = Entry { x, y, data };
             self.qtree
-                .get_leaf_mut(visit_data.address.clone())?
+                .get_leaf_mut(visit_data.address)?
                 .push(entry.clone());
             self.split_if_needed(visit_data)?;
             self.entries.push(entry);
@@ -68,14 +68,14 @@ impl<T> NeighborsStore<T> {
 
     fn split_if_needed(&mut self, visit_data: VisitData) -> Result<(), Error> {
         let max_depth = self.qtree.max_depth();
-        let node = self.qtree.get_leaf_mut(visit_data.address.clone())?;
+        let node = self.qtree.get_leaf_mut(visit_data.address)?;
         if node.len() > self.load_factor as usize && visit_data.depth < max_depth {
             // over load factor; perform splitting
             let mut quads = QuadMap::each(Vec::new);
             for entry in node.drain(0..) {
                 quads[visit_data.quadrant_for_coords(entry.x as u64, entry.y as u64)?].push(entry);
             }
-            self.qtree.split(visit_data.address.clone(), (), quads)?;
+            self.qtree.split(visit_data.address, (), quads)?;
 
             // if we put all of them into one quadrant, then we need to split again
             for quadrant in QUADRANTS {
@@ -140,7 +140,7 @@ where
 
         // TODO: test different starting values besides 100
         let mut radius = ((self.qtree.width() / 100) as u64).max(1);
-        return loop {
+        loop {
             let mut visitor = NearestNeighborsVisitor::new();
             self.visit_radius(&mut visitor, x, y, radius as f64)
                 .unwrap();
@@ -152,7 +152,7 @@ where
                 break visitor.nearest.into_values().collect();
             }
             radius *= 2;
-        };
+        }
     }
 
     pub fn find_nearest(&self, x: f64, y: f64) -> Option<T> {

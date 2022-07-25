@@ -23,10 +23,10 @@ pub trait WorldState {
     fn get_local_road_travelers(&self, start: (f64, f64), end: (f64, f64), distance: f64) -> f64;
     fn get_parking(&self, x: f64, y: f64) -> f64;
 
-    fn iter_highway_segments<'a>(&'a self) -> CongestionIterator<'a, u64>;
-    fn iter_metro_segments<'a>(&'a self) -> CongestionIterator<'a, (u64, Address, Address)>;
-    fn iter_local_road_zones<'a>(&'a self) -> CongestionIterator<'a, (u64, u64)>;
-    fn iter_parking_zones<'a>(&'a self) -> CongestionIterator<'a, (u64, u64)>;
+    fn iter_highway_segments(&self) -> CongestionIterator<'_, u64>;
+    fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)>;
+    fn iter_local_road_zones(&self) -> CongestionIterator<'_, (u64, u64)>;
+    fn iter_parking_zones(&self) -> CongestionIterator<'_, (u64, u64)>;
 }
 
 // We use serde_as to allow serializing non-string keys to json.
@@ -118,11 +118,11 @@ impl WorldStateImpl {
         Ok(())
     }
 
-    pub fn local_path<'a>(
-        &'a self,
+    pub fn local_path(
+        &self,
         start: (f64, f64),
         stop: (f64, f64),
-    ) -> impl Iterator<Item = ((u64, u64), f64)> + 'a {
+    ) -> impl Iterator<Item = ((u64, u64), f64)> + '_ {
         let start = self.local_zone_downscale(start);
         let stop = self.local_zone_downscale(stop);
         line_drawing::XiaolinWu::<f64, i64>::new(start, stop).filter_map(|((x, y), value)| {
@@ -289,14 +289,14 @@ impl WorldStateImpl {
         let default_v = V::default();
 
         for (key, a_value) in a {
-            let b_value = b.get(key).unwrap_or_else(|| &default_v);
+            let b_value = b.get(key).unwrap_or(&default_v);
             if a_value != b_value {
                 f(key, a_value, b_value);
             }
         }
 
         for (key, b_value) in b {
-            let a_value = a.get(key).unwrap_or_else(|| &default_v);
+            let a_value = a.get(key).unwrap_or(&default_v);
             if a_value != b_value {
                 f(key, a_value, b_value);
             }
@@ -413,21 +413,21 @@ impl WorldState for WorldStateImpl {
         self.parking_zone(x as u64, y as u64)
     }
 
-    fn iter_highway_segments<'a>(&'a self) -> CongestionIterator<'a, u64> {
+    fn iter_highway_segments(&self) -> CongestionIterator<'_, u64> {
         CongestionIterator {
             iterator: Box::new(self.highway_segments.iter().map(|(k, v)| (*k, *v))),
             total: Some(self.highway_segments.len()),
         }
     }
 
-    fn iter_metro_segments<'a>(&'a self) -> CongestionIterator<'a, (u64, Address, Address)> {
+    fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)> {
         CongestionIterator {
             iterator: Box::new(self.metro_segments.iter().map(|(k, v)| (*k, *v))),
             total: Some(self.metro_segments.len()),
         }
     }
 
-    fn iter_local_road_zones<'a>(&'a self) -> CongestionIterator<'a, (u64, u64)> {
+    fn iter_local_road_zones(&self) -> CongestionIterator<'_, (u64, u64)> {
         CongestionIterator {
             iterator: Box::new(
                 self.local_roads
@@ -439,7 +439,7 @@ impl WorldState for WorldStateImpl {
         }
     }
 
-    fn iter_parking_zones<'a>(&'a self) -> CongestionIterator<'a, (u64, u64)> {
+    fn iter_parking_zones(&self) -> CongestionIterator<'_, (u64, u64)> {
         CongestionIterator {
             iterator: Box::new(
                 self.parking
@@ -558,7 +558,7 @@ impl WorldStateHistory {
      * Returns a predictor which can be used in place of WorldStateImpl to predict congestion at the
      * given prediction time.
      */
-    pub fn get_predictor<'a>(&'a self, prediction_time: u64) -> WorldStatePredictor<'a> {
+    pub fn get_predictor(&self, prediction_time: u64) -> WorldStatePredictor<'_> {
         WorldStatePredictor {
             history: self,
             prediction_time,
@@ -623,7 +623,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
             })
     }
 
-    fn iter_highway_segments<'b>(&'b self) -> CongestionIterator<'b, u64> {
+    fn iter_highway_segments(&self) -> CongestionIterator<'_, u64> {
         let snapshot = self
             .history
             .get_current_snapshot_index(self.prediction_time, true);
@@ -638,7 +638,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
         }
     }
 
-    fn iter_metro_segments<'b>(&'b self) -> CongestionIterator<'b, (u64, Address, Address)> {
+    fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)> {
         let snapshot = self
             .history
             .get_current_snapshot_index(self.prediction_time, true);
@@ -655,7 +655,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
         }
     }
 
-    fn iter_local_road_zones<'b>(&'b self) -> CongestionIterator<'b, (u64, u64)> {
+    fn iter_local_road_zones(&self) -> CongestionIterator<'_, (u64, u64)> {
         let snapshot_index = self
             .history
             .get_current_snapshot_index(self.prediction_time, true);
@@ -670,7 +670,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
         }
     }
 
-    fn iter_parking_zones<'b>(&'b self) -> CongestionIterator<'b, (u64, u64)> {
+    fn iter_parking_zones(&self) -> CongestionIterator<'_, (u64, u64)> {
         let snapshot_index = self
             .history
             .get_current_snapshot_index(self.prediction_time, true);

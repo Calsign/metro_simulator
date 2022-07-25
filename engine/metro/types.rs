@@ -240,7 +240,7 @@ impl MetroLine {
     where
         V: KeyVisitor<E>,
     {
-        if self.keys.len() == 0 {
+        if self.keys.is_empty() {
             return Ok(());
         }
 

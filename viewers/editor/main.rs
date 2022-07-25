@@ -32,7 +32,7 @@ fn main() {
     let state = State {
         engine: engine.clone(),
         metro_lines: MetroLinesState::new(engine.clone()),
-        content: ContentState::new(engine.clone()),
+        content: ContentState::new(engine),
         current_leaf: None,
         current_field: FieldType::None,
         show_qtree: true,
@@ -137,7 +137,7 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
         .with_default_spacer()
         .with_child(druid::widget::Label::dynamic(
             |state: &CurrentLeafState, _env: &druid::Env| {
-                format!("Address: {:?}", (*state.address).clone().to_vec())
+                format!("Address: {:?}", state.address.to_vec())
             },
         ))
         .with_default_spacer()
@@ -163,7 +163,7 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
                 {
                     let mut engine = state.engine.lock().unwrap();
                     match engine.state.set_leaf_data(
-                        (*state.address).clone(),
+                        *state.address,
                         &state.edited_data,
                         state::SerdeFormat::Toml,
                     ) {
@@ -179,7 +179,7 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
                     let engine1 = state.engine.clone();
                     let engine2 = state.engine.clone();
                     let engine = engine1.lock().unwrap();
-                    *state = CurrentLeafState::new((*state.address).clone(), &engine, engine2);
+                    *state = CurrentLeafState::new(*state.address, &engine, engine2);
                 }
             },
         ))
@@ -339,10 +339,7 @@ fn field_data_to_color(
         }
         FieldType::LandValue => None,
     };
-    match value {
-        Some(val) => Some(druid::Color::hlca(120.0 * val, 80.0, 80.0, 0.5)),
-        None => None,
-    }
+    value.map(|val| druid::Color::hlca(120.0 * val, 80.0, 80.0, 0.5))
 }
 
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
@@ -373,10 +370,7 @@ impl MetroLinesState {
             }
         }
 
-        Self {
-            engine: engine.clone(),
-            states,
-        }
+        Self { engine, states }
     }
 }
 
@@ -414,7 +408,7 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
             let mut data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&mut data, i);
             *metro_line = data.metro_line.lock().unwrap().clone();
-            *self.states.get_mut(&id).unwrap() = data.state;
+            *self.states.get_mut(id).unwrap() = data.state;
         }
     }
 
@@ -440,17 +434,17 @@ impl CurrentLeafState {
         engine: &engine::Engine,
         engine_clone: Arc<Mutex<engine::Engine>>,
     ) -> Self {
-        let leaf = engine.state.qtree.get_leaf(address.clone()).unwrap();
+        let leaf = engine.state.qtree.get_leaf(address).unwrap();
         let data = engine
             .state
-            .get_leaf_data(address.clone(), state::SerdeFormat::Toml)
+            .get_leaf_data(address, state::SerdeFormat::Toml)
             .unwrap();
         Self {
             address: Rc::new(address),
             leaf: Rc::new(leaf.clone()),
             tile_type: std::mem::discriminant(&leaf.tile),
             data: data.clone(),
-            edited_data: data.clone(),
+            edited_data: data,
             engine: engine_clone,
         }
     }
@@ -569,7 +563,7 @@ impl druid::Widget<State> for Content {
                             .state
                             .qtree
                             .split(
-                                address.clone(),
+                                address,
                                 BranchState::default(),
                                 quadtree::QuadMap::new(
                                     LeafState::default(),
@@ -879,9 +873,9 @@ fn triangle((x, y): (f64, f64), radius: f64, theta: f64) -> [druid::kurbo::PathE
     use std::f64::consts::PI;
     let sides = 3;
     let mut points = [(0.0, 0.0); 3];
-    for i in 0..sides {
+    for (i, point) in points.iter_mut().enumerate() {
         let t = (PI * 2.0) / sides as f64 * i as f64 + theta;
-        points[i] = (x + t.cos() * radius, y + t.sin() * radius)
+        *point = (x + t.cos() * radius, y + t.sin() * radius)
     }
     [
         MoveTo(points[0].into()),

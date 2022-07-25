@@ -104,7 +104,7 @@ impl PartialOrd for SqrtPair {
 /**
  * Convert each metro key into a speed bound, a SqrtPair.
  */
-pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64) -> Vec<SqrtPair> {
+pub fn speed_bounds(keys: &[types::MetroKey], tile_size: f64, max_speed: f64) -> Vec<SqrtPair> {
     use cg::Angle;
     use cg::InnerSpace;
     use cg::MetricSpace;
@@ -113,9 +113,9 @@ pub fn speed_bounds(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64)
     let mut speed_bounds = Vec::new();
     let mut t = 0.0; // total distance
 
-    let get_station = |key| match key {
-        &types::MetroKey::Stop(_, ref station) => Some(station.clone()),
-        &types::MetroKey::Key(_) => None,
+    let get_station = |key: &types::MetroKey| match *key {
+        types::MetroKey::Stop(_, ref station) => Some(station.clone()),
+        types::MetroKey::Key(_) => None,
     };
 
     // start from rest
@@ -197,7 +197,7 @@ fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
                 }
                 Some(std::cmp::Ordering::Equal) => match minima.last_mut() {
                     Some(last) => {
-                        if let None = last.station {
+                        if last.station.is_none() {
                             last.station = sqrt_pair.station;
                         }
                     }
@@ -243,7 +243,7 @@ fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>, max_speed: f64) -> Vec<Spee
             .expect("found two consecutive SqrtPairs with no intersection");
 
         // boarding time at each station
-        if let Some(_) = left.station {
+        if left.station.is_some() {
             t += STATION_TIME;
             speed_keys.push(SpeedKey {
                 station: None,
@@ -311,7 +311,7 @@ fn _parabolic_key(a: f64, b: f64, c: f64, left: f64, right: f64) -> splines::Key
     splines::Key::new(left, p1, splines::Interpolation::StrokeBezier(c1, c2))
 }
 
-fn distance_spline(speed_keys: &Vec<SpeedKey>) -> Vec<splines::Key<f64, f64>> {
+fn distance_spline(speed_keys: &[SpeedKey]) -> Vec<splines::Key<f64, f64>> {
     use itertools::Itertools;
     use splines::{Interpolation, Key};
 
@@ -347,7 +347,7 @@ fn distance_spline(speed_keys: &Vec<SpeedKey>) -> Vec<splines::Key<f64, f64>> {
     dist_keys
 }
 
-pub fn speed_keys(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64) -> Vec<SpeedKey> {
+pub fn speed_keys(keys: &[types::MetroKey], tile_size: f64, max_speed: f64) -> Vec<SpeedKey> {
     // convert each key into a speed bound
     let speed_bounds = speed_bounds(keys, tile_size, max_speed);
 
@@ -358,7 +358,7 @@ pub fn speed_keys(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64) -
     time_rectify(minima, max_speed)
 }
 
-pub fn timetable(speed_keys: &Vec<SpeedKey>) -> Vec<(types::Station, f64)> {
+pub fn timetable(speed_keys: &[SpeedKey]) -> Vec<(types::Station, f64)> {
     let mut timetable = Vec::new();
     for key in speed_keys {
         if let Some(station) = &key.station {
@@ -369,7 +369,7 @@ pub fn timetable(speed_keys: &Vec<SpeedKey>) -> Vec<(types::Station, f64)> {
     timetable
 }
 
-pub fn dist_spline(keys: &Vec<SpeedKey>) -> splines::Spline<f64, f64> {
+pub fn dist_spline(keys: &[SpeedKey]) -> splines::Spline<f64, f64> {
     let dist_keys = distance_spline(keys);
     splines::Spline::from_vec(dist_keys)
 }
@@ -454,8 +454,7 @@ mod sqrt_pair_tests {
 
     #[test]
     fn partial_ord() {
-        assert!(!(F1 < F2));
-        assert!(!(F2 < F1));
+        assert_eq!(F1.partial_cmp(&F2), None);
         assert!(F1 < F3);
     }
 
@@ -509,7 +508,7 @@ mod dist_spline_tests {
 
     #[test]
     fn distance_spline_test() {
-        let keys = distance_spline(&vec![
+        let keys = distance_spline(&[
             SpeedKey {
                 station: None,
                 t: 0.0,

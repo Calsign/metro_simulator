@@ -21,10 +21,9 @@ build:clippy --output_groups=+clippy_checks
 build:mypy --aspects @mypy_integration//:mypy.bzl%mypy_aspect
 build:mypy --output_groups=+mypy
 
-build:check --config=rustfmt --config=clippy --config=mypy
-
-# auto-launch android app
-mobile-install --start_app
+build:check --config=rustfmt --config=mypy
+# run clippy by default
+build: --config=clippy
 
 # enable C++ toolchains, necessary for Rust finding the NDK linkers
 common --incompatible_use_cc_configure_from_rules_cc

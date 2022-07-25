@@ -50,7 +50,7 @@ impl App {
 
         if self.pan.scale >= 4.0 {
             for highway_junction in self.engine.state.highways.get_junctions().values() {
-                if let Some(_) = highway_junction.ramp {
+                if highway_junction.ramp.is_some() {
                     let (x, y) = highway_junction.location;
                     if bounding_box.contains(x as u64, y as u64) {
                         let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
@@ -66,7 +66,7 @@ impl App {
         }
 
         for metro_line in self.engine.state.metro_lines.values() {
-            if bounding_box.intersects(&metro_line.get_bounds()) {
+            if bounding_box.intersects(metro_line.get_bounds()) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
                 self.diagnostics.metro_vertices += spline_visitor.visited;
@@ -112,25 +112,22 @@ impl App {
             }
         }
 
-        match &self.agent_detail {
-            crate::app::AgentDetail::Selected { id } => {
-                let agent = self.engine.agents.get(id).expect("missing agent");
-                if let agent::AgentState::Route(route_state) = &agent.state {
-                    if let Some(key) =
-                        route_state.sample(self.engine.time_state.current_time, &self.engine.state)
-                    {
-                        let (x, y) = key.position;
-                        let pos = egui::Pos2::from(self.pan.to_screen_ff((x, y)));
-                        painter.circle(
-                            pos,
-                            5.0,
-                            egui::Color32::from_rgb(255, 0, 0),
-                            egui::Stroke::none(),
-                        );
-                    }
+        if let crate::app::AgentDetail::Selected { id } = &self.agent_detail {
+            let agent = self.engine.agents.get(id).expect("missing agent");
+            if let agent::AgentState::Route(route_state) = &agent.state {
+                if let Some(key) =
+                    route_state.sample(self.engine.time_state.current_time, &self.engine.state)
+                {
+                    let (x, y) = key.position;
+                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x, y)));
+                    painter.circle(
+                        pos,
+                        5.0,
+                        egui::Color32::from_rgb(255, 0, 0),
+                        egui::Stroke::none(),
+                    );
                 }
             }
-            _ => (),
         }
 
         Ok(())
@@ -174,18 +171,16 @@ impl App {
 
             let scale = self.pan.scale * multitouch.zoom_delta;
             self.update_scale(scale, gesture_center.x, gesture_center.y);
-        } else {
-            if response.dragged() {
-                // desktop
+        } else if response.dragged() {
+            // desktop
 
-                // NOTE: Would also apply on mobile since we generate fake pointer events,
-                // but we prefer to use the multitouch measurement since it accounts for
-                // all active touches, not just one.
+            // NOTE: Would also apply on mobile since we generate fake pointer events,
+            // but we prefer to use the multitouch measurement since it accounts for
+            // all active touches, not just one.
 
-                let delta = response.drag_delta();
-                self.pan.tx += delta.x;
-                self.pan.ty += delta.y;
-            }
+            let delta = response.drag_delta();
+            self.pan.tx += delta.x;
+            self.pan.ty += delta.y;
         }
 
         if response.clicked() {
@@ -568,7 +563,7 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
         t: f64,
         prev: Option<route::RouteKey>,
     ) -> Result<()> {
-        let (x, y) = key.position.into();
+        let (x, y) = key.position;
         self.visit(
             &egui::Color32::from_rgb(0, 0, 255),
             5.0,
@@ -576,7 +571,7 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
             (x as f64, y as f64).into(),
             t,
             prev.map(|prev| {
-                let (x, y) = prev.position.into();
+                let (x, y) = prev.position;
                 (x as f64, y as f64).into()
             }),
         )

@@ -181,7 +181,7 @@ impl Engine {
     }
 
     pub fn load_file(path: &std::path::Path) -> Result<Self, Error> {
-        Ok(Self::load(&std::fs::read_to_string(path)?)?)
+        Self::load(&std::fs::read_to_string(path)?)
     }
 
     pub fn dump(&self) -> Result<String, Error> {
@@ -261,7 +261,7 @@ impl Engine {
             tiles::Tile::HousingTile(tiles::HousingTile { agents, .. }) => {
                 for agent_id in agents {
                     self.agents
-                        .get_mut(&agent_id)
+                        .get_mut(agent_id)
                         .expect("missing agent")
                         .housing = to;
                 }
@@ -269,7 +269,7 @@ impl Engine {
             tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { agents, .. }) => {
                 for agent_id in agents {
                     self.agents
-                        .get_mut(&agent_id)
+                        .get_mut(agent_id)
                         .expect("missing agent")
                         .workplace = Some(to);
                 }

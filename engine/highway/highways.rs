@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use crate::junction::{HighwayJunction, RampDirection};
 use crate::segment::{HighwayData, HighwayKey, HighwaySegment};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Highways {
     junctions: BTreeMap<u64, HighwayJunction>,
     segments: BTreeMap<u64, HighwaySegment>,
@@ -14,12 +14,7 @@ pub struct Highways {
 
 impl Highways {
     pub fn new() -> Self {
-        Self {
-            junctions: BTreeMap::new(),
-            segments: BTreeMap::new(),
-            junction_counter: 0,
-            segment_counter: 0,
-        }
+        Self::default()
     }
 
     pub fn add_junction(&mut self, location: (f64, f64), ramp: Option<RampDirection>) -> u64 {

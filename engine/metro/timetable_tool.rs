@@ -14,10 +14,7 @@ struct Args {
     metro_line: u64,
 }
 
-fn plot(
-    data: &Vec<(f64, f64)>,
-    output: &std::path::Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn plot(data: &[(f64, f64)], output: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     use plotters::prelude::*;
 
     let root_area = BitMapBackend::new(output, (1600, 400)).into_drawing_area();
@@ -64,7 +61,10 @@ fn main() {
         }
         Operation::SpeedPlot { output } => {
             plot(
-                &speed_keys.iter().map(|key| (key.t, key.v)).collect(),
+                &speed_keys
+                    .iter()
+                    .map(|key| (key.t, key.v))
+                    .collect::<Vec<_>>(),
                 &output,
             )
             .unwrap();
@@ -79,7 +79,7 @@ fn main() {
                 &speed_bounds
                     .iter()
                     .map(|bound| (bound.t, bound.b))
-                    .collect(),
+                    .collect::<Vec<_>>(),
                 &output,
             )
             .unwrap();

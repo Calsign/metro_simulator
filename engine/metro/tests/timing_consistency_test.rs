@@ -68,6 +68,6 @@ fn timing_consistency_test() {
     }
 
     if failed {
-        assert!(false, "Some lines are inconsistent");
+        panic!("Some lines are inconsistent");
     }
 }

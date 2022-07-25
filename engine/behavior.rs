@@ -17,6 +17,7 @@ pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
 }
 
 // NOTE: all implementations of TriggerType must be listed here
+#[allow(clippy::enum_variant_names)]
 #[enum_dispatch::enum_dispatch(TriggerType)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -333,23 +334,20 @@ impl TriggerType for AgentRouteAdvance {
 
         agent.log_timestamp(|| "advancing", engine.time_state.current_time);
 
-        match &mut agent.state {
-            agent::AgentState::Route(route_state) => {
-                route_state.advance(&mut engine.world_state, &engine.state)?;
-                match route_state.next_trigger() {
-                    Some(next_trigger) => {
-                        assert!(next_trigger >= engine.time_state.current_time);
-                        engine.trigger_queue.push(self, next_trigger);
-                    }
-                    None => {
-                        agent.log_timestamp(|| "finishing route", engine.time_state.current_time);
-                        agent.finish_route()?;
-                    }
+        if let agent::AgentState::Route(route_state) = &mut agent.state {
+            route_state.advance(&mut engine.world_state, &engine.state)?;
+            match route_state.next_trigger() {
+                Some(next_trigger) => {
+                    assert!(next_trigger >= engine.time_state.current_time);
+                    engine.trigger_queue.push(self, next_trigger);
+                }
+                None => {
+                    agent.log_timestamp(|| "finishing route", engine.time_state.current_time);
+                    agent.finish_route()?;
                 }
             }
-            _ => {
-                // this route was aborted because it took too long
-            }
+        } else {
+            // this route was aborted because it took too long
         }
 
         Ok(())
