@@ -1,4 +1,4 @@
-load("//util:macros.bzl", "ms_rust_benchmark", "ms_rust_binary", "ms_rust_test")
+load("//util:macros.bzl", "ms_rust_benchmark", "ms_rust_test")
 
 ms_rust_benchmark(
     name = "simulation_timer",

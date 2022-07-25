@@ -9,4 +9,7 @@ android-install:
 	adb install build/bazel-bin/mobile/android/app.apk
 	adb shell am start -a android.intent.action.MAIN -n com.calsignlabs.metro_simulator/android.app.NativeActivity
 
-.PHONY: update
+bench:
+	bazel query "attr(tags, bench, kind(rust_binary, //...))" | xargs -L1 bazel run -c opt
+
+.PHONY: bootstrap android-install bench

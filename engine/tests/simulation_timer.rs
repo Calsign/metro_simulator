@@ -6,21 +6,23 @@ use uom::si::u64::Time;
 
 #[derive(clap::Parser, Debug)]
 struct Args {
-    days: u64,
+    days: Option<u64>,
 }
 
 fn main() {
     use clap::Parser;
     let args = Args::parse();
 
+    let days = args.days.unwrap_or(7);
+
     let mut engine = engine::Engine::load_file(&PathBuf::from("maps/sf.json")).unwrap();
     engine.init_trigger_queue();
     let start_time = Instant::now();
-    engine.time_state.skip_by(Time::new::<day>(args.days).value);
+    engine.time_state.skip_by(Time::new::<day>(days).value);
     engine.update(0.0, f64::INFINITY).unwrap();
     println!(
         "Total time for {} days: {:.4}",
-        args.days,
+        days,
         start_time.elapsed().as_secs_f64()
     );
 }
