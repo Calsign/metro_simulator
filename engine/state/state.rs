@@ -1,6 +1,6 @@
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use crate::config::Config;
 
@@ -244,8 +244,8 @@ impl CollectTilesVisitor {
 impl<F: Fields> quadtree::Visitor<BranchState<F>, LeafState<F>, Error> for CollectTilesVisitor {
     fn visit_branch_pre(
         &mut self,
-        branch: &BranchState<F>,
-        data: &quadtree::VisitData,
+        _branch: &BranchState<F>,
+        _data: &quadtree::VisitData,
     ) -> Result<bool, Error> {
         Ok(true)
     }
@@ -273,8 +273,8 @@ impl<F: Fields> quadtree::Visitor<BranchState<F>, LeafState<F>, Error> for Colle
 
     fn visit_branch_post(
         &mut self,
-        branch: &BranchState<F>,
-        data: &quadtree::VisitData,
+        _branch: &BranchState<F>,
+        _data: &quadtree::VisitData,
     ) -> Result<(), Error> {
         Ok(())
     }

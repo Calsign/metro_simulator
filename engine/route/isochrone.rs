@@ -48,7 +48,6 @@ pub fn calculate_isochrone(
 pub struct IsochroneMap {
     pub isochrone: Isochrone,
     map: imageproc::definitions::Image<image::Luma<f64>>,
-    dim: u32,
     downsample: u64,
     scale_factor: f64,
 }
@@ -105,7 +104,6 @@ pub fn calculate_isochrone_map(
     Ok(IsochroneMap {
         isochrone,
         map,
-        dim,
         downsample,
         scale_factor,
     })

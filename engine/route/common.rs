@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use std::collections::BTreeMap;
-
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("Quadtree error: {0}")]

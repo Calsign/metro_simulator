@@ -24,7 +24,7 @@ pub const K_LINEAR_FACTOR: f64 = 1.1;
 pub const K_EXPONENTIAL_FACTOR: f64 = 3.22;
 
 /// we need a bound on total time to keep things from breaking
-pub const MAX_CONGESTED_TIME: f64 = 3600.0; // 1 hour
+pub const MAX_CONGESTED_TIME: f64 = 1200.0; // 20 minutes
 
 impl HighwaySegment {
     pub fn travel_time(&self, tile_size: f64) -> f64 {

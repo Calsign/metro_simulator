@@ -7,10 +7,6 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn total(&self) -> f32 {
-        self.value + self.extra.unwrap_or(0.0)
-    }
-
     pub fn peak(&self) -> f32 {
         self.value + self.extra.unwrap_or(0.0).max(0.0)
     }
@@ -94,7 +90,7 @@ where
     E: Copy,
 {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let (w, h) = ui.available_size().into();
+        let (w, _) = ui.available_size().into();
         let (response, painter) = ui.allocate_painter((w, w / 2.0).into(), egui::Sense::hover());
 
         let rect = painter.clip_rect();
@@ -104,7 +100,7 @@ where
         // background
         painter.rect_filled(rect, egui::Rounding::none(), egui::Color32::BLACK);
 
-        if let Some(max_entry) = self.max_entry {
+        if self.max_entry.is_some() {
             let width = (x2 - x1) / self.data.len() as f32;
             let height = y2 - y1;
 

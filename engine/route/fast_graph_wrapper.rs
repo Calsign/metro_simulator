@@ -1,10 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use fast_paths::{
     FastGraph, InputGraph, NodeId, Params, ParamsWithOrder, PathCalculator, ShortestPath, Weight,
 };
 
-use crate::common::QueryInput;
 use crate::edge::Edge;
 use crate::node::Node;
 use crate::traffic::WorldState;

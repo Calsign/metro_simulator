@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use uom::si::time::{day, hour, minute, second};
+use uom::si::time::{day, hour, minute};
 use uom::si::u64::Time;
 
 use crate::engine::{Engine, Error};
@@ -41,7 +41,7 @@ pub enum Trigger {
 pub struct UpdateFields {}
 
 impl TriggerType for UpdateFields {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         // TODO: only re-run these when the underlying data updates
         engine.update_fields()?;
 
@@ -53,7 +53,7 @@ impl TriggerType for UpdateFields {
         Ok(())
     }
 
-    fn debug_context(&self, state: &Engine) -> Option<String> {
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
         None
     }
 }
@@ -62,7 +62,7 @@ impl TriggerType for UpdateFields {
 pub struct UpdateCollectTiles {}
 
 impl TriggerType for UpdateCollectTiles {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         engine.state.update_collect_tiles()?;
 
         // re-trigger every hour of simulated time
@@ -73,7 +73,7 @@ impl TriggerType for UpdateCollectTiles {
         Ok(())
     }
 
-    fn debug_context(&self, state: &Engine) -> Option<String> {
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
         None
     }
 }
@@ -82,7 +82,7 @@ impl TriggerType for UpdateCollectTiles {
 pub struct UpdateTraffic {}
 
 impl TriggerType for UpdateTraffic {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         // try to predict traffic 30 minutes in the future
         engine.update_route_weights(Time::new::<minute>(30).value);
 
@@ -94,7 +94,7 @@ impl TriggerType for UpdateTraffic {
         Ok(())
     }
 
-    fn debug_context(&self, state: &Engine) -> Option<String> {
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
         None
     }
 }
@@ -105,7 +105,7 @@ pub struct AgentPlanCommuteToWork {
 }
 
 impl TriggerType for AgentPlanCommuteToWork {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         let id = agent.id;
 
@@ -113,7 +113,7 @@ impl TriggerType for AgentPlanCommuteToWork {
             agent.log_timestamp(|| "aborting route", engine.time_state.current_time);
 
             // the agent hasn't finished their previous route yet.
-            agent.abort_route(&mut engine.world_state, &engine.state)?;
+            agent.abort_route(&mut engine.world_state)?;
         }
 
         if let Some(workplace) = &agent.workplace {
@@ -172,7 +172,7 @@ pub struct AgentPlanCommuteHome {
 }
 
 impl TriggerType for AgentPlanCommuteHome {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
         let id = agent.id;
 
@@ -180,7 +180,7 @@ impl TriggerType for AgentPlanCommuteHome {
             agent.log_timestamp(|| "aborting route", engine.time_state.current_time);
 
             // the agent hasn't finished their previous route yet.
-            agent.abort_route(&mut engine.world_state, &engine.state)?;
+            agent.abort_route(&mut engine.world_state)?;
         }
 
         if let Some(workplace) = &agent.workplace {
@@ -250,7 +250,7 @@ impl AgentRouteStart {
 }
 
 impl TriggerType for AgentRouteStart {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         agent::agent_log_timestamp(
             self.agent,
             || "starting route",
@@ -328,7 +328,7 @@ pub struct AgentRouteAdvance {
 }
 
 impl TriggerType for AgentRouteAdvance {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         let agent = engine.agents.get_mut(&self.agent).expect("missing agent");
 
         agent.log_timestamp(|| "advancing", engine.time_state.current_time);
@@ -475,7 +475,7 @@ impl AgentLifeDecisions {
 }
 
 impl TriggerType for AgentLifeDecisions {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         self.maybe_quit_job(engine);
         self.maybe_find_new_job(engine);
 
@@ -496,7 +496,7 @@ impl TriggerType for AgentLifeDecisions {
 pub struct WorkplaceDecisions {}
 
 impl TriggerType for WorkplaceDecisions {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         let root_branch = engine.state.qtree.get_root_branch().unwrap();
         // this should be a reasonable number
         let new_workplaces = root_branch.fields.raw_demand.raw_workplace_demand.count / 100;
@@ -532,7 +532,7 @@ impl TriggerType for WorkplaceDecisions {
         Ok(())
     }
 
-    fn debug_context(&self, state: &Engine) -> Option<String> {
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
         None
     }
 }
@@ -548,7 +548,7 @@ impl TriggerType for DummyTrigger {
         Ok(())
     }
 
-    fn debug_context(&self, state: &Engine) -> Option<String> {
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
         None
     }
 }
@@ -559,13 +559,13 @@ impl TriggerType for DummyTrigger {
 pub struct DoublingTrigger {}
 
 impl TriggerType for DoublingTrigger {
-    fn execute(self, engine: &mut Engine, time: u64) -> Result<(), Error> {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         engine.trigger_queue.push_rel(DoublingTrigger {}, 1);
         engine.trigger_queue.push_rel(DoublingTrigger {}, 1);
         Ok(())
     }
 
-    fn debug_context(&self, state: &Engine) -> Option<String> {
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
         None
     }
 }

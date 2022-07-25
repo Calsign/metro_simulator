@@ -3,7 +3,6 @@ use anyhow::Result;
 use state::{BranchState, LeafState};
 
 use crate::app::App;
-use crate::field_overlay::FieldType;
 
 impl App {
     pub(crate) fn get_bounding_box(&self, ui: &egui::Ui) -> quadtree::Rect {
@@ -15,8 +14,6 @@ impl App {
     }
 
     pub(crate) fn draw_content(&mut self, ui: &mut egui::Ui) -> Result<()> {
-        use itertools::Itertools;
-
         let (response, painter) =
             ui.allocate_painter(ui.available_size(), egui::Sense::click_and_drag());
         self.handle_input(response);
@@ -43,7 +40,7 @@ impl App {
         self.diagnostics.highway_vertices = 0;
         self.diagnostics.agents = 0;
 
-        for (id, highway_segment) in self.engine.state.highways.get_segments() {
+        for highway_segment in self.engine.state.highways.get_segments().values() {
             if bounding_box.intersects(&highway_segment.bounds) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
@@ -52,7 +49,7 @@ impl App {
         }
 
         if self.pan.scale >= 4.0 {
-            for (id, highway_junction) in self.engine.state.highways.get_junctions() {
+            for highway_junction in self.engine.state.highways.get_junctions().values() {
                 if let Some(_) = highway_junction.ramp {
                     let (x, y) = highway_junction.location;
                     if bounding_box.contains(x as u64, y as u64) {
@@ -68,7 +65,7 @@ impl App {
             }
         }
 
-        for (id, metro_line) in &self.engine.state.metro_lines {
+        for metro_line in self.engine.state.metro_lines.values() {
             if bounding_box.intersects(&metro_line.get_bounds()) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
@@ -92,12 +89,7 @@ impl App {
         // only render routes if the simulation is slow enough to see them and we are zoomed in
         // sufficiently far
         if self.engine.time_state.should_render_motion() && self.pan.scale >= 2.0 {
-            let selected_agent = match self.agent_detail {
-                crate::app::AgentDetail::Selected { id } => Some(id),
-                _ => None,
-            };
-
-            for (id, agent) in self.engine.agents.iter() {
+            for agent in self.engine.agents.values() {
                 if let agent::AgentState::Route(route_state) = &agent.state {
                     // NOTE: this draws a lot more than needed, but it also avoids computing the
                     // time spline for each route unless necessary
@@ -354,7 +346,7 @@ impl<'a, 'b>
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &BranchState<engine::FieldsState>,
+        _branch: &BranchState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> Result<bool> {
         let should_descend =
@@ -391,16 +383,15 @@ impl<'a, 'b>
                     egui::Color32::from_rgb(0, 0, 150),
                 );
             }
-            HousingTile(tiles::HousingTile { density, .. }) => {
+            HousingTile(tiles::HousingTile { .. }) => {
                 self.painter.circle_filled(
                     rect.center(),
                     width / 8.0,
                     egui::Color32::from_gray(255),
                 );
             }
-            WorkplaceTile(tiles::WorkplaceTile { density, .. }) => {
+            WorkplaceTile(tiles::WorkplaceTile { .. }) => {
                 self.painter.add(regular_poly::<3>(
-                    self.painter,
                     rect.center().into(),
                     width / 6.0,
                     -std::f32::consts::FRAC_PI_2,
@@ -408,7 +399,7 @@ impl<'a, 'b>
                     egui::Stroke::none(),
                 ));
             }
-            MetroStationTile(tiles::MetroStationTile { x, y, ids, .. }) => {
+            MetroStationTile(tiles::MetroStationTile { .. }) => {
                 self.painter.circle_stroke(
                     rect.center(),
                     width / 4.0,
@@ -435,7 +426,6 @@ impl<'a, 'b>
 }
 
 fn regular_poly<const N: usize>(
-    painter: &egui::Painter,
     (x, y): (f32, f32),
     radius: f32,
     theta: f32,
@@ -487,7 +477,7 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
         line_width: f32,
         traffic_factor: Option<f64>,
         vertex: cgmath::Vector2<f64>,
-        t: f64,
+        _t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
         let point = self
@@ -573,7 +563,7 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
 {
     fn visit(
         &mut self,
-        route: &route::Route,
+        _route: &route::Route,
         key: route::RouteKey,
         t: f64,
         prev: Option<route::RouteKey>,
@@ -595,5 +585,5 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
 
 fn traffic_hue(traffic_factor: f64) -> f32 {
     let scaled = (traffic_factor - 1.0).min(5.0) / 5.0;
-    (1.0 / 3.0 - (scaled * 1.0 / 3.0)) as f32
+    (1.0 / 3.0 - (scaled / 3.0)) as f32
 }

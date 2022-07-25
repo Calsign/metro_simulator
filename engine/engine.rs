@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uom::si::time::hour;
 use uom::si::u64::Time;
 
-use crate::fields::{FieldsComputationData, FieldsState};
+use crate::fields::FieldsState;
 use crate::time_state::TimeState;
 use crate::trigger::TriggerQueue;
 
@@ -468,9 +468,7 @@ mod trigger_tests {
         });
 
         // NOTE: all triggers have to be defined in the same crate, so we define the trigger in trigger.rs.
-        engine
-            .trigger_queue
-            .push(crate::behavior::DoublingTrigger {}, 1);
+        engine.trigger_queue.push(DoublingTrigger {}, 1);
 
         engine.time_state.playback_rate = 1;
         engine.time_state.paused = false;

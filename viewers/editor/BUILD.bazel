@@ -1,7 +1,7 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("//util:macros.bzl", "ms_rust_binary")
 load("//viewers:util.bzl", "all_maps")
 
-rust_binary(
+ms_rust_binary(
     name = "editor",
     srcs = ["main.rs"],
     visibility = ["//visibility:public"],

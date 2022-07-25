@@ -3,16 +3,12 @@ use crate::common::{CarConfig, Error, Mode, QueryInput};
 use crate::edge::Edge;
 use crate::node::Node;
 use crate::route::Route;
-use crate::traffic::WorldState;
 
 fn perform_query<'a>(
     base_graph: &mut InnerGraph,
     start_id: NodeIndex,
     end_id: NodeIndex,
 ) -> Result<Option<(f64, Vec<NodeIndex>)>, Error> {
-    use cgmath::MetricSpace;
-    use cgmath::Vector2;
-
     let path = {
         let shortest_path = base_graph.query(start_id, end_id);
         match shortest_path {

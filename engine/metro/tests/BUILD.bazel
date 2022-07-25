@@ -1,6 +1,6 @@
-load("@rules_rust//rust:defs.bzl", "rust_test")
+load("//util:macros.bzl", "ms_rust_test")
 
-rust_test(
+ms_rust_test(
     name = "timing_consistency_test",
     srcs = ["timing_consistency_test.rs"],
     data = ["//maps:sf"],

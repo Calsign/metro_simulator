@@ -403,8 +403,8 @@ impl
 
     fn visit_branch_post(
         &mut self,
-        branch: &state::BranchState<engine::FieldsState>,
-        data: &quadtree::VisitData,
+        _branch: &state::BranchState<engine::FieldsState>,
+        _data: &quadtree::VisitData,
     ) -> PyResult<()> {
         Ok(())
     }

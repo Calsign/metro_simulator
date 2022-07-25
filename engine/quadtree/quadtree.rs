@@ -338,8 +338,8 @@ impl<B, L> Quadtree<B, L> {
                 return Err(Error::ExpectedLeaf());
             }
             Node::Leaf {
-                data: existing_data,
                 depth: existing_depth,
+                ..
             } => {
                 *existing = Node::Branch {
                     data,
@@ -360,13 +360,13 @@ impl<B, L> Quadtree<B, L> {
                 let mut node = &mut self.root;
                 for index in 0..address.depth() {
                     if let Node::Branch {
-                        mut child_count,
-                        mut child_depth,
+                        child_count,
+                        child_depth,
                         ..
-                    } = **node
+                    } = &mut **node
                     {
-                        child_count += 3;
-                        child_depth = std::cmp::max(child_depth, new_depth - index);
+                        *child_count += 3;
+                        *child_depth = std::cmp::max(*child_depth, new_depth - index);
                     } else {
                         panic!("should be impossible");
                     }
@@ -694,7 +694,7 @@ mod tests {
             Ok(())
         }
 
-        fn visit_branch_post(&mut self, branch: &B, data: &VisitData) -> Result<(), ()> {
+        fn visit_branch_post(&mut self, _branch: &B, _data: &VisitData) -> Result<(), ()> {
             Ok(())
         }
     }
@@ -795,8 +795,12 @@ mod tests {
 
         assert_equal_vec_unordered(qtree.get_borders((vec![], 3)).unwrap(), vec![]);
 
-        qtree.split((vec![], 3), 0, QuadMap::new(1, 2, 3, 4));
-        qtree.split((vec![NW], 3), 1, QuadMap::new(5, 6, 7, 8));
+        qtree
+            .split((vec![], 3), 0, QuadMap::new(1, 2, 3, 4))
+            .unwrap();
+        qtree
+            .split((vec![NW], 3), 1, QuadMap::new(5, 6, 7, 8))
+            .unwrap();
 
         assert_equal_vec_unordered(
             qtree.get_borders((vec![SE], 3)).unwrap(),

@@ -1,7 +1,7 @@
-load("@rules_rust//rust:defs.bzl", "rust_shared_library")
+load("//util:macros.bzl", "ms_rust_shared_library")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
-rust_shared_library(
+ms_rust_shared_library(
     name = "bindings",
     srcs = ["bindings.rs"],
     proc_macro_deps = [

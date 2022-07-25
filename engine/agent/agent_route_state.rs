@@ -107,7 +107,7 @@ impl AgentRouteState {
             start_time,
             phase: match route.edges.first() {
                 Some(first) => {
-                    world_state.increment_edge(first, state)?;
+                    world_state.increment_edge(first)?;
 
                     AgentRoutePhase::InProgress {
                         current_edge: 0,
@@ -182,10 +182,11 @@ impl AgentRouteState {
                 current_mode,
             } => {
                 let old_edge = &self.route.edges[current_edge as usize];
-                world_state.decrement_edge(old_edge, state)?;
 
                 let new_edge_index = current_edge + 1;
                 self.phase = if new_edge_index as usize == self.route.edges.len() {
+                    world_state.decrement_edge(old_edge)?;
+
                     AgentRoutePhase::Finished {
                         total_time: current_edge_start + current_edge_total,
                     }
@@ -193,10 +194,9 @@ impl AgentRouteState {
                     let new_edge = &self.route.edges[new_edge_index as usize];
 
                     if new_edge.is_jammed(world_state, state) {
-                        agent_log(self.id, || "jammed; restarting current edge");
-
                         // the next edge is jammed, so we can't advance!
-                        world_state.increment_edge(old_edge, state)?;
+
+                        agent_log(self.id, || "jammed; restarting current edge");
 
                         // wait five minutes before trying to advance
                         // TODO: would be better to wait precisely until the first car leaves the
@@ -210,7 +210,8 @@ impl AgentRouteState {
                             current_mode,
                         }
                     } else {
-                        world_state.increment_edge(new_edge, state)?;
+                        world_state.decrement_edge(old_edge)?;
+                        world_state.increment_edge(new_edge)?;
 
                         // maybe adjust parked car
                         Self::handle_parking(self.id, &mut self.parked_car, new_edge)?;

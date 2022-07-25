@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 
 use engine::Engine;
-use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route, WorldStateImpl};
+use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route};
 
 #[derive(Debug, Clone)]
 pub enum StringPredicate {

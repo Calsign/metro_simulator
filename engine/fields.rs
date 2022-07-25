@@ -12,7 +12,9 @@ struct ComputeLeafData<'a, 'b, 'c, 'd, 'e, 'f> {
 
 struct ComputeBranchData<'a, 'b, 'c, 'd, 'e> {
     fields: &'a quadtree::QuadMap<FieldsState>,
+    #[allow(dead_code)]
     data: &'b quadtree::VisitData,
+    #[allow(dead_code)]
     extra: &'c FieldsComputationData<'d, 'e>,
 }
 
@@ -26,7 +28,6 @@ where
     T: std::ops::Add<Output = T> + Default + Copy,
     I: IntoIterator<Item = T>,
 {
-    use std::borrow::Borrow;
     iterator.into_iter().fold(T::default(), std::ops::Add::add)
 }
 
@@ -193,7 +194,7 @@ impl Field for Population {
             housing = *density;
             for agent_id in agents {
                 let agent = leaf.extra.agents.get(agent_id).expect("missing agent");
-                if let Some(workplace) = agent.workplace {
+                if agent.workplace.is_some() {
                     employed_people += 1;
                     workplace_happiness
                         .add_sample(agent.workplace_happiness_score().unwrap() as f64);
@@ -530,13 +531,13 @@ impl state::Fields for FieldsState {}
 // fail if this trait isn't implemented. So here we are.
 
 impl Serialize for FieldsState {
-    fn serialize<S: serde::ser::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize<S: serde::ser::Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
         panic!("FieldsState is not deserializable")
     }
 }
 
 impl<'de> Deserialize<'de> for FieldsState {
-    fn deserialize<D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    fn deserialize<D: serde::de::Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
         panic!("FieldsState is not deserializable")
     }
 }

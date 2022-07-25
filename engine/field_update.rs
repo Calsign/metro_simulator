@@ -342,8 +342,8 @@ where
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<bool, Error> {
         // NOTE: I experimented with applying an entire branch to avoid descending into each leaf
         // when downsampling is applied, but it did not yield any significant change in performance.
@@ -357,8 +357,8 @@ where
 
     fn visit_branch_post(
         &mut self,
-        branch: &BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<(), Error> {
         Ok(())
     }
@@ -381,8 +381,8 @@ where
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &mut BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &mut BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<bool, Error> {
         Ok(true)
     }
@@ -402,8 +402,8 @@ where
 
     fn visit_branch_post(
         &mut self,
-        branch: &mut BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &mut BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<(), Error> {
         Ok(())
     }

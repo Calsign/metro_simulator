@@ -134,7 +134,7 @@ impl MetroLine {
             for (i, key) in self.keys.iter().enumerate() {
                 match key {
                     MetroKey::Key(_) => (),
-                    MetroKey::Stop(vec, station) => {
+                    MetroKey::Stop(_, station) => {
                         if let Some(start) = start {
                             segment_bounds.insert(
                                 (start, station.address),

@@ -351,25 +351,25 @@ impl App {
                         CongestionType::HighwaySegments => {
                             let data = snapshot
                                 .iter_highway_segments()
-                                .filter(|k, v| highway_segment_in_bounds(k));
+                                .filter(|k, _| highway_segment_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
                         CongestionType::MetroSegments => {
                             let data = snapshot
                                 .iter_metro_segments()
-                                .filter(|k, v| metro_segment_in_bounds(k));
+                                .filter(|k, _| metro_segment_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
                         CongestionType::LocalRoads => {
                             let data = snapshot
                                 .iter_local_road_zones()
-                                .filter(|k, v| local_zone_in_bounds(k));
+                                .filter(|k, _| local_zone_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
                         CongestionType::Parking => {
                             let data = snapshot
                                 .iter_parking_zones()
-                                .filter(|k, v| local_zone_in_bounds(k));
+                                .filter(|k, _| local_zone_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
                     };
@@ -381,7 +381,7 @@ impl App {
                                     .engine
                                     .world_state
                                     .iter_highway_segments()
-                                    .filter(|k, v| highway_segment_in_bounds(k));
+                                    .filter(|k, _| highway_segment_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
                             CongestionType::MetroSegments => {
@@ -389,7 +389,7 @@ impl App {
                                     .engine
                                     .world_state
                                     .iter_metro_segments()
-                                    .filter(|k, v| metro_segment_in_bounds(k));
+                                    .filter(|k, _| metro_segment_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
                             CongestionType::LocalRoads => {
@@ -397,7 +397,7 @@ impl App {
                                     .engine
                                     .world_state
                                     .iter_local_road_zones()
-                                    .filter(|k, v| local_zone_in_bounds(k));
+                                    .filter(|k, _| local_zone_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
                             CongestionType::Parking => {
@@ -405,7 +405,7 @@ impl App {
                                     .engine
                                     .world_state
                                     .iter_parking_zones()
-                                    .filter(|k, v| local_zone_in_bounds(k));
+                                    .filter(|k, _| local_zone_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
                         };
@@ -415,7 +415,7 @@ impl App {
                 })
                 .collect(),
         );
-        history_chart.with_labels(|i, (entry, _)| format!("{:.1}", entry));
+        history_chart.with_labels(|_, (entry, _)| format!("{:.1}", entry));
 
         let histogram = match self.congestion_analysis.congestion_type {
             CongestionType::HighwaySegments => {
@@ -454,7 +454,7 @@ impl App {
 
         let mut histogram_chart =
             crate::chart::Chart::new(histogram.iter().map(|total| *total as f32).collect());
-        histogram_chart.with_labels(|i, entry| format!("{}", entry as f64));
+        histogram_chart.with_labels(|_, entry| format!("{}", entry as f64));
 
         egui::ComboBox::from_id_source("congestion_analysis_type")
             .selected_text(self.congestion_analysis.congestion_type.label())
@@ -530,7 +530,6 @@ impl App {
                     ui.label(format!("Selected tile has {} agent(s):", agents.len()));
 
                     for id in agents {
-                        let agent = self.engine.agents.get(id).expect("missing agent");
                         if ui.button(format!("Agent #{}", id)).clicked() {
                             self.agent_detail = AgentDetail::Selected { id: *id };
                         }
@@ -766,8 +765,6 @@ impl PanState {
 pub(crate) struct RouteQuery {
     pub start_address: Option<quadtree::Address>,
     pub stop_address: Option<quadtree::Address>,
-    pub start_selection: bool,
-    pub stop_selection: bool,
     pub has_car: bool,
     pub current_routes: Vec<route::Route>,
 }
@@ -777,8 +774,6 @@ impl RouteQuery {
         Self {
             start_address: None,
             stop_address: None,
-            start_selection: false,
-            stop_selection: false,
             has_car: true,
             current_routes: Vec::new(),
         }
@@ -811,6 +806,7 @@ pub(crate) enum IsochroneQueryState {
     /// waiting for user to select a tile
     Querying,
     /// calculation in progress (might be slow)
+    #[allow(dead_code)]
     Calculating,
     /// calculation finished, isochrone visible
     Calculated { isochrone_map: route::IsochroneMap },

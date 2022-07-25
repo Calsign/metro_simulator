@@ -1,15 +1,9 @@
-use std::iter::Zip;
-use std::slice::Iter;
-
 use once_cell::unsync::OnceCell;
 use serde::{Deserialize, Serialize};
 
 pub use spline_util::SplineVisitor;
 
-use highway::{HighwaySegment, Highways};
-use metro::MetroLine;
-
-use crate::common::{CarConfig, Error, Mode, QueryInput};
+use crate::common::{Error, Mode, QueryInput};
 use crate::edge::Edge;
 use crate::node::Node;
 use crate::route_key::RouteKey;

@@ -15,8 +15,7 @@ pub fn assert_equal_vec_unordered<T: Eq + std::fmt::Debug>(vec1: Vec<T>, vec2: V
                 continue 'outer;
             }
         }
-        assert!(
-            false,
+        panic!(
             "Vectors are not order-independent equal:\n  {:?}\n  {:?}",
             vec1, vec2
         );

@@ -5,7 +5,7 @@ pub const LOCAL_ZONE_BLOCK_SIZE: f32 = 500.0;
 
 /// the number of cars that can pass through a 1x1 m square before congestion passes the critical
 /// threshold where a significant slowdown begins to occur
-pub const K_CRITICAL_CAPACITY: f64 = 0.0002;
+pub const K_CRITICAL_CAPACITY: f64 = 0.05;
 
 pub fn grid_downsample(config: &state::Config) -> u32 {
     config.even_downsample(LOCAL_ZONE_BLOCK_SIZE)

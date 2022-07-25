@@ -9,11 +9,19 @@ test --test_env RUST_BACKTRACE=1
 # Side-effect: we can't use #[cfg(debug_assertions)] to build code only for tests.
 test -c opt
 
+# rustfmt aspect
+build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
+build:rustfmt --output_groups=+rustfmt_checks
+
+# clippy aspect
+build:clippy --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect
+build:clippy --output_groups=+clippy_checks
+
 # mypy aspect
 build:mypy --aspects @mypy_integration//:mypy.bzl%mypy_aspect
 build:mypy --output_groups=+mypy
 
-build --config mypy
+build:check --config=rustfmt --config=clippy --config=mypy
 
 # auto-launch android app
 mobile-install --start_app
@@ -30,4 +38,4 @@ build --incompatible_strict_action_env
 
 run:flamegraph --run_under "@crates__flamegraph-0.6.1//:flamegraph__bin -o /tmp/flamegraph.svg --"
 
-build:ci --keep_going --experimental_scale_timeouts=3
+build:ci --keep_going --experimental_scale_timeouts=3 --config=check

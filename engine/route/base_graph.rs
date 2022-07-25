@@ -83,10 +83,12 @@ impl Graph {
     }
 }
 
-pub fn dump_graph<W>(graph: &InnerGraph, write: &mut W) -> Result<(), std::io::Error>
+pub fn dump_graph<W>(_graph: &InnerGraph, _write: &mut W) -> Result<(), std::io::Error>
 where
     W: std::io::Write,
 {
+    // TODO: Implement dumping to dot format. This is implemented for petgraph, but after switching
+    // to fast_paths we no long have a provided implementation
     unimplemented!();
 }
 
@@ -103,10 +105,6 @@ mod triangulation_ext {
     }
 
     impl TriangulationVertex {
-        fn new(index: NodeIndex, x: f64, y: f64) -> Self {
-            Self { index, x, y }
-        }
-
         pub fn index(&self) -> NodeIndex {
             self.index
         }
@@ -335,14 +333,7 @@ pub fn construct_base_graph<'a, F: state::Fields>(
     let mut segment_map = HashMap::new();
 
     for junction in input.state.highways.get_junctions().values() {
-        if let Some(ref filter) = input.filter_highway_segments {
-            // TODO: filter on junctions
-            // NOTE: print to stderr so that we can pipe dump output to xdot
-            eprintln!(
-                "Filtering highway segments selected junction {}",
-                &junction.id
-            );
-        }
+        // TODO: filter on junctions
 
         let (x, y) = junction.location;
         let address = quadtree::Address::from_xy(x as u64, y as u64, input.state.config.max_depth);

@@ -109,7 +109,7 @@ impl FieldType {
         }
     }
 
-    fn value(&self, fields: &engine::FieldsState, data: &quadtree::VisitData) -> f32 {
+    fn value(&self, fields: &engine::FieldsState, _data: &quadtree::VisitData) -> f32 {
         match self {
             Self::Population => fields.population.people.density() as f32,
             Self::TotalHousing => fields.population.housing.density() as f32,

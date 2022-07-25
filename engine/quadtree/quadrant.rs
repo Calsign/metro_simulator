@@ -94,7 +94,7 @@ impl<T> From<Vec<T>> for QuadMap<T> {
         Self {
             data: vec
                 .try_into()
-                .unwrap_or_else(|v: Vec<T>| panic!("vec must have size 4")),
+                .unwrap_or_else(|_| panic!("vec must have size 4")),
         }
     }
 }

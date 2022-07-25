@@ -27,7 +27,7 @@ fn main() {
     }));
 
     // TODO: re-run this when the qtree updates
-    engine.lock().unwrap().state.update_fields().unwrap();
+    engine.lock().unwrap().update_fields().unwrap();
 
     let state = State {
         engine: engine.clone(),
@@ -129,20 +129,20 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
     druid::widget::Flex::column()
         .cross_axis_alignment(druid::widget::CrossAxisAlignment::Start)
         .with_child(druid::widget::Label::dynamic(
-            |state: &CurrentLeafState, env: &druid::Env| {
+            |state: &CurrentLeafState, _env: &druid::Env| {
                 use tiles::TileType;
                 format!("Tile type: {}", state.leaf.tile.name())
             },
         ))
         .with_default_spacer()
         .with_child(druid::widget::Label::dynamic(
-            |state: &CurrentLeafState, env: &druid::Env| {
+            |state: &CurrentLeafState, _env: &druid::Env| {
                 format!("Address: {:?}", (*state.address).clone().to_vec())
             },
         ))
         .with_default_spacer()
         .with_child(druid::widget::Label::dynamic(
-            |state: &CurrentLeafState, env: &druid::Env| {
+            |state: &CurrentLeafState, _env: &druid::Env| {
                 let (x, y) = state.address.to_xy();
                 format!("Center: ({}, {})", x, y)
             },
@@ -157,7 +157,7 @@ fn build_detail_panel() -> impl druid::Widget<CurrentLeafState> {
         .with_child(druid::widget::RadioGroup::new(tile_types()).lens(CurrentLeafState::tile_type))
         .with_default_spacer()
         .with_child(druid::widget::Button::new("Update").on_click(
-            |ctx: &mut druid::EventCtx, state: &mut CurrentLeafState, env: &druid::Env| {
+            |_ctx: &mut druid::EventCtx, state: &mut CurrentLeafState, _env: &druid::Env| {
                 // NOTE: we need to do some juggling to adhere to borrowing rules
                 let mut update = false;
                 {
@@ -192,7 +192,7 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
         .with_child(
             druid::widget::Button::new("New Metro Line")
                 .on_click(
-                    |ctx: &mut druid::EventCtx, state: &mut MetroLinesState, env: &druid::Env| {
+                    |ctx: &mut druid::EventCtx, state: &mut MetroLinesState, _env: &druid::Env| {
                         let mut engine = state.engine.lock().unwrap();
                         // TODO: default metro speed specified here as 35 m/s, or 79 mph
                         let id =
@@ -220,7 +220,7 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                             .lens(MetroLineData::state),
                     )
                     .with_child(
-                        druid::widget::Painter::new(|ctx, data: &MetroLineData, env| {
+                        druid::widget::Painter::new(|ctx, data: &MetroLineData, _env| {
                             use druid::RenderContext;
                             let metro_line = data.metro_line.lock().unwrap();
                             let center = (ctx.size().width / 2.0, ctx.size().height / 2.0);
@@ -264,7 +264,7 @@ fn build_menu_panel() -> impl druid::Widget<State> {
     druid::widget::Flex::column()
         .cross_axis_alignment(druid::widget::CrossAxisAlignment::Start)
         .with_child(druid::widget::Button::new("Save").on_click(
-            |ctx: &mut druid::EventCtx, state: &mut State, env: &druid::Env| {
+            |_ctx: &mut druid::EventCtx, state: &mut State, _env: &druid::Env| {
                 let engine = state.engine.lock().unwrap();
                 let timestamp = chrono::offset::Local::now();
                 let path = format!(
@@ -331,11 +331,11 @@ fn field_data_to_color(
         FieldType::None => None,
         FieldType::Population => {
             let peak = 0.05;
-            Some(f64::min(fields_state.population.people.density, peak) / peak)
+            Some(f64::min(fields_state.population.people.density(), peak) / peak)
         }
         FieldType::Employment => {
             let peak = 0.05;
-            Some(f64::min(fields_state.employment.workers.density, peak) / peak)
+            Some(f64::min(fields_state.employment.workers.density(), peak) / peak)
         }
         FieldType::LandValue => None,
     };
@@ -368,7 +368,7 @@ impl MetroLinesState {
 
         {
             let engine = engine.lock().unwrap();
-            for (id, metro_line) in engine.state.metro_lines.iter() {
+            for id in engine.state.metro_lines.keys() {
                 states.insert(*id, MetroLineState::new());
             }
         }
@@ -397,8 +397,6 @@ impl MetroLineData {
 
 impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
     fn for_each(&self, mut cb: impl FnMut(&MetroLineData, usize)) {
-        use itertools::Itertools;
-
         let engine = self.engine.lock().unwrap();
 
         for (i, (id, metro_line)) in engine.state.metro_lines.iter().enumerate() {
@@ -409,8 +407,6 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
     }
 
     fn for_each_mut(&mut self, mut cb: impl FnMut(&mut MetroLineData, usize)) {
-        use itertools::Itertools;
-
         let mut engine = self.engine.lock().unwrap();
 
         for (i, (id, metro_line)) in engine.state.metro_lines.iter_mut().enumerate() {
@@ -523,7 +519,7 @@ impl druid::Widget<State> for Content {
         ctx: &mut druid::EventCtx,
         event: &druid::Event,
         state: &mut State,
-        env: &druid::Env,
+        _env: &druid::Env,
     ) {
         let content = &mut state.content;
         use druid::Event::*;
@@ -614,29 +610,29 @@ impl druid::Widget<State> for Content {
 
     fn lifecycle(
         &mut self,
-        ctx: &mut druid::LifeCycleCtx<'_, '_>,
-        event: &druid::LifeCycle,
-        state: &State,
-        env: &druid::Env,
+        _ctx: &mut druid::LifeCycleCtx<'_, '_>,
+        _event: &druid::LifeCycle,
+        _state: &State,
+        _env: &druid::Env,
     ) {
     }
 
     fn update(
         &mut self,
         ctx: &mut druid::UpdateCtx<'_, '_>,
-        old_data: &State,
-        state: &State,
-        env: &druid::Env,
+        _old_data: &State,
+        _state: &State,
+        _env: &druid::Env,
     ) {
         ctx.request_paint();
     }
 
     fn layout(
         &mut self,
-        ctx: &mut druid::LayoutCtx<'_, '_>,
+        _ctx: &mut druid::LayoutCtx<'_, '_>,
         bc: &druid::BoxConstraints,
-        state: &State,
-        env: &druid::Env,
+        _state: &State,
+        _env: &druid::Env,
     ) -> druid::Size {
         if bc.is_width_bounded() && bc.is_height_bounded() {
             bc.max()
@@ -699,7 +695,7 @@ impl druid::Widget<State> for Content {
         let mut highway_total_visited = 0;
 
         if state.show_highways {
-            for (id, highway_segment) in engine.state.highways.get_segments().iter().sorted() {
+            for (_, highway_segment) in engine.state.highways.get_segments().iter().sorted() {
                 let mut spline_visitor =
                     PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
                 highway_segment
@@ -747,6 +743,7 @@ impl druid::Widget<State> for Content {
 
 struct PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+    #[allow(dead_code)]
     env: &'b druid::Env,
     state: &'f State,
 
@@ -803,7 +800,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &state::BranchState<engine::FieldsState>,
+        _branch: &state::BranchState<engine::FieldsState>,
         data: &quadtree::VisitData,
     ) -> anyhow::Result<bool> {
         let should_descend = data.width as f64 * self.state.content.scale >= 5.0;
@@ -841,11 +838,11 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
             WaterTile(tiles::WaterTile {}) => {
                 self.ctx.fill(full_rect, &druid::Color::rgb8(0, 0, 150));
             }
-            HousingTile(tiles::HousingTile { density, agents: _ }) => {
+            HousingTile(tiles::HousingTile { .. }) => {
                 let circle = druid::kurbo::Circle::new(rect.center(), width / 8.0);
                 self.ctx.fill(circle, &druid::Color::grey8(255));
             }
-            WorkplaceTile(tiles::WorkplaceTile { density, agents: _ }) => {
+            WorkplaceTile(tiles::WorkplaceTile { .. }) => {
                 let triangle = triangle(
                     rect.center().into(),
                     width / 6.0,
@@ -853,8 +850,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
                 );
                 self.ctx.fill(&triangle[..], &druid::Color::grey8(255));
             }
-            MetroStationTile(tiles::MetroStationTile { x, y, ids, .. }) => {
-                // let point = self.state.content.to_screen((*x, *y));
+            MetroStationTile(tiles::MetroStationTile { .. }) => {
                 let circle = druid::kurbo::Circle::new(rect.center(), width / 4.0);
                 self.ctx.stroke(circle, &druid::Color::grey8(255), 1.0);
             }
@@ -897,6 +893,7 @@ fn triangle((x, y): (f64, f64), radius: f64, theta: f64) -> [druid::kurbo::PathE
 
 struct PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+    #[allow(dead_code)]
     env: &'b druid::Env,
     state: &'f State,
 
@@ -928,7 +925,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
         color: &druid::Color,
         line_width: f64,
         vertex: cgmath::Vector2<f64>,
-        t: f64,
+        _t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<(), anyhow::Error> {
         use druid::RenderContext;
@@ -999,7 +996,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(
         &mut self,
-        segment: &highway::HighwaySegment,
+        _segment: &highway::HighwaySegment,
         vertex: cgmath::Vector2<f64>,
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
@@ -1010,6 +1007,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 
 struct PaintMetroKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+    #[allow(dead_code)]
     env: &'b druid::Env,
     state: &'f State,
 }
@@ -1036,7 +1034,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::KeyVisitor<anyhow::Error>
                     &druid::Color::rgb8(line.color.red, line.color.green, line.color.blue),
                 );
             }
-            metro::MetroKey::Stop(loc, _) => {}
+            metro::MetroKey::Stop(_, _) => {}
         }
 
         Ok(())
@@ -1045,6 +1043,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> metro::KeyVisitor<anyhow::Error>
 
 struct PaintHighwayKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
+    #[allow(dead_code)]
     env: &'b druid::Env,
     state: &'f State,
 }
@@ -1054,7 +1053,7 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> highway::KeyVisitor<anyhow::Error>
 {
     fn visit(
         &mut self,
-        segment: &highway::HighwaySegment,
+        _segment: &highway::HighwaySegment,
         key: &highway::HighwayKey,
     ) -> Result<(), anyhow::Error> {
         use druid::RenderContext;

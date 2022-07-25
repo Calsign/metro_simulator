@@ -297,7 +297,7 @@ fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>, max_speed: f64) -> Vec<Spee
     speed_keys
 }
 
-fn parabolic_key(a: f64, b: f64, c: f64, left: f64, right: f64) -> splines::Key<f64, f64> {
+fn _parabolic_key(a: f64, b: f64, c: f64, left: f64, right: f64) -> splines::Key<f64, f64> {
     let f = |t: f64| a * t.powi(2) + b * t + c;
     let fp = |t: f64| 2.0 * a * t + b;
 
@@ -328,9 +328,9 @@ fn distance_spline(speed_keys: &Vec<SpeedKey>) -> Vec<splines::Key<f64, f64>> {
 
             // integrate speed curve to get a parabola
             // TODO: not currently working :(
-            let a = m / 2.0;
-            let b = left.v - m * left.t;
-            let c = left.t - left.t * left.v + 0.5 * m * left.t.powi(2) + m * left.t;
+            let _a = m / 2.0;
+            let _b = left.v - m * left.t;
+            let _c = left.t - left.t * left.v + 0.5 * m * left.t.powi(2) + m * left.t;
 
             // dist_keys.push(parabolic_key(a, b, c, left.t, right.t));
             dist_keys.push(Key::new(left.t, d, Interpolation::Linear));
@@ -359,8 +359,6 @@ pub fn speed_keys(keys: &Vec<types::MetroKey>, tile_size: f64, max_speed: f64) -
 }
 
 pub fn timetable(speed_keys: &Vec<SpeedKey>) -> Vec<(types::Station, f64)> {
-    use itertools::Itertools;
-
     let mut timetable = Vec::new();
     for key in speed_keys {
         if let Some(station) = &key.station {

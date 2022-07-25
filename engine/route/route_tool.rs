@@ -60,7 +60,7 @@ fn main() {
 
     match args.operation {
         Operation::Construct => {
-            let graph = engine::BaseGraph::construct_base_graph_filter(
+            let _ = engine::BaseGraph::construct_base_graph_filter(
                 &engine.state,
                 metro_lines,
                 highway_segments,
@@ -88,7 +88,7 @@ fn main() {
                 .get_address(coords.end_x, coords.end_y)
                 .unwrap();
 
-            let mut graph = engine::BaseGraph::construct_base_graph_filter(
+            let graph = engine::BaseGraph::construct_base_graph_filter(
                 &engine.state,
                 metro_lines,
                 highway_segments,
@@ -96,8 +96,6 @@ fn main() {
             .unwrap();
 
             let graph_cell = std::cell::RefCell::new(graph);
-
-            use std::borrow::BorrowMut;
 
             let best = route::best_route(
                 graph_cell.borrow_mut(),

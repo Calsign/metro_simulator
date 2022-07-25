@@ -5,7 +5,7 @@ use jni::JNIEnv;
 #[no_mangle]
 pub extern "system" fn Java_com_calsignlabs_metro_1simulator_Engine_hello(
     env: JNIEnv,
-    class: JClass,
+    _class: JClass,
     input: JString,
 ) -> jstring {
     let input: String = env.get_string(input).unwrap().into();

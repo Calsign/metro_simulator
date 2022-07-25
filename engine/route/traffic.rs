@@ -8,8 +8,6 @@ use quadtree::Address;
 
 use crate::common::{Error, Mode};
 use crate::edge::Edge;
-use crate::node::Node;
-use crate::route::Route;
 
 /// The weight of each new congestion observation on the running estimate.
 /// Larger values converge faster, but are less stable.
@@ -75,14 +73,9 @@ impl WorldStateImpl {
         }
     }
 
-    fn apply_edge_entries<F: state::Fields, G>(
-        &mut self,
-        edge: &Edge,
-        state: &state::State<F>,
-        mut f: G,
-    ) -> Result<(), Error>
+    fn apply_edge_entries<F>(&mut self, edge: &Edge, mut f: F) -> Result<(), Error>
     where
-        G: FnMut(&mut f64, f64) -> Result<(), Error>,
+        F: FnMut(&mut f64, f64) -> Result<(), Error>,
     {
         match edge {
             Edge::Highway { segment, .. } => {
@@ -145,12 +138,8 @@ impl WorldStateImpl {
         })
     }
 
-    pub fn increment_edge_no_parking<F: state::Fields>(
-        &mut self,
-        edge: &Edge,
-        state: &state::State<F>,
-    ) -> Result<(), Error> {
-        self.apply_edge_entries(edge, state, |e, v| {
+    pub fn increment_edge_no_parking(&mut self, edge: &Edge) -> Result<(), Error> {
+        self.apply_edge_entries(edge, |e, v| {
             *e += v;
             assert!(e.is_finite() && !e.is_nan());
             Ok(())
@@ -158,11 +147,7 @@ impl WorldStateImpl {
         Ok(())
     }
 
-    pub fn increment_edge<F: state::Fields>(
-        &mut self,
-        edge: &Edge,
-        state: &state::State<F>,
-    ) -> Result<(), Error> {
+    pub fn increment_edge(&mut self, edge: &Edge) -> Result<(), Error> {
         match edge {
             Edge::ModeTransition {
                 from: Mode::Driving,
@@ -174,18 +159,14 @@ impl WorldStateImpl {
                 to: Mode::Driving,
                 address,
             } => self.decrement_parking(*address)?,
-            _ => self.increment_edge_no_parking(edge, state)?,
+            _ => self.increment_edge_no_parking(edge)?,
         }
 
         Ok(())
     }
 
-    pub fn decrement_edge<F: state::Fields>(
-        &mut self,
-        edge: &Edge,
-        state: &state::State<F>,
-    ) -> Result<(), Error> {
-        self.apply_edge_entries(edge, state, |e, v| {
+    pub fn decrement_edge(&mut self, edge: &Edge) -> Result<(), Error> {
+        self.apply_edge_entries(edge, |e, v| {
             // small floating point rounding errors can accumulate here, so deal with them
             if v - *e > TOLERANCE {
                 return Err(Error::EdgeCountingError(format!("e: {}, v: {}", e, v)));
@@ -419,7 +400,7 @@ impl WorldState for WorldStateImpl {
         // we pass in the distance to avoid having to do a sqrt. a little gross but maybe worthwhile?
         if distance > 0.0 {
             self.local_path(start, end)
-                .map(|((x, y), value)| self.local_road_zone(x, y))
+                .map(|((x, y), value)| self.local_road_zone(x, y) * value)
                 .sum::<f64>()
                 / distance
         } else {
@@ -435,14 +416,14 @@ impl WorldState for WorldStateImpl {
     fn iter_highway_segments<'a>(&'a self) -> CongestionIterator<'a, u64> {
         CongestionIterator {
             iterator: Box::new(self.highway_segments.iter().map(|(k, v)| (*k, *v))),
-            total: self.highway_segments.len(),
+            total: Some(self.highway_segments.len()),
         }
     }
 
     fn iter_metro_segments<'a>(&'a self) -> CongestionIterator<'a, (u64, Address, Address)> {
         CongestionIterator {
             iterator: Box::new(self.metro_segments.iter().map(|(k, v)| (*k, *v))),
-            total: self.metro_segments.len(),
+            total: Some(self.metro_segments.len()),
         }
     }
 
@@ -454,7 +435,7 @@ impl WorldState for WorldStateImpl {
                     .enumerate()
                     .map(|(i, v)| (self.local_zone_upscale(self.local_zone_coords(i)), *v)),
             ),
-            total: self.local_roads.len(),
+            total: Some(self.local_roads.len()),
         }
     }
 
@@ -466,7 +447,7 @@ impl WorldState for WorldStateImpl {
                     .enumerate()
                     .map(|(i, v)| (self.local_zone_upscale(self.local_zone_coords(i)), *v)),
             ),
-            total: self.parking.len(),
+            total: Some(self.parking.len()),
         }
     }
 }
@@ -653,7 +634,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
                     .keys()
                     .map(|segment| (*segment, self.get_highway_segment_travelers(*segment))),
             ),
-            total: self.history.snapshots[snapshot].highway_segments.len(),
+            total: Some(self.history.snapshots[snapshot].highway_segments.len()),
         }
     }
 
@@ -670,7 +651,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
                     )
                 },
             )),
-            total: self.history.snapshots[snapshot].metro_segments.len(),
+            total: Some(self.history.snapshots[snapshot].metro_segments.len()),
         }
     }
 
@@ -685,7 +666,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
                 let (x, y) = snapshot.local_zone_upscale(snapshot.local_zone_coords(i));
                 ((x, y), self.get_local_road_zone_travelers(x, y))
             })),
-            total,
+            total: Some(total),
         }
     }
 
@@ -700,14 +681,14 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
                 let (x, y) = snapshot.local_zone_upscale(snapshot.local_zone_coords(i));
                 ((x, y), self.get_parking(x as f64, y as f64))
             })),
-            total,
+            total: Some(total),
         }
     }
 }
 
 pub struct CongestionIterator<'a, K> {
     iterator: Box<dyn Iterator<Item = (K, f64)> + 'a>,
-    total: usize,
+    pub total: Option<usize>,
 }
 
 impl<'a, K: 'a> CongestionIterator<'a, K> {
@@ -728,7 +709,7 @@ impl<'a, K: 'a + Copy> CongestionIterator<'a, K> {
         Self {
             iterator: Box::new(self.iterator.filter(move |(k, v)| filter(*k, *v))),
             // TODO: it's not possible to calculate total unless we clone the iterator?
-            total: 0,
+            total: None,
         }
     }
 }

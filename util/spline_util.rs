@@ -19,7 +19,7 @@ where
     P: splines::Interpolate<F>,
     G: Fn(P) -> cg::Vector2<F>,
 {
-    if spline.len() == 0 {
+    if spline.is_empty() {
         return Ok(());
     }
 

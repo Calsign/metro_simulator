@@ -1,6 +1,6 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//util:macros.bzl", "ms_rust_binary", "ms_rust_library", "ms_rust_test")
 
-rust_library(
+ms_rust_library(
     name = "metro",
     srcs = [
         "color.rs",
@@ -23,7 +23,7 @@ rust_library(
     ],
 )
 
-rust_test(
+ms_rust_test(
     name = "metro_tests",
     crate = ":metro",
     deps = [
@@ -32,7 +32,7 @@ rust_test(
     ],
 )
 
-rust_binary(
+ms_rust_binary(
     name = "timetable_tool",
     srcs = ["timetable_tool.rs"],
     visibility = ["//visibility:public"],

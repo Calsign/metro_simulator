@@ -32,7 +32,7 @@ impl Address {
     }
 
     pub fn has(&self, index: usize) -> bool {
-        index >= 0 && index < self.depth()
+        index < self.depth()
     }
 
     pub fn from_vec(data: Vec<Quadrant>, max_depth: u32) -> Self {

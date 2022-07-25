@@ -125,11 +125,7 @@ impl Agent {
         Ok(())
     }
 
-    pub fn abort_route<F: state::Fields>(
-        &mut self,
-        world_state: &mut route::WorldStateImpl,
-        state: &state::State<F>,
-    ) -> Result<(), Error> {
+    pub fn abort_route(&mut self, world_state: &mut route::WorldStateImpl) -> Result<(), Error> {
         match &self.state {
             AgentState::Route(AgentRouteState {
                 route_type,
@@ -171,7 +167,7 @@ impl Agent {
 
                 // make sure to decrement the edge so that congestion totals are consistent
                 let edge = &route.edges[*current_edge as usize];
-                world_state.decrement_edge(edge, state)?;
+                world_state.decrement_edge(edge)?;
 
                 let total_time = current_edge_start + current_edge_total;
                 self.record_route_time(route_type, total_time);

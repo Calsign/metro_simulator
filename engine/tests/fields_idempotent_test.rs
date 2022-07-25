@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use engine::{Engine, FieldsState};
-use quadtree::{Address, VisitData};
+use quadtree::VisitData;
 use state::{BranchState, LeafState};
 
 #[test]
@@ -14,11 +14,11 @@ fn fields_idempotent_test() {
 
     engine.update_fields().unwrap();
     let mut first_collector = CollectFieldsVisitor::default();
-    engine.state.qtree.visit(&mut first_collector);
+    engine.state.qtree.visit(&mut first_collector).unwrap();
 
     engine.update_fields().unwrap();
     let mut second_collector = CollectFieldsVisitor::default();
-    engine.state.qtree.visit(&mut second_collector);
+    engine.state.qtree.visit(&mut second_collector).unwrap();
 
     assert!(first_collector == second_collector);
 }
@@ -54,8 +54,8 @@ impl quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, anyhow:
 
     fn visit_branch_post(
         &mut self,
-        branch: &BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<(), anyhow::Error> {
         Ok(())
     }

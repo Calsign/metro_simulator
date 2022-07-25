@@ -1,6 +1,6 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
+load("//util:macros.bzl", "ms_rust_benchmark", "ms_rust_binary", "ms_rust_test")
 
-rust_binary(
+ms_rust_benchmark(
     name = "simulation_timer",
     srcs = ["simulation_timer.rs"],
     data = ["//maps:sf"],
@@ -11,7 +11,7 @@ rust_binary(
     ],
 )
 
-rust_test(
+ms_rust_test(
     name = "dynamics_test",
     timeout = "long",
     srcs = ["dynamics_test.rs"],
@@ -22,7 +22,7 @@ rust_test(
     ],
 )
 
-rust_binary(
+ms_rust_benchmark(
     name = "fields_timer",
     srcs = ["fields_timer.rs"],
     data = ["//maps:sf"],
@@ -31,7 +31,7 @@ rust_binary(
     ],
 )
 
-rust_test(
+ms_rust_test(
     name = "fields_idempotent_test",
     srcs = ["fields_idempotent_test.rs"],
     data = ["//maps:sf"],
@@ -43,7 +43,7 @@ rust_test(
     ],
 )
 
-rust_test(
+ms_rust_test(
     name = "consistency_test",
     timeout = "long",
     srcs = ["consistency_test.rs"],

@@ -1,9 +1,9 @@
-load("@rules_rust//rust:defs.bzl", "rust_shared_library")
+load("//util:macros.bzl", "ms_rust_shared_library")
 load("@rules_android//android:rules.bzl", "android_binary")
 load("//mobile/platform:transitions.bzl", "android_cpu_wrapper")
 
 # NOTE: only compiles for Android
-rust_shared_library(
+ms_rust_shared_library(
     name = "metro_simulator_android",
     srcs = ["main.rs"],
     tags = ["manual"],

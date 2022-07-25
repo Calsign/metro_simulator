@@ -89,7 +89,7 @@ fn main() {
                 "metro line length: {}",
                 metro_line.get_splines().length * engine.state.config.min_tile_size as f64
             );
-            let dist_spline = metro::timing::dist_spline(&speed_keys);
+            let _ = metro::timing::dist_spline(&speed_keys);
         }
     };
 }

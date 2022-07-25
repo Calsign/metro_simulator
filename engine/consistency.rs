@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use quadtree::{Address, VisitData};
+use quadtree::VisitData;
 use state::{BranchState, LeafState};
 
-use crate::engine::{Engine, Error};
+use crate::engine::Engine;
 use crate::fields::FieldsState;
 
 #[derive(thiserror::Error, Debug)]
@@ -120,15 +120,14 @@ impl Engine {
             }) = &agent.state
             {
                 world_state_comparison
-                    .increment_edge_no_parking(
-                        route.edges.get(*current_edge as usize).ok_or_else(|| {
+                    .increment_edge_no_parking(route.edges.get(*current_edge as usize).ok_or_else(
+                        || {
                             ConsistencyError::TrafficError(format!(
                                 "route edge out of bounds: {}",
                                 current_edge
                             ))
-                        })?,
-                        &self.state,
-                    )
+                        },
+                    )?)
                     .expect("should be impossible");
             }
         }
@@ -200,8 +199,8 @@ impl<'a> quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, Con
 {
     fn visit_branch_pre(
         &mut self,
-        branch: &BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<bool, ConsistencyError> {
         Ok(true)
     }
@@ -213,6 +212,12 @@ impl<'a> quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, Con
     ) -> Result<(), ConsistencyError> {
         match &leaf.tile {
             tiles::Tile::HousingTile(tiles::HousingTile { density, agents }) => {
+                if agents.len() > *density {
+                    return Err(ConsistencyError::TileError(format!(
+                        "housing tile at {:?} has too many agents; density: {}, agents: {:?}",
+                        data.address, density, agents
+                    )));
+                }
                 for agent in agents {
                     if let Some(existing) = self.housing.insert(*agent, data.address) {
                         return Err(ConsistencyError::TileError(format!(
@@ -223,6 +228,12 @@ impl<'a> quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, Con
                 }
             }
             tiles::Tile::WorkplaceTile(tiles::WorkplaceTile { density, agents }) => {
+                if agents.len() > *density {
+                    return Err(ConsistencyError::TileError(format!(
+                        "workplace tile at {:?} has too many agents; density: {}, agents: {:?}",
+                        data.address, density, agents
+                    )));
+                }
                 for agent in agents {
                     if let Some(existing) = self.workplaces.insert(*agent, data.address) {
                         return Err(ConsistencyError::TileError(format!(
@@ -239,8 +250,8 @@ impl<'a> quadtree::Visitor<BranchState<FieldsState>, LeafState<FieldsState>, Con
 
     fn visit_branch_post(
         &mut self,
-        branch: &BranchState<FieldsState>,
-        data: &VisitData,
+        _branch: &BranchState<FieldsState>,
+        _data: &VisitData,
     ) -> Result<(), ConsistencyError> {
         Ok(())
     }

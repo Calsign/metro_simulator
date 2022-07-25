@@ -47,7 +47,7 @@ impl TimeState {
         self.current_date_time().date()
     }
 
-    pub fn time_from_datetime(&self, datetime: chrono::NaiveDateTime) {
+    pub fn time_from_datetime(&self, _datetime: chrono::NaiveDateTime) {
         unimplemented!()
     }
 

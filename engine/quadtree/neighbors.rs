@@ -176,11 +176,11 @@ impl<'a, V, T, E> crate::quadtree::Visitor<(), Vec<Entry<T>>, E>
 where
     V: NeighborsVisitor<T, E>,
 {
-    fn visit_branch_pre(&mut self, branch: &(), data: &VisitData) -> Result<bool, E> {
+    fn visit_branch_pre(&mut self, _branch: &(), _data: &VisitData) -> Result<bool, E> {
         Ok(true)
     }
 
-    fn visit_leaf(&mut self, leaf: &Vec<Entry<T>>, data: &VisitData) -> Result<(), E> {
+    fn visit_leaf(&mut self, leaf: &Vec<Entry<T>>, _data: &VisitData) -> Result<(), E> {
         for entry in leaf {
             let distance = ((entry.x - self.x).powi(2) + (entry.y - self.y).powi(2)).sqrt();
             if distance <= self.radius {
@@ -191,7 +191,7 @@ where
         Ok(())
     }
 
-    fn visit_branch_post(&mut self, branch: &(), data: &VisitData) -> Result<(), E> {
+    fn visit_branch_post(&mut self, _branch: &(), _data: &VisitData) -> Result<(), E> {
         Ok(())
     }
 }
@@ -231,11 +231,11 @@ where
     V: AllNeighborsVisitor<T, E>,
     F: Fn(&T) -> f64,
 {
-    fn visit_branch_pre(&mut self, branch: &(), data: &VisitData) -> Result<bool, E> {
+    fn visit_branch_pre(&mut self, _branch: &(), _data: &VisitData) -> Result<bool, E> {
         Ok(true)
     }
 
-    fn visit_leaf(&mut self, leaf: &Vec<Entry<T>>, data: &VisitData) -> Result<(), E> {
+    fn visit_leaf(&mut self, leaf: &Vec<Entry<T>>, _data: &VisitData) -> Result<(), E> {
         for entry in leaf {
             let mut visitor = AllNeighborsVisitorImpl {
                 visitor: self.visitor,
@@ -248,7 +248,7 @@ where
         Ok(())
     }
 
-    fn visit_branch_post(&mut self, branch: &(), data: &VisitData) -> Result<(), E> {
+    fn visit_branch_post(&mut self, _branch: &(), _data: &VisitData) -> Result<(), E> {
         Ok(())
     }
 }
@@ -275,7 +275,7 @@ impl<T> NeighborsVisitor<T, ()> for NearestNeighborsVisitor<T>
 where
     T: Clone,
 {
-    fn visit(&mut self, entry: &T, x: f64, y: f64, distance: f64) -> Result<(), ()> {
+    fn visit(&mut self, entry: &T, _x: f64, _y: f64, distance: f64) -> Result<(), ()> {
         // TODO: don't need distance here, just need squared distance
         // TODO: should be possible to implement this with references instead of cloning
         self.nearest.insert(OrderedFloat(distance), entry.clone());
@@ -302,9 +302,9 @@ mod tests {
         fn visit(
             &mut self,
             data: &u32,
-            x: f64,
-            y: f64,
-            distance: f64,
+            _x: f64,
+            _y: f64,
+            _distance: f64,
         ) -> Result<(), quadtree::Error> {
             self.seen.push(*data);
             Ok(())

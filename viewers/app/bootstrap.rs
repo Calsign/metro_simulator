@@ -90,7 +90,7 @@ impl State {
         }
     }
 
-    fn input(&mut self, event: &WindowEvent) -> bool {
+    fn input(&mut self, _event: &WindowEvent) -> bool {
         false
     }
 
@@ -183,9 +183,9 @@ pub fn bootstrap(mut app: App, wait_for_resume: bool) {
                         initialized = Some(create_state(&event_loop));
                         *control_flow = ControlFlow::Poll;
                     }
-                    Some(event) => (),
+                    Some(_) => (),
                 },
-                event => (),
+                _ => (),
             },
             Some((state, window)) => {
                 state.platform.handle_event(&event);

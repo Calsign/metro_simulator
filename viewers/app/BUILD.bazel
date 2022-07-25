@@ -1,7 +1,7 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("//util:macros.bzl", "ms_rust_binary", "ms_rust_library")
 load("//viewers:util.bzl", "all_maps")
 
-rust_library(
+ms_rust_library(
     name = "app",
     srcs = [
         "app.rs",
@@ -40,7 +40,7 @@ rust_library(
     ],
 )
 
-rust_binary(
+ms_rust_binary(
     name = "desktop",
     srcs = ["desktop.rs"],
     visibility = ["//visibility:public"],

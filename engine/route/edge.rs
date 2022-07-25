@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::common::Mode;
 use crate::node::Node;
-use crate::route_key::RouteKey;
 use crate::traffic::WorldState;
 
 // time it takes to enter or leave a highway
@@ -46,11 +45,6 @@ pub enum Edge {
     },
 }
 
-fn u64_f64_point_dist(a: (f64, f64), (bx, by): (u64, u64)) -> f64 {
-    use cgmath::MetricSpace;
-    cgmath::Vector2::from(a).distance((bx as f64, by as f64).into())
-}
-
 impl Edge {
     /**
      * The time to traverse this edge in the absence of congestion, i.e. the idealized time.
@@ -69,10 +63,7 @@ impl Edge {
                     .expect("missing metro line");
                 metro_line.schedule.expected_waiting_time() as f64
             }
-            MetroDisembark {
-                metro_line,
-                station,
-            } => 0.0,
+            MetroDisembark { .. } => 0.0,
             Highway { time, .. } => *time,
             HighwayRamp { .. } => RAMP_TIME,
             ModeSegment { mode, distance, .. } => distance / mode.linear_speed(),
@@ -129,10 +120,7 @@ impl Edge {
                     }
                 }
             }
-            MetroDisembark {
-                metro_line,
-                station,
-            } => 0.0,
+            MetroDisembark { .. } => 0.0,
             Highway {
                 segment: segment_id,
                 ..
@@ -161,11 +149,18 @@ impl Edge {
                     Mode::Driving => {
                         let travelers =
                             world_state.get_local_road_travelers(*start, *stop, *distance);
-                        crate::local_traffic::congested_travel_time(
+                        let travel_time = crate::local_traffic::congested_travel_time(
                             base_travel_time,
                             &state.config,
                             travelers,
-                        )
+                        );
+                        assert!(
+                            travel_time >= 0.0
+                                && travel_time <= highway::timing::MAX_CONGESTED_TIME,
+                            "{}",
+                            travel_time
+                        );
+                        travel_time
                     }
                     _ => base_travel_time,
                 }

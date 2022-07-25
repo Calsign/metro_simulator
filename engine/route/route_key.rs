@@ -11,7 +11,7 @@ pub struct RouteKey {
 }
 
 impl splines::Interpolate<f32> for RouteKey {
-    fn step(t: f32, threshold: f32, a: Self, b: Self) -> Self {
+    fn step(_t: f32, _threshold: f32, _a: Self, _b: Self) -> Self {
         unimplemented!()
     }
 
@@ -27,29 +27,29 @@ impl splines::Interpolate<f32> for RouteKey {
         }
     }
 
-    fn cosine(t: f32, a: Self, b: Self) -> Self {
+    fn cosine(_t: f32, _a: Self, _b: Self) -> Self {
         unimplemented!()
     }
 
     fn cubic_hermite(
-        t: f32,
-        x: (f32, Self),
-        a: (f32, Self),
-        b: (f32, Self),
-        y: (f32, Self),
+        _t: f32,
+        _x: (f32, Self),
+        _a: (f32, Self),
+        _b: (f32, Self),
+        _y: (f32, Self),
     ) -> Self {
         unimplemented!()
     }
 
-    fn quadratic_bezier(t: f32, a: Self, u: Self, b: Self) -> Self {
+    fn quadratic_bezier(_t: f32, _a: Self, _u: Self, _b: Self) -> Self {
         unimplemented!()
     }
 
-    fn cubic_bezier(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
+    fn cubic_bezier(_t: f32, _a: Self, _u: Self, _v: Self, _b: Self) -> Self {
         unimplemented!()
     }
 
-    fn cubic_bezier_mirrored(t: f32, a: Self, u: Self, v: Self, b: Self) -> Self {
+    fn cubic_bezier_mirrored(_t: f32, _a: Self, _u: Self, _v: Self, _b: Self) -> Self {
         unimplemented!()
     }
 }

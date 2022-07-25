@@ -1,6 +1,6 @@
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("//util:macros.bzl", "ms_rust_library", "ms_rust_test")
 
-rust_library(
+ms_rust_library(
     name = "quadtree",
     srcs = [
         "address.rs",
@@ -20,7 +20,7 @@ rust_library(
     ],
 )
 
-rust_test(
+ms_rust_test(
     name = "quadtree_tests",
     crate = ":quadtree",
     deps = [
