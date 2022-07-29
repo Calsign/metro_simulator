@@ -78,6 +78,7 @@ CRATES = {
         version = "3",
         features = ["derive"],
     ),
+    "indicatif": "0.16",
 
     # plotting
     "plotters": "0.3.1",

@@ -1,5 +1,5 @@
 {
-  "checksum": "d5edad5d92dedff670987fc03b2cdc0f5e6355031b74f5fc5d05aba766cebc2f",
+  "checksum": "5cd35b7a7324dc1b07a9bc0c0e4b5b6e030b4332bc3fc147e9dafdc1139c7b29",
   "crates": {
     "ab_glyph 0.2.15": {
       "name": "ab_glyph",
@@ -2962,6 +2962,67 @@
       },
       "license": "MIT"
     },
+    "console 0.15.1": {
+      "name": "console",
+      "version": "0.15.1",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/console/0.15.1/download",
+          "sha256": "89eab4d20ce20cea182308bca13088fecea9c05f6776cf287205d41a0ed3c847"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "console",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "console",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "libc 0.2.126",
+              "target": "libc"
+            },
+            {
+              "id": "once_cell 1.13.0",
+              "target": "once_cell"
+            },
+            {
+              "id": "terminal_size 0.1.17",
+              "target": "terminal_size"
+            }
+          ],
+          "selects": {
+            "cfg(windows)": [
+              {
+                "id": "encode_unicode 0.3.6",
+                "target": "encode_unicode"
+              },
+              {
+                "id": "winapi 0.3.9",
+                "target": "winapi"
+              }
+            ]
+          }
+        },
+        "edition": "2018",
+        "version": "0.15.1"
+      },
+      "license": "MIT"
+    },
     "console_error_panic_hook 0.1.7": {
       "name": "console_error_panic_hook",
       "version": "0.1.7",
@@ -4756,6 +4817,10 @@
               "target": "imageproc"
             },
             {
+              "id": "indicatif 0.16.2",
+              "target": "indicatif"
+            },
+            {
               "id": "itertools 0.10.3",
               "target": "itertools"
             },
@@ -5783,6 +5848,43 @@
         "version": "0.17.0"
       },
       "license": "MIT OR Apache-2.0"
+    },
+    "encode_unicode 0.3.6": {
+      "name": "encode_unicode",
+      "version": "0.3.6",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/encode_unicode/0.3.6/download",
+          "sha256": "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "encode_unicode",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "encode_unicode",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "default",
+          "std"
+        ],
+        "edition": "2015",
+        "version": "0.3.6"
+      },
+      "license": "MIT/Apache-2.0"
     },
     "enum-iterator 0.8.1": {
       "name": "enum-iterator",
@@ -10022,6 +10124,63 @@
       },
       "license": "Apache-2.0 OR MIT"
     },
+    "indicatif 0.16.2": {
+      "name": "indicatif",
+      "version": "0.16.2",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/indicatif/0.16.2/download",
+          "sha256": "2d207dc617c7a380ab07ff572a6e52fa202a2a8f355860ac9c38e23f8196be1b"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "indicatif",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "indicatif",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "default"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "console 0.15.1",
+              "target": "console"
+            },
+            {
+              "id": "lazy_static 1.4.0",
+              "target": "lazy_static"
+            },
+            {
+              "id": "number_prefix 0.4.0",
+              "target": "number_prefix"
+            },
+            {
+              "id": "regex 1.6.0",
+              "target": "regex"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.16.2"
+      },
+      "license": "MIT"
+    },
     "indoc 0.3.6": {
       "name": "indoc",
       "version": "0.3.6",
@@ -13542,6 +13701,43 @@
         "version": "0.1.6"
       },
       "license": "MIT OR Apache-2.0"
+    },
+    "number_prefix 0.4.0": {
+      "name": "number_prefix",
+      "version": "0.4.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/number_prefix/0.4.0/download",
+          "sha256": "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "number_prefix",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "number_prefix",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "default",
+          "std"
+        ],
+        "edition": "2015",
+        "version": "0.4.0"
+      },
+      "license": "MIT"
     },
     "objc 0.2.7": {
       "name": "objc",
@@ -19987,6 +20183,56 @@
         "version": "1.1.3"
       },
       "license": "Unlicense OR MIT"
+    },
+    "terminal_size 0.1.17": {
+      "name": "terminal_size",
+      "version": "0.1.17",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/terminal_size/0.1.17/download",
+          "sha256": "633c1a546cee861a1a6d0dc69ebeca693bf4296661ba7852b9d21d159e0506df"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "terminal_size",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "terminal_size",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(not(windows))": [
+              {
+                "id": "libc 0.2.126",
+                "target": "libc"
+              }
+            ],
+            "cfg(windows)": [
+              {
+                "id": "winapi 0.3.9",
+                "target": "winapi"
+              }
+            ]
+          }
+        },
+        "edition": "2018",
+        "version": "0.1.17"
+      },
+      "license": "MIT OR Apache-2.0"
     },
     "textwrap 0.15.0": {
       "name": "textwrap",

@@ -7,6 +7,7 @@ ms_rust_benchmark(
     deps = [
         "//engine",
         "@crates//:clap",
+        "@crates//:indicatif",
         "@crates//:uom",
     ],
 )
