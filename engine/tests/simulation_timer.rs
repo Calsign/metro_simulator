@@ -25,4 +25,8 @@ fn main() {
         days,
         start_time.elapsed().as_secs_f64()
     );
+
+    if engine.trigger_stats.profiling_enabled {
+        engine.trigger_stats.print();
+    }
 }

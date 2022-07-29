@@ -16,6 +16,7 @@ ms_rust_library(
         "@crates//:enum_dispatch",
         "@crates//:derive_more",
         "@crates//:derivative",
+        "@crates//:enum-kinds",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -27,6 +28,7 @@ ms_rust_library(
         "@crates//:cgmath",
         "@crates//:chrono",
         "@crates//:crossbeam",
+        "@crates//:enum-iterator",
         "@crates//:fastblur",
         "@crates//:itertools",
         "@crates//:once_cell",
@@ -36,6 +38,7 @@ ms_rust_library(
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:splines",
+        "@crates//:tabled",
         "@crates//:thiserror",
         "@crates//:thread_local",
         "@crates//:threadpool",
@@ -47,5 +50,8 @@ ms_rust_library(
 ms_rust_test(
     name = "engine_tests",
     crate = ":engine",
-    deps = [":engine"],
+    deps = [
+        ":engine",
+        "@crates//:float-cmp",
+    ],
 )

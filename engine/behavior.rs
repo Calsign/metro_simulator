@@ -19,7 +19,19 @@ pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
 // NOTE: all implementations of TriggerType must be listed here
 #[allow(clippy::enum_variant_names)]
 #[enum_dispatch::enum_dispatch(TriggerType)]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, enum_kinds::EnumKind,
+)]
+#[enum_kind(
+    TriggerKind,
+    derive(
+        PartialOrd,
+        Ord,
+        Serialize,
+        Deserialize,
+        enum_iterator::IntoEnumIterator
+    )
+)]
 #[serde(tag = "type")]
 #[non_exhaustive]
 pub enum Trigger {

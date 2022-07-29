@@ -1,5 +1,5 @@
 {
-  "checksum": "d255c20062a8d6db43cc5c5d66995ba7ff21c5689940bdc9f1f3b8abb0554d78",
+  "checksum": "d5edad5d92dedff670987fc03b2cdc0f5e6355031b74f5fc5d05aba766cebc2f",
   "crates": {
     "ab_glyph 0.2.15": {
       "name": "ab_glyph",
@@ -40,7 +40,7 @@
               "target": "ab_glyph_rasterizer"
             },
             {
-              "id": "owned_ttf_parser 0.15.0",
+              "id": "owned_ttf_parser 0.15.1",
               "target": "owned_ttf_parser"
             }
           ],
@@ -1301,6 +1301,76 @@
       },
       "license": "MIT"
     },
+    "blondie 0.3.1": {
+      "name": "blondie",
+      "version": "0.3.1",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/blondie/0.3.1/download",
+          "sha256": "baefd2ddfd92f208a08c1c2e13925d615ea28875f3ef909abe3826e694b59dfa"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "blondie",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        },
+        {
+          "Binary": {
+            "crate_name": "blondie",
+            "crate_root": "src/blondie_bin.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        },
+        {
+          "Binary": {
+            "crate_name": "blondie_dtrace",
+            "crate_root": "src/blondie_dtrace.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "blondie",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "rustc-hash 1.1.0",
+              "target": "rustc_hash"
+            },
+            {
+              "id": "windows 0.36.1",
+              "target": "windows"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2021",
+        "version": "0.3.1"
+      },
+      "license": "MIT OR Apache-2.0 OR BSL-1.0 OR MPL-2.0 OR Zlib OR Unlicense"
+    },
     "bstr 0.2.17": {
       "name": "bstr",
       "version": "0.2.17",
@@ -1394,13 +1464,46 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "bytemuck 1.10.0": {
-      "name": "bytemuck",
-      "version": "1.10.0",
+    "bytecount 0.6.3": {
+      "name": "bytecount",
+      "version": "0.6.3",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/bytemuck/1.10.0/download",
-          "sha256": "c53dfa917ec274df8ed3c572698f381a24eef2efba9492d797301b72b6db408a"
+          "url": "https://crates.io/api/v1/crates/bytecount/0.6.3/download",
+          "sha256": "2c676a478f63e9fa2dd5368a42f28bba0d6c560b775f38583c8bbaa7fcd67c9c"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "bytecount",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "bytecount",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "edition": "2018",
+        "version": "0.6.3"
+      },
+      "license": "Apache-2.0/MIT"
+    },
+    "bytemuck 1.11.0": {
+      "name": "bytemuck",
+      "version": "1.11.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/bytemuck/1.11.0/download",
+          "sha256": "a5377c8865e74a160d21f29c2d40669f53286db6eab59b88540cbb12ffc8b835"
         }
       },
       "targets": [
@@ -1437,7 +1540,7 @@
           ],
           "selects": {}
         },
-        "version": "1.10.0"
+        "version": "1.11.0"
       },
       "license": "Zlib OR Apache-2.0 OR MIT"
     },
@@ -1472,7 +1575,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -1867,13 +1970,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "cargo_metadata 0.14.2": {
+    "cargo_metadata 0.15.0": {
       "name": "cargo_metadata",
-      "version": "0.14.2",
+      "version": "0.15.0",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/cargo_metadata/0.14.2/download",
-          "sha256": "4acbb09d9ee8e23699b9634375c72795d095bf268439da88562cf9b501f181fa"
+          "url": "https://crates.io/api/v1/crates/cargo_metadata/0.15.0/download",
+          "sha256": "3abb7553d5b9b8421c6de7cb02606ff15e0c6eea7d8eadd75ef013fd636bec36"
         }
       },
       "targets": [
@@ -1924,7 +2027,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.14.2"
+        "version": "0.15.0"
       },
       "license": "MIT"
     },
@@ -2299,13 +2402,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "clap 3.2.14": {
+    "clap 3.2.15": {
       "name": "clap",
-      "version": "3.2.14",
+      "version": "3.2.15",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/clap/3.2.14/download",
-          "sha256": "54635806b078b7925d6e36810b1755f2a4b5b4d57560432c1ecf60bcbe10602b"
+          "url": "https://crates.io/api/v1/crates/clap/3.2.15/download",
+          "sha256": "44bbe24bbd31a185bc2c4f7c2abe80bea13a20d57ee4e55be70ac512bdc76417"
         }
       },
       "targets": [
@@ -2392,13 +2495,13 @@
         "proc_macro_deps": {
           "common": [
             {
-              "id": "clap_derive 3.2.7",
+              "id": "clap_derive 3.2.15",
               "target": "clap_derive"
             }
           ],
           "selects": {}
         },
-        "version": "3.2.14"
+        "version": "3.2.15"
       },
       "license": "MIT OR Apache-2.0"
     },
@@ -2436,7 +2539,7 @@
         "deps": {
           "common": [
             {
-              "id": "clap 3.2.14",
+              "id": "clap 3.2.15",
               "target": "clap"
             }
           ],
@@ -2447,13 +2550,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "clap_derive 3.2.7": {
+    "clap_derive 3.2.15": {
       "name": "clap_derive",
-      "version": "3.2.7",
+      "version": "3.2.15",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/clap_derive/3.2.7/download",
-          "sha256": "759bf187376e1afa7b85b959e6a664a3e7a95203415dba952ad19139e798f902"
+          "url": "https://crates.io/api/v1/crates/clap_derive/3.2.15/download",
+          "sha256": "9ba52acd3b0a5c33aeada5cdaa3267cdc7c594a98731d4268cdc1532f4264cb4"
         }
       },
       "targets": [
@@ -2489,7 +2592,7 @@
               "target": "proc_macro_error"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -2504,7 +2607,7 @@
           "selects": {}
         },
         "edition": "2021",
-        "version": "3.2.7"
+        "version": "3.2.15"
       },
       "license": "MIT OR Apache-2.0"
     },
@@ -2894,7 +2997,7 @@
               "target": "cfg_if"
             },
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "wasm_bindgen"
             }
           ],
@@ -3620,13 +3723,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "crossbeam 0.8.1": {
+    "crossbeam 0.8.2": {
       "name": "crossbeam",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/crossbeam/0.8.1/download",
-          "sha256": "4ae5588f6b3c3cb05239e90bd110f257254aecd01e4635400391aeae07497845"
+          "url": "https://crates.io/api/v1/crates/crossbeam/0.8.2/download",
+          "sha256": "2801af0d36612ae591caa9568261fddce32ce6e08a7275ea334a06a4ad021a2c"
         }
       },
       "targets": [
@@ -3664,40 +3767,40 @@
               "target": "cfg_if"
             },
             {
-              "id": "crossbeam-channel 0.5.5",
+              "id": "crossbeam-channel 0.5.6",
               "target": "crossbeam_channel"
             },
             {
-              "id": "crossbeam-deque 0.8.1",
+              "id": "crossbeam-deque 0.8.2",
               "target": "crossbeam_deque"
             },
             {
-              "id": "crossbeam-epoch 0.9.9",
+              "id": "crossbeam-epoch 0.9.10",
               "target": "crossbeam_epoch"
             },
             {
-              "id": "crossbeam-queue 0.3.5",
+              "id": "crossbeam-queue 0.3.6",
               "target": "crossbeam_queue"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.8.1"
+        "version": "0.8.2"
       },
       "license": "MIT OR Apache-2.0"
     },
-    "crossbeam-channel 0.5.5": {
+    "crossbeam-channel 0.5.6": {
       "name": "crossbeam-channel",
-      "version": "0.5.5",
+      "version": "0.5.6",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/crossbeam-channel/0.5.5/download",
-          "sha256": "4c02a4d71819009c192cf4872265391563fd6a84c81ff2c0f2a7026ca4c1d85c"
+          "url": "https://crates.io/api/v1/crates/crossbeam-channel/0.5.6/download",
+          "sha256": "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521"
         }
       },
       "targets": [
@@ -3731,24 +3834,24 @@
               "target": "cfg_if"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.5.5"
+        "version": "0.5.6"
       },
       "license": "MIT OR Apache-2.0"
     },
-    "crossbeam-deque 0.8.1": {
+    "crossbeam-deque 0.8.2": {
       "name": "crossbeam-deque",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/crossbeam-deque/0.8.1/download",
-          "sha256": "6455c0ca19f0d2fbf751b908d5c55c1f5cbc65e03c4225427254b46890bdde1e"
+          "url": "https://crates.io/api/v1/crates/crossbeam-deque/0.8.2/download",
+          "sha256": "715e8152b692bba2d374b53d4875445368fdf21a94751410af607a5ac677d1fc"
         }
       },
       "targets": [
@@ -3783,28 +3886,28 @@
               "target": "cfg_if"
             },
             {
-              "id": "crossbeam-epoch 0.9.9",
+              "id": "crossbeam-epoch 0.9.10",
               "target": "crossbeam_epoch"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.8.1"
+        "version": "0.8.2"
       },
       "license": "MIT OR Apache-2.0"
     },
-    "crossbeam-epoch 0.9.9": {
+    "crossbeam-epoch 0.9.10": {
       "name": "crossbeam-epoch",
-      "version": "0.9.9",
+      "version": "0.9.10",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/crossbeam-epoch/0.9.9/download",
-          "sha256": "07db9d94cbd326813772c968ccd25999e5f8ae22f4f8d1b11effa37ef6ce281d"
+          "url": "https://crates.io/api/v1/crates/crossbeam-epoch/0.9.10/download",
+          "sha256": "045ebe27666471bb549370b4b0b3e51b07f56325befa4284db65fc89c02511b1"
         }
       },
       "targets": [
@@ -3850,11 +3953,11 @@
               "target": "cfg_if"
             },
             {
-              "id": "crossbeam-epoch 0.9.9",
+              "id": "crossbeam-epoch 0.9.10",
               "target": "build_script_build"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             },
             {
@@ -3873,7 +3976,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.9.9"
+        "version": "0.9.10"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -3891,13 +3994,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "crossbeam-queue 0.3.5": {
+    "crossbeam-queue 0.3.6": {
       "name": "crossbeam-queue",
-      "version": "0.3.5",
+      "version": "0.3.6",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/crossbeam-queue/0.3.5/download",
-          "sha256": "1f25d8400f4a7a5778f0e4e52384a48cbd9b5c495d110786187fc750075277a2"
+          "url": "https://crates.io/api/v1/crates/crossbeam-queue/0.3.6/download",
+          "sha256": "1cd42583b04998a5363558e5f9291ee5a5ff6b49944332103f251e7479a82aa7"
         }
       },
       "targets": [
@@ -3942,18 +4045,18 @@
               "target": "cfg_if"
             },
             {
-              "id": "crossbeam-queue 0.3.5",
+              "id": "crossbeam-queue 0.3.6",
               "target": "build_script_build"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.3.5"
+        "version": "0.3.6"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -3962,13 +4065,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "crossbeam-utils 0.8.10": {
+    "crossbeam-utils 0.8.11": {
       "name": "crossbeam-utils",
-      "version": "0.8.10",
+      "version": "0.8.11",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/crossbeam-utils/0.8.10/download",
-          "sha256": "7d82ee10ce34d7bc12c2122495e7593a9c41347ecdd64185af4ecf72cb1a7f83"
+          "url": "https://crates.io/api/v1/crates/crossbeam-utils/0.8.11/download",
+          "sha256": "51887d4adc7b564537b15adcfb307936f8075dfcd5f00dde9a9f1d29383682bc"
         }
       },
       "targets": [
@@ -4014,7 +4117,7 @@
               "target": "cfg_if"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "build_script_build"
             },
             {
@@ -4025,7 +4128,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.8.10"
+        "version": "0.8.11"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -4254,7 +4357,7 @@
               "target": "ident_case"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -4454,7 +4557,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -4536,7 +4639,7 @@
               "target": "convert_case"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -4597,11 +4700,11 @@
               "target": "chrono"
             },
             {
-              "id": "clap 3.2.14",
+              "id": "clap 3.2.15",
               "target": "clap"
             },
             {
-              "id": "crossbeam 0.8.1",
+              "id": "crossbeam 0.8.2",
               "target": "crossbeam"
             },
             {
@@ -4637,7 +4740,7 @@
               "target": "fastblur"
             },
             {
-              "id": "flamegraph 0.6.1",
+              "id": "flamegraph 0.6.2",
               "target": "flamegraph"
             },
             {
@@ -4749,8 +4852,12 @@
               "target": "spade"
             },
             {
-              "id": "splines 4.1.0",
+              "id": "splines 4.1.1",
               "target": "splines"
+            },
+            {
+              "id": "tabled 0.8.0",
+              "target": "tabled"
             },
             {
               "id": "thiserror 1.0.31",
@@ -4793,6 +4900,10 @@
             {
               "id": "derive_more 0.99.17",
               "target": "derive_more"
+            },
+            {
+              "id": "enum-kinds 0.5.1",
+              "target": "enum_kinds"
             },
             {
               "id": "enum_dispatch 0.3.8",
@@ -5167,7 +5278,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -5305,11 +5416,11 @@
             ],
             "cfg(target_arch = \"wasm32\")": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
@@ -5519,7 +5630,7 @@
         "deps": {
           "common": [
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             },
             {
@@ -5662,7 +5773,7 @@
         "deps": {
           "common": [
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             }
           ],
@@ -5746,7 +5857,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -5764,6 +5875,59 @@
         "version": "0.8.1"
       },
       "license": "0BSD"
+    },
+    "enum-kinds 0.5.1": {
+      "name": "enum-kinds",
+      "version": "0.5.1",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/enum-kinds/0.5.1/download",
+          "sha256": "4e40a16955681d469ab3da85aaa6b42ff656b3c67b52e1d8d3dd36afe97fd462"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "enum_kinds",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "enum_kinds",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "default"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "proc-macro2 1.0.42",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.20",
+              "target": "quote"
+            },
+            {
+              "id": "syn 1.0.98",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.5.1"
+      },
+      "license": "MIT"
     },
     "enum_dispatch 0.3.8": {
       "name": "enum_dispatch",
@@ -5800,7 +5964,7 @@
               "target": "once_cell"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -5983,7 +6147,7 @@
               "target": "atomic_refcell"
             },
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             },
             {
@@ -6109,7 +6273,7 @@
               "target": "log"
             },
             {
-              "id": "priority-queue 1.2.2",
+              "id": "priority-queue 1.2.3",
               "target": "priority_queue"
             },
             {
@@ -6262,13 +6426,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "flamegraph 0.6.1": {
+    "flamegraph 0.6.2": {
       "name": "flamegraph",
-      "version": "0.6.1",
+      "version": "0.6.2",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/flamegraph/0.6.1/download",
-          "sha256": "fdabda8eabedb11165e4458a6b7d519f73af12f560d18d9ed56550a5b53cbafc"
+          "url": "https://crates.io/api/v1/crates/flamegraph/0.6.2/download",
+          "sha256": "f729cd0eaadf6d624278c786f7de540d0fb37b95199c90610fc3aef6b2650754"
         }
       },
       "targets": [
@@ -6321,11 +6485,11 @@
               "target": "anyhow"
             },
             {
-              "id": "cargo_metadata 0.14.2",
+              "id": "cargo_metadata 0.15.0",
               "target": "cargo_metadata"
             },
             {
-              "id": "clap 3.2.14",
+              "id": "clap 3.2.15",
               "target": "clap"
             },
             {
@@ -6333,7 +6497,7 @@
               "target": "clap_complete"
             },
             {
-              "id": "inferno 0.11.6",
+              "id": "inferno 0.11.7",
               "target": "inferno"
             },
             {
@@ -6347,11 +6511,17 @@
                 "id": "signal-hook 0.3.14",
                 "target": "signal_hook"
               }
+            ],
+            "cfg(windows)": [
+              {
+                "id": "blondie 0.3.1",
+                "target": "blondie"
+              }
             ]
           }
         },
         "edition": "2018",
-        "version": "0.6.1"
+        "version": "0.6.2"
       },
       "license": "MIT OR Apache-2.0"
     },
@@ -8022,11 +8192,11 @@
           "selects": {
             "cfg(all(target_arch = \"wasm32\", target_os = \"unknown\"))": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               }
             ],
@@ -8430,7 +8600,7 @@
               "target": "proc_macro_error"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -8555,7 +8725,7 @@
           "selects": {
             "cfg(target_arch = \"wasm32\")": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
@@ -8563,7 +8733,7 @@
                 "target": "slotmap"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
@@ -9138,7 +9308,7 @@
               "target": "proc_macro_error"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -9634,7 +9804,7 @@
         "deps": {
           "common": [
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             },
             {
@@ -9671,7 +9841,7 @@
               "target": "scoped_threadpool"
             },
             {
-              "id": "tiff 0.7.2",
+              "id": "tiff 0.7.3",
               "target": "tiff"
             }
           ],
@@ -9929,7 +10099,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -9961,13 +10131,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "inferno 0.11.6": {
+    "inferno 0.11.7": {
       "name": "inferno",
-      "version": "0.11.6",
+      "version": "0.11.7",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/inferno/0.11.6/download",
-          "sha256": "9a262875c8e10820b9366e991ed6710cd80dc93578375e5d499fcbd408985937"
+          "url": "https://crates.io/api/v1/crates/inferno/0.11.7/download",
+          "sha256": "9709543bd6c25fdc748da2bed0f6855b07b7e93a203ae31332ac2101ab2f4782"
         }
       },
       "targets": [
@@ -10105,11 +10275,11 @@
               "target": "atty"
             },
             {
-              "id": "crossbeam-channel 0.5.5",
+              "id": "crossbeam-channel 0.5.6",
               "target": "crossbeam_channel"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             },
             {
@@ -10156,7 +10326,7 @@
           "selects": {}
         },
         "edition": "2021",
-        "version": "0.11.6"
+        "version": "0.11.7"
       },
       "license": "CDDL-1.0"
     },
@@ -10282,11 +10452,11 @@
           "selects": {
             "asmjs-unknown-emscripten": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen",
                 "alias": "wasm_bindgen_rs"
               },
@@ -10297,11 +10467,11 @@
             ],
             "wasm32-unknown-emscripten": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen",
                 "alias": "wasm_bindgen_rs"
               },
@@ -10312,11 +10482,11 @@
             ],
             "wasm32-unknown-unknown": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen",
                 "alias": "wasm_bindgen_rs"
               },
@@ -10713,13 +10883,13 @@
       },
       "license": "MIT / Apache-2.0"
     },
-    "js-sys 0.3.58": {
+    "js-sys 0.3.59": {
       "name": "js-sys",
-      "version": "0.3.58",
+      "version": "0.3.59",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/js-sys/0.3.58/download",
-          "sha256": "c3fac17f7123a73ca62df411b1bf727ccc805daa070338fda671c86dac1bdc27"
+          "url": "https://crates.io/api/v1/crates/js-sys/0.3.59/download",
+          "sha256": "258451ab10b34f8af53416d1fdab72c22e805f0c92a1136d59470ec0b11138b2"
         }
       },
       "targets": [
@@ -10744,14 +10914,14 @@
         "deps": {
           "common": [
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "wasm_bindgen"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.3.58"
+        "version": "0.3.59"
       },
       "license": "MIT/Apache-2.0"
     },
@@ -12347,7 +12517,7 @@
               "target": "proc_macro_crate"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -13310,7 +13480,7 @@
               "target": "proc_macro_crate"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -13694,13 +13864,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "owned_ttf_parser 0.15.0": {
+    "owned_ttf_parser 0.15.1": {
       "name": "owned_ttf_parser",
-      "version": "0.15.0",
+      "version": "0.15.1",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/owned_ttf_parser/0.15.0/download",
-          "sha256": "4fb1e509cfe7a12db2a90bfa057dfcdbc55a347f5da677c506b53dd099cfec9d"
+          "url": "https://crates.io/api/v1/crates/owned_ttf_parser/0.15.1/download",
+          "sha256": "07ef1a404ae479dd6906f4fa2c88b3c94028f1284beb42a47c183a7c27ee9a3e"
         }
       },
       "targets": [
@@ -13740,7 +13910,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.15.0"
+        "version": "0.15.1"
       },
       "license": "Apache-2.0"
     },
@@ -14087,6 +14257,56 @@
       },
       "license": "MIT"
     },
+    "papergrid 0.5.1": {
+      "name": "papergrid",
+      "version": "0.5.1",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/papergrid/0.5.1/download",
+          "sha256": "453cf71f2a37af495a1a124bf30d4d7469cfbea58e9f2479be9d222396a518a2"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "papergrid",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "papergrid",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "bytecount 0.6.3",
+              "target": "bytecount"
+            },
+            {
+              "id": "fnv 1.0.7",
+              "target": "fnv"
+            },
+            {
+              "id": "unicode-width 0.1.9",
+              "target": "unicode_width"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.5.1"
+      },
+      "license": "MIT"
+    },
     "parking_lot 0.11.2": {
       "name": "parking_lot",
       "version": "0.11.2",
@@ -14203,7 +14423,7 @@
           "selects": {
             "cfg(target_os = \"redox\")": [
               {
-                "id": "redox_syscall 0.2.15",
+                "id": "redox_syscall 0.2.16",
                 "target": "syscall"
               }
             ],
@@ -14289,7 +14509,7 @@
           "selects": {
             "cfg(target_os = \"redox\")": [
               {
-                "id": "redox_syscall 0.2.15",
+                "id": "redox_syscall 0.2.16",
                 "target": "syscall"
               }
             ],
@@ -14855,7 +15075,7 @@
                 "target": "piet_web"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
@@ -15041,7 +15261,7 @@
         "deps": {
           "common": [
             {
-              "id": "js-sys 0.3.58",
+              "id": "js-sys 0.3.59",
               "target": "js_sys"
             },
             {
@@ -15053,7 +15273,7 @@
               "target": "unicode_segmentation"
             },
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "wasm_bindgen"
             },
             {
@@ -15145,7 +15365,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -15345,7 +15565,7 @@
           "selects": {
             "cfg(all(target_arch = \"wasm32\", not(target_os = \"wasi\")))": [
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
@@ -15641,13 +15861,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "priority-queue 1.2.2": {
+    "priority-queue 1.2.3": {
       "name": "priority-queue",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/priority-queue/1.2.2/download",
-          "sha256": "de9cde7493f5f5d2d163b174be9f9a72d756b79b0f6ed85654128d238c347c1e"
+          "url": "https://crates.io/api/v1/crates/priority-queue/1.2.3/download",
+          "sha256": "815082d99af3acc75a3e67efd2a07f72e67b4e81b4344eb8ca34c6ebf3dfa9c5"
         }
       },
       "targets": [
@@ -15688,14 +15908,14 @@
               "target": "indexmap"
             },
             {
-              "id": "priority-queue 1.2.2",
+              "id": "priority-queue 1.2.3",
               "target": "build_script_build"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "1.2.2"
+        "version": "1.2.3"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -15811,7 +16031,7 @@
               "target": "build_script_build"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -15900,7 +16120,7 @@
               "target": "build_script_build"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -15988,13 +16208,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "proc-macro2 1.0.40": {
+    "proc-macro2 1.0.42": {
       "name": "proc-macro2",
-      "version": "1.0.40",
+      "version": "1.0.42",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/proc-macro2/1.0.40/download",
-          "sha256": "dd96a1e8ed2596c337f8eae5f24924ec83f5ad5ab21ea8e455d3566c69fbcaf7"
+          "url": "https://crates.io/api/v1/crates/proc-macro2/1.0.42/download",
+          "sha256": "c278e965f1d8cf32d6e0e96de3d3e79712178ae67986d9cf9151f51e95aac89b"
         }
       },
       "targets": [
@@ -16035,7 +16255,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "build_script_build"
             },
             {
@@ -16046,7 +16266,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "1.0.40"
+        "version": "1.0.42"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -16347,7 +16567,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -16459,7 +16679,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -17142,7 +17362,7 @@
         "deps": {
           "common": [
             {
-              "id": "crossbeam-deque 0.8.1",
+              "id": "crossbeam-deque 0.8.2",
               "target": "crossbeam_deque"
             },
             {
@@ -17222,15 +17442,15 @@
         "deps": {
           "common": [
             {
-              "id": "crossbeam-channel 0.5.5",
+              "id": "crossbeam-channel 0.5.6",
               "target": "crossbeam_channel"
             },
             {
-              "id": "crossbeam-deque 0.8.1",
+              "id": "crossbeam-deque 0.8.2",
               "target": "crossbeam_deque"
             },
             {
-              "id": "crossbeam-utils 0.8.10",
+              "id": "crossbeam-utils 0.8.11",
               "target": "crossbeam_utils"
             },
             {
@@ -17255,13 +17475,13 @@
       },
       "license": "MIT OR Apache-2.0"
     },
-    "redox_syscall 0.2.15": {
+    "redox_syscall 0.2.16": {
       "name": "redox_syscall",
-      "version": "0.2.15",
+      "version": "0.2.16",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/redox_syscall/0.2.15/download",
-          "sha256": "534cfe58d6a18cc17120fbf4635d53d14691c1fe4d951064df9bd326178d7d5a"
+          "url": "https://crates.io/api/v1/crates/redox_syscall/0.2.16/download",
+          "sha256": "fb5a58c1855b4b6819d59012155603f0b22ad30cad752600aadfcb695265519a"
         }
       },
       "targets": [
@@ -17293,7 +17513,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.2.15"
+        "version": "0.2.16"
       },
       "license": "MIT"
     },
@@ -17332,7 +17552,7 @@
               "target": "getrandom"
             },
             {
-              "id": "redox_syscall 0.2.15",
+              "id": "redox_syscall 0.2.16",
               "target": "syscall"
             },
             {
@@ -17542,7 +17762,7 @@
         "deps": {
           "common": [
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             }
           ],
@@ -17826,7 +18046,7 @@
         "deps": {
           "common": [
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             }
           ],
@@ -18304,7 +18524,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -18499,7 +18719,7 @@
               "target": "darling"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -19234,13 +19454,13 @@
       },
       "license": "Apache-2.0"
     },
-    "splines 4.1.0": {
+    "splines 4.1.1": {
       "name": "splines",
-      "version": "4.1.0",
+      "version": "4.1.1",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/splines/4.1.0/download",
-          "sha256": "85d3c90d443c10f66d69fc45269f3bf1d3b0171c239751fe6129b7d79a82c535"
+          "url": "https://crates.io/api/v1/crates/splines/4.1.1/download",
+          "sha256": "39c3ba77d6f4cc9405ff36c95b70292e59f814c2e07385a1b47121ba0f862c52"
         }
       },
       "targets": [
@@ -19282,7 +19502,7 @@
           "selects": {}
         },
         "edition": "2021",
-        "version": "4.1.0"
+        "version": "4.1.1"
       },
       "license": "BSD-3-Clause"
     },
@@ -19420,7 +19640,7 @@
               "target": "heck"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -19495,7 +19715,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -19605,6 +19825,124 @@
         "version": "3.2.0"
       },
       "license": "MIT OR Apache-2.0"
+    },
+    "tabled 0.8.0": {
+      "name": "tabled",
+      "version": "0.8.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/tabled/0.8.0/download",
+          "sha256": "e5b2f8c37d26d87d2252187b0a45ea3cbf42baca10377c7e7eaaa2800fa9bf97"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tabled",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "tabled",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "default",
+          "derive",
+          "tabled_derive"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "papergrid 0.5.1",
+              "target": "papergrid"
+            },
+            {
+              "id": "unicode-width 0.1.9",
+              "target": "unicode_width"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "proc_macro_deps": {
+          "common": [
+            {
+              "id": "tabled_derive 0.4.0",
+              "target": "tabled_derive"
+            }
+          ],
+          "selects": {}
+        },
+        "version": "0.8.0"
+      },
+      "license": "MIT"
+    },
+    "tabled_derive 0.4.0": {
+      "name": "tabled_derive",
+      "version": "0.4.0",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/tabled_derive/0.4.0/download",
+          "sha256": "f9ee618502f497abf593e1c5c9577f34775b111480009ffccd7ad70d23fcaba8"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "tabled_derive",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "tabled_derive",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "heck 0.4.0",
+              "target": "heck"
+            },
+            {
+              "id": "proc-macro-error 1.0.4",
+              "target": "proc_macro_error"
+            },
+            {
+              "id": "proc-macro2 1.0.42",
+              "target": "proc_macro2"
+            },
+            {
+              "id": "quote 1.0.20",
+              "target": "quote"
+            },
+            {
+              "id": "syn 1.0.98",
+              "target": "syn"
+            }
+          ],
+          "selects": {}
+        },
+        "edition": "2018",
+        "version": "0.4.0"
+      },
+      "license": "MIT"
     },
     "termcolor 1.1.3": {
       "name": "termcolor",
@@ -19756,7 +20094,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -19859,13 +20197,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "tiff 0.7.2": {
+    "tiff 0.7.3": {
       "name": "tiff",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/tiff/0.7.2/download",
-          "sha256": "7cfada0986f446a770eca461e8c6566cb879682f7d687c8348aa0c857bd52286"
+          "url": "https://crates.io/api/v1/crates/tiff/0.7.3/download",
+          "sha256": "7259662e32d1e219321eb309d5f9d898b779769d81b76e762c07c8e5d38fcb65"
         }
       },
       "targets": [
@@ -19906,7 +20244,7 @@
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.7.2"
+        "version": "0.7.3"
       },
       "license": "MIT"
     },
@@ -20196,7 +20534,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -20364,7 +20702,7 @@
               "target": "tracing_subscriber"
             },
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "wasm_bindgen"
             }
           ],
@@ -21424,13 +21762,13 @@
       },
       "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
     },
-    "wasm-bindgen 0.2.81": {
+    "wasm-bindgen 0.2.82": {
       "name": "wasm-bindgen",
-      "version": "0.2.81",
+      "version": "0.2.82",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/wasm-bindgen/0.2.81/download",
-          "sha256": "7c53b543413a17a202f4be280a7e5c62a1c69345f5de525ee64f8cfdbc954994"
+          "url": "https://crates.io/api/v1/crates/wasm-bindgen/0.2.82/download",
+          "sha256": "fc7652e3f6c4706c8d9cd54832c4a4ccb9b5336e2c3bd154d5cccfbf1c1f5f7d"
         }
       },
       "targets": [
@@ -21476,7 +21814,7 @@
               "target": "cfg_if"
             },
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "build_script_build"
             }
           ],
@@ -21486,13 +21824,13 @@
         "proc_macro_deps": {
           "common": [
             {
-              "id": "wasm-bindgen-macro 0.2.81",
+              "id": "wasm-bindgen-macro 0.2.82",
               "target": "wasm_bindgen_macro"
             }
           ],
           "selects": {}
         },
-        "version": "0.2.81"
+        "version": "0.2.82"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -21501,13 +21839,13 @@
       },
       "license": "MIT/Apache-2.0"
     },
-    "wasm-bindgen-backend 0.2.81": {
+    "wasm-bindgen-backend 0.2.82": {
       "name": "wasm-bindgen-backend",
-      "version": "0.2.81",
+      "version": "0.2.82",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/wasm-bindgen-backend/0.2.81/download",
-          "sha256": "5491a68ab4500fa6b4d726bd67408630c3dbe9c4fe7bda16d5c82a1fd8c7340a"
+          "url": "https://crates.io/api/v1/crates/wasm-bindgen-backend/0.2.82/download",
+          "sha256": "662cd44805586bd52971b9586b1df85cdbbd9112e4ef4d8f41559c334dc6ac3f"
         }
       },
       "targets": [
@@ -21539,15 +21877,15 @@
               "target": "bumpalo"
             },
             {
-              "id": "lazy_static 1.4.0",
-              "target": "lazy_static"
-            },
-            {
               "id": "log 0.4.17",
               "target": "log"
             },
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "once_cell 1.13.0",
+              "target": "once_cell"
+            },
+            {
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -21559,24 +21897,24 @@
               "target": "syn"
             },
             {
-              "id": "wasm-bindgen-shared 0.2.81",
+              "id": "wasm-bindgen-shared 0.2.82",
               "target": "wasm_bindgen_shared"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.2.81"
+        "version": "0.2.82"
       },
       "license": "MIT/Apache-2.0"
     },
-    "wasm-bindgen-futures 0.4.31": {
+    "wasm-bindgen-futures 0.4.32": {
       "name": "wasm-bindgen-futures",
-      "version": "0.4.31",
+      "version": "0.4.32",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/wasm-bindgen-futures/0.4.31/download",
-          "sha256": "de9a9cec1733468a8c657e57fa2413d2ae2c0129b95e87c5b72b8ace4d13f31f"
+          "url": "https://crates.io/api/v1/crates/wasm-bindgen-futures/0.4.32/download",
+          "sha256": "fa76fb221a1f8acddf5b54ace85912606980ad661ac7a503b4570ffd3a624dad"
         }
       },
       "targets": [
@@ -21605,11 +21943,11 @@
               "target": "cfg_if"
             },
             {
-              "id": "js-sys 0.3.58",
+              "id": "js-sys 0.3.59",
               "target": "js_sys"
             },
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "wasm_bindgen"
             }
           ],
@@ -21623,17 +21961,17 @@
           }
         },
         "edition": "2018",
-        "version": "0.4.31"
+        "version": "0.4.32"
       },
       "license": "MIT/Apache-2.0"
     },
-    "wasm-bindgen-macro 0.2.81": {
+    "wasm-bindgen-macro 0.2.82": {
       "name": "wasm-bindgen-macro",
-      "version": "0.2.81",
+      "version": "0.2.82",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/wasm-bindgen-macro/0.2.81/download",
-          "sha256": "c441e177922bc58f1e12c022624b6216378e5febc2f0533e41ba443d505b80aa"
+          "url": "https://crates.io/api/v1/crates/wasm-bindgen-macro/0.2.82/download",
+          "sha256": "b260f13d3012071dfb1512849c033b1925038373aea48ced3012c09df952c602"
         }
       },
       "targets": [
@@ -21665,24 +22003,24 @@
               "target": "quote"
             },
             {
-              "id": "wasm-bindgen-macro-support 0.2.81",
+              "id": "wasm-bindgen-macro-support 0.2.82",
               "target": "wasm_bindgen_macro_support"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.2.81"
+        "version": "0.2.82"
       },
       "license": "MIT/Apache-2.0"
     },
-    "wasm-bindgen-macro-support 0.2.81": {
+    "wasm-bindgen-macro-support 0.2.82": {
       "name": "wasm-bindgen-macro-support",
-      "version": "0.2.81",
+      "version": "0.2.82",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/wasm-bindgen-macro-support/0.2.81/download",
-          "sha256": "7d94ac45fcf608c1f45ef53e748d35660f168490c10b23704c7779ab8f5c3048"
+          "url": "https://crates.io/api/v1/crates/wasm-bindgen-macro-support/0.2.82/download",
+          "sha256": "5be8e654bdd9b79216c2929ab90721aa82faf65c48cdf08bdc4e7f51357b80da"
         }
       },
       "targets": [
@@ -21710,7 +22048,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -21722,28 +22060,28 @@
               "target": "syn"
             },
             {
-              "id": "wasm-bindgen-backend 0.2.81",
+              "id": "wasm-bindgen-backend 0.2.82",
               "target": "wasm_bindgen_backend"
             },
             {
-              "id": "wasm-bindgen-shared 0.2.81",
+              "id": "wasm-bindgen-shared 0.2.82",
               "target": "wasm_bindgen_shared"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.2.81"
+        "version": "0.2.82"
       },
       "license": "MIT/Apache-2.0"
     },
-    "wasm-bindgen-shared 0.2.81": {
+    "wasm-bindgen-shared 0.2.82": {
       "name": "wasm-bindgen-shared",
-      "version": "0.2.81",
+      "version": "0.2.82",
       "repository": {
         "Http": {
-          "url": "https://crates.io/api/v1/crates/wasm-bindgen-shared/0.2.81/download",
-          "sha256": "6a89911bd99e5f3659ec4acf9c4d93b0a90fe4a2a11f15328472058edc5261be"
+          "url": "https://crates.io/api/v1/crates/wasm-bindgen-shared/0.2.82/download",
+          "sha256": "6598dd0bd3c7d51095ff6531a5b23e02acdc81804e30d8f07afb77b7215a140a"
         }
       },
       "targets": [
@@ -21780,14 +22118,14 @@
         "deps": {
           "common": [
             {
-              "id": "wasm-bindgen-shared 0.2.81",
+              "id": "wasm-bindgen-shared 0.2.82",
               "target": "build_script_build"
             }
           ],
           "selects": {}
         },
         "edition": "2018",
-        "version": "0.2.81"
+        "version": "0.2.82"
       },
       "build_script_attrs": {
         "data_glob": [
@@ -22119,7 +22457,7 @@
         "deps": {
           "common": [
             {
-              "id": "proc-macro2 1.0.40",
+              "id": "proc-macro2 1.0.42",
               "target": "proc_macro2"
             },
             {
@@ -22450,11 +22788,11 @@
         "deps": {
           "common": [
             {
-              "id": "js-sys 0.3.58",
+              "id": "js-sys 0.3.59",
               "target": "js_sys"
             },
             {
-              "id": "wasm-bindgen 0.2.81",
+              "id": "wasm-bindgen 0.2.82",
               "target": "wasm_bindgen"
             }
           ],
@@ -22589,7 +22927,7 @@
             ],
             "cfg(target_arch = \"wasm32\")": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
@@ -22601,11 +22939,11 @@
                 "target": "parking_lot"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
-                "id": "wasm-bindgen-futures 0.4.31",
+                "id": "wasm-bindgen-futures 0.4.32",
                 "target": "wasm_bindgen_futures"
               },
               {
@@ -22944,11 +23282,11 @@
             ],
             "cfg(target_arch = \"wasm32\")": [
               {
-                "id": "js-sys 0.3.58",
+                "id": "js-sys 0.3.59",
                 "target": "js_sys"
               },
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
@@ -23050,7 +23388,7 @@
         "deps": {
           "common": [
             {
-              "id": "bytemuck 1.10.0",
+              "id": "bytemuck 1.11.0",
               "target": "bytemuck"
             },
             {
@@ -23365,6 +23703,122 @@
         ]
       },
       "license": "MIT/Apache-2.0"
+    },
+    "windows 0.36.1": {
+      "name": "windows",
+      "version": "0.36.1",
+      "repository": {
+        "Http": {
+          "url": "https://crates.io/api/v1/crates/windows/0.36.1/download",
+          "sha256": "e53b97a83176b369b0eb2fd8158d4ae215357d02df9d40c1e1bf1879c5482c80"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "windows",
+            "crate_root": "src/lib.rs",
+            "srcs": {
+              "include": [
+                "**/*.rs"
+              ],
+              "exclude": []
+            }
+          }
+        }
+      ],
+      "library_target_name": "windows",
+      "common_attrs": {
+        "compile_data_glob": [
+          "**"
+        ],
+        "crate_features": [
+          "Win32",
+          "Win32_Foundation",
+          "Win32_Security",
+          "Win32_Storage",
+          "Win32_Storage_FileSystem",
+          "Win32_System",
+          "Win32_System_Diagnostics",
+          "Win32_System_Diagnostics_Debug",
+          "Win32_System_Diagnostics_Etw",
+          "Win32_System_LibraryLoader",
+          "Win32_System_SystemInformation",
+          "Win32_System_SystemServices",
+          "Win32_System_Threading",
+          "Win32_System_Time",
+          "Win32_System_WindowsProgramming",
+          "default"
+        ],
+        "deps": {
+          "common": [],
+          "selects": {
+            "aarch64-pc-windows-msvc": [
+              {
+                "id": "windows_aarch64_msvc 0.36.1",
+                "target": "windows_aarch64_msvc"
+              }
+            ],
+            "aarch64-uwp-windows-msvc": [
+              {
+                "id": "windows_aarch64_msvc 0.36.1",
+                "target": "windows_aarch64_msvc"
+              }
+            ],
+            "i686-pc-windows-gnu": [
+              {
+                "id": "windows_i686_gnu 0.36.1",
+                "target": "windows_i686_gnu"
+              }
+            ],
+            "i686-pc-windows-msvc": [
+              {
+                "id": "windows_i686_msvc 0.36.1",
+                "target": "windows_i686_msvc"
+              }
+            ],
+            "i686-uwp-windows-gnu": [
+              {
+                "id": "windows_i686_gnu 0.36.1",
+                "target": "windows_i686_gnu"
+              }
+            ],
+            "i686-uwp-windows-msvc": [
+              {
+                "id": "windows_i686_msvc 0.36.1",
+                "target": "windows_i686_msvc"
+              }
+            ],
+            "x86_64-pc-windows-gnu": [
+              {
+                "id": "windows_x86_64_gnu 0.36.1",
+                "target": "windows_x86_64_gnu"
+              }
+            ],
+            "x86_64-pc-windows-msvc": [
+              {
+                "id": "windows_x86_64_msvc 0.36.1",
+                "target": "windows_x86_64_msvc"
+              }
+            ],
+            "x86_64-uwp-windows-gnu": [
+              {
+                "id": "windows_x86_64_gnu 0.36.1",
+                "target": "windows_x86_64_gnu"
+              }
+            ],
+            "x86_64-uwp-windows-msvc": [
+              {
+                "id": "windows_x86_64_msvc 0.36.1",
+                "target": "windows_x86_64_msvc"
+              }
+            ]
+          }
+        },
+        "edition": "2018",
+        "version": "0.36.1"
+      },
+      "license": "MIT OR Apache-2.0"
     },
     "windows-sys 0.36.1": {
       "name": "windows-sys",
@@ -23899,7 +24353,7 @@
             ],
             "cfg(target_arch = \"wasm32\")": [
               {
-                "id": "wasm-bindgen 0.2.81",
+                "id": "wasm-bindgen 0.2.82",
                 "target": "wasm_bindgen"
               },
               {
@@ -24286,11 +24740,12 @@
     }
   },
   "binary_crates": [
+    "blondie 0.3.1",
     "cc 1.0.73",
-    "clap 3.2.14",
-    "flamegraph 0.6.1",
+    "clap 3.2.15",
+    "flamegraph 0.6.2",
     "fluent-syntax 0.11.0",
-    "inferno 0.11.6",
+    "inferno 0.11.7",
     "semver-parser 0.10.2",
     "unic-langid-impl 0.9.0",
     "weezl 0.1.7",

@@ -10,6 +10,7 @@ CRATES = {
     "derivative": "2.2.0",
     "enum-iterator": "0.8.1",
     "enum_dispatch": "0.3",
+    "enum-kinds": "0.5.1",
     "chrono": dict(
         version = "0.4",
         features = ["serde"],
@@ -81,6 +82,7 @@ CRATES = {
     # plotting
     "plotters": "0.3.1",
     "plotters-bitmap": "0.3.1",
+    "tabled": "0.8.0",
 
     # python FFI
     "pyo3": dict(

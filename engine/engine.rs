@@ -7,7 +7,7 @@ use uom::si::u64::Time;
 
 use crate::fields::FieldsState;
 use crate::time_state::TimeState;
-use crate::trigger::TriggerQueue;
+use crate::trigger::{TriggerQueue, TriggerStats};
 
 /// number of times to record traffic history per day
 pub const WORLD_STATE_HISTORY_SNAPSHOTS: usize = 48;
@@ -141,6 +141,8 @@ pub struct Engine {
     /// mutex; this in turn gurantees that no non-determinism can be introduced by variable
     /// interleaving of threads.
     pub rng: rand_chacha::ChaCha12Rng,
+    #[serde(skip)]
+    pub trigger_stats: TriggerStats,
 }
 
 impl Engine {
@@ -162,6 +164,7 @@ impl Engine {
             blurred_fields: Default::default(),
             // initialize once randomly
             rng: rand_chacha::ChaCha12Rng::from_rng(rand::thread_rng()).unwrap(),
+            trigger_stats: TriggerStats::new(false),
         }
     }
 
