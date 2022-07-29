@@ -4,6 +4,7 @@ use fast_paths::{
     FastGraph, InputGraph, NodeId, Params, ParamsWithOrder, PathCalculator, ShortestPath, Weight,
 };
 
+use crate::common::Error;
 use crate::edge::Edge;
 use crate::node::Node;
 use crate::traffic::WorldState;
@@ -148,6 +149,52 @@ impl FastGraphWrapper {
         let path_calculator = fast_paths::create_calculator(&fast_graph);
         self.fast_graph = Some(fast_graph);
         self.path_calculator = Some(path_calculator);
+    }
+
+    pub fn update_weights_async<W, F, E>(
+        &self,
+        world_state: &W,
+        state: &state::State<F>,
+        thread_pool: &mut threadpool::ThreadPool,
+    ) -> crossbeam::channel::Receiver<Result<Self, E>>
+    where
+        W: WorldState,
+        F: state::Fields,
+        E: From<Error> + Send + 'static,
+    {
+        let input_graph = self.create_input(world_state, state);
+        assert_eq!(
+            input_graph.get_num_nodes(),
+            self.node_ordering.as_ref().unwrap().len()
+        );
+
+        let input = self.input.clone();
+        let node_map = self.node_map.clone();
+        let edge_map = self.edge_map.clone();
+        let node_ordering = self.node_ordering.clone().unwrap();
+
+        let (sender, receiver) = crossbeam::channel::bounded(1);
+
+        thread_pool.execute(move || {
+            let fast_graph = fast_paths::prepare_with_order_with_params(
+                &input,
+                &node_ordering,
+                &Self::get_update_params(),
+            )
+            .unwrap();
+            let path_calculator = fast_paths::create_calculator(&fast_graph);
+            let res = Ok(Self {
+                input,
+                node_map,
+                edge_map,
+                fast_graph: Some(fast_graph),
+                node_ordering: Some(node_ordering),
+                path_calculator: Some(path_calculator),
+            });
+            sender.send(res).unwrap();
+        });
+
+        receiver
     }
 
     pub fn query(&mut self, source: NodeId, target: NodeId) -> Option<ShortestPath> {

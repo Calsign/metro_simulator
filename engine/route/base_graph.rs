@@ -4,7 +4,6 @@ use crate::common::{Error, Mode, ModeMap, MODES};
 use crate::edge::Edge;
 use crate::fast_graph_wrapper::FastGraphWrapper;
 use crate::node::Node;
-use crate::traffic::WorldState;
 
 pub struct BaseGraphInput<'a, F: state::Fields> {
     pub state: &'a state::State<F>,
@@ -63,14 +62,6 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn update_weights<W: WorldState, F: state::Fields>(
-        &mut self,
-        world_state: &W,
-        state: &state::State<F>,
-    ) {
-        self.graph.update_weights(world_state, state);
-    }
-
     pub fn get_stats(&self) -> BaseGraphStats {
         BaseGraphStats {
             node_count: self.graph.node_count(),

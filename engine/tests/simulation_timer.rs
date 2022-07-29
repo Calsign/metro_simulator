@@ -45,6 +45,7 @@ fn main() {
 
     if engine.trigger_stats.profiling_enabled {
         engine.trigger_stats.print();
-        println!();
     }
+
+    println!();
 }

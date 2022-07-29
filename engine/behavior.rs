@@ -37,7 +37,8 @@ pub trait TriggerType: std::fmt::Debug + PartialEq + Eq + PartialOrd + Ord {
 pub enum Trigger {
     UpdateFields,
     UpdateCollectTiles,
-    UpdateTraffic,
+    UpdateTrafficSender,
+    UpdateTrafficReceiver,
     AgentPlanCommuteToWork,
     AgentPlanCommuteHome,
     AgentRouteStart,
@@ -46,6 +47,33 @@ pub enum Trigger {
     WorkplaceDecisions,
     DummyTrigger,
     DoublingTrigger,
+}
+
+#[derive(Debug, Default, derivative::Derivative)]
+#[derivative(PartialEq, Eq, PartialOrd, Ord)]
+struct Receiver<T> {
+    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
+    receiver: Option<Box<crossbeam::channel::Receiver<Result<T, Error>>>>,
+}
+
+// NOTE: Important to discard the receiver so that we don't inadvertently share data between cloned
+// engines. We use cloned engines to rewind time, so they should be separate.
+impl<T> Clone for Receiver<T> {
+    fn clone(&self) -> Self {
+        Self { receiver: None }
+    }
+}
+
+impl<T> Receiver<T> {
+    fn new(receiver: crossbeam::channel::Receiver<Result<T, Error>>) -> Self {
+        Self {
+            receiver: Some(Box::new(receiver)),
+        }
+    }
+
+    fn receive(&mut self) -> Option<Result<T, Error>> {
+        self.receiver.as_mut().map(|r| r.recv().unwrap())
+    }
 }
 
 // This is a common place to define triggers which produce important behavior.
@@ -91,18 +119,67 @@ impl TriggerType for UpdateCollectTiles {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct UpdateTraffic {}
+lazy_static::lazy_static! {
+    /// How far into the future we want the prediction to be when it is applied. This can be
+    /// arbitrarily large as long as it is less than the scale of history tracking (i.e. one day)
+    /// minus the deadline.
+    static ref UPDATE_TRAFFIC_HORIZON: u64 = Time::new::<minute>(30).value;
+    /// How long we allow the thread to compute the traffic for before joining it. If the value is
+    /// too small, we risk blocking until the computation finishes.
+    static ref UPDATE_TRAFFIC_DEADLINE: u64 = Time::new::<minute>(60).value;
+}
 
-impl TriggerType for UpdateTraffic {
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct UpdateTrafficSender {}
+
+impl UpdateTrafficSender {}
+
+impl TriggerType for UpdateTrafficSender {
     fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
-        // try to predict traffic 30 minutes in the future
-        engine.update_route_weights(Time::new::<minute>(30).value);
+        engine.record_traffic_snapshot();
+
+        // This choice of horizon is important; it guarantees that if the engine is serialized and
+        // deserialized during the computation, we can still update the traffic serially with the
+        // correct horizon when we encounter the receiver trigger.
+        let receiver =
+            engine.update_route_weights_async(*UPDATE_TRAFFIC_HORIZON + *UPDATE_TRAFFIC_DEADLINE);
+
+        engine.trigger_queue.push_rel(
+            UpdateTrafficReceiver {
+                receiver: Receiver::new(receiver),
+            },
+            *UPDATE_TRAFFIC_DEADLINE,
+        );
 
         // re-trigger every hour of simulated time
         engine
             .trigger_queue
             .push_rel(self, engine.world_state_history.snapshot_period());
+
+        Ok(())
+    }
+
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct UpdateTrafficReceiver {
+    #[serde(skip)]
+    receiver: Receiver<route::FastGraphWrapper>,
+}
+
+impl TriggerType for UpdateTrafficReceiver {
+    fn execute(mut self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
+        match self.receiver.receive() {
+            Some(graph) => engine.update_route_weights_async_callback(graph?),
+            None => {
+                // We don't have a graph because the engine state was serialized between when the
+                // query was queued and now. The best we can do is re-compute it here.
+                engine.update_route_weights(*UPDATE_TRAFFIC_HORIZON);
+            }
+        }
 
         Ok(())
     }
@@ -149,9 +226,7 @@ impl TriggerType for AgentPlanCommuteToWork {
             engine.trigger_queue.push(
                 AgentRouteStart {
                     agent: id,
-                    receiver: Some(RouteReceiver {
-                        receiver: Box::new(receiver),
-                    }),
+                    receiver: Receiver::new(receiver),
                     route_type: agent::RouteType::CommuteToWork,
                     query_input,
                 },
@@ -219,9 +294,9 @@ impl TriggerType for AgentPlanCommuteHome {
             engine.trigger_queue.push(
                 AgentRouteStart {
                     agent: id,
-                    receiver: Some(RouteReceiver {
-                        receiver: Box::new(receiver),
-                    }),
+                    receiver: Receiver {
+                        receiver: Some(Box::new(receiver)),
+                    },
                     route_type: agent::RouteType::CommuteFromWork,
                     query_input,
                 },
@@ -237,13 +312,6 @@ impl TriggerType for AgentPlanCommuteHome {
     }
 }
 
-#[derive(Debug, Clone, derivative::Derivative)]
-#[derivative(PartialEq, Eq, PartialOrd, Ord)]
-struct RouteReceiver {
-    #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
-    receiver: Box<crossbeam::channel::Receiver<Result<Option<route::Route>, Error>>>,
-}
-
 // NOTE: if we are loading from a serialized copy, the spawned thread is dead, so we need to
 // do a blocking compute from the query input.
 #[derive(Debug, Clone, Serialize, Deserialize, derivative::Derivative)]
@@ -252,7 +320,7 @@ pub struct AgentRouteStart {
     agent: u64,
     route_type: agent::RouteType,
     #[serde(skip)]
-    receiver: Option<RouteReceiver>,
+    receiver: Receiver<Option<route::Route>>,
     #[derivative(PartialEq = "ignore", PartialOrd = "ignore", Ord = "ignore")]
     query_input: route::QueryInput,
 }
@@ -263,7 +331,7 @@ impl AgentRouteStart {
 }
 
 impl TriggerType for AgentRouteStart {
-    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
+    fn execute(mut self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         agent::agent_log_timestamp(
             self.agent,
             || "starting route",
@@ -272,10 +340,7 @@ impl TriggerType for AgentRouteStart {
 
         // This blocks if the route has not been computed yet.
         // We can adjust how likely we are to block by twiddling the deadline.
-        let route = match self
-            .receiver
-            .and_then(|receiver| receiver.receiver.recv().ok())
-        {
+        let route = match self.receiver.receive() {
             Some(route) => route,
             None => {
                 agent::agent_log_timestamp(

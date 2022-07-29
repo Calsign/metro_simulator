@@ -15,6 +15,7 @@ pub use base_graph::{
 };
 pub use common::{CarConfig, Error, Mode, QueryInput, MODES};
 pub use edge::Edge;
+pub use fast_graph_wrapper::FastGraphWrapper;
 pub use isochrone::{calculate_isochrone, calculate_isochrone_map, Isochrone, IsochroneMap};
 pub use node::Node;
 pub use query::best_route;

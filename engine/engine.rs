@@ -381,17 +381,19 @@ impl Engine {
         )?)
     }
 
+    /// Update history so that future predictions will use the new data.
+    /// NOTE: This must happen on the correct cycle, otherwise this will panic.
+    pub fn record_traffic_snapshot(&mut self) {
+        self.world_state_history
+            .take_snapshot(&self.world_state, self.time_state.current_time);
+    }
+
     /**
      * Re-compute the weights on the fast graph used for querying routes.
      * This makes newly computed routes use the predicted traffic conditions.
      * Horizon is how far in the future we should try to predict.
      */
     pub fn update_route_weights(&mut self, horizon: u64) {
-        // update history so that future predictions will use the new data
-        // NOTE: this must happen on the correct cycle, otherwise this will panic
-        self.world_state_history
-            .take_snapshot(&self.world_state, self.time_state.current_time);
-
         // predict future traffic
         let predicted_state = &self
             .world_state_history
@@ -401,8 +403,33 @@ impl Engine {
         let mut base_graph = self.base_graph.write().unwrap();
         base_graph
             .get_base_graph_mut(&self.state)
+            .graph
             .update_weights(predicted_state, &self.state);
         // force the thread-local copies to be invalidated
+        base_graph.clear_thread_cache();
+    }
+
+    pub fn update_route_weights_async(
+        &mut self,
+        horizon: u64,
+    ) -> crossbeam::channel::Receiver<Result<route::FastGraphWrapper, Error>> {
+        // predict future traffic
+        let predicted_state = &self
+            .world_state_history
+            .get_predictor(self.time_state.current_time + horizon);
+
+        let base_graph = self.base_graph.read().unwrap();
+        let receiver = base_graph
+            .get_base_graph(&self.state)
+            .graph
+            .update_weights_async(predicted_state, &self.state, &mut self.thread_pool);
+
+        receiver
+    }
+
+    pub fn update_route_weights_async_callback(&mut self, graph: route::FastGraphWrapper) {
+        let mut base_graph = self.base_graph.write().unwrap();
+        base_graph.get_base_graph_mut(&self.state).graph = graph;
         base_graph.clear_thread_cache();
     }
 
@@ -417,7 +444,7 @@ impl Engine {
             self.trigger_queue
                 .push(crate::behavior::UpdateCollectTiles {}, 0);
             self.trigger_queue
-                .push(crate::behavior::UpdateTraffic {}, 0);
+                .push(crate::behavior::UpdateTrafficSender {}, 0);
             for agent in self.agents.values() {
                 self.trigger_queue
                     .push(crate::behavior::AgentLifeDecisions { agent: agent.id }, 0);

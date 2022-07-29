@@ -28,6 +28,7 @@ ms_rust_library(
         "//engine/state",
         "//util:spline_util",
         "@crates//:cgmath",
+        "@crates//:crossbeam",
         "@crates//:fast_paths",
         "@crates//:image",
         "@crates//:imageproc",
@@ -39,6 +40,7 @@ ms_rust_library(
         "@crates//:spade",
         "@crates//:splines",
         "@crates//:thiserror",
+        "@crates//:threadpool",
         "@crates//:uom",
     ],
 )

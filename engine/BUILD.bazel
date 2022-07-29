@@ -31,6 +31,7 @@ ms_rust_library(
         "@crates//:enum-iterator",
         "@crates//:fastblur",
         "@crates//:itertools",
+        "@crates//:lazy_static",
         "@crates//:once_cell",
         "@crates//:rand",
         "@crates//:rand_chacha",
