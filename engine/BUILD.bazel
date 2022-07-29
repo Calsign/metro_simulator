@@ -27,6 +27,7 @@ ms_rust_library(
         "//engine/tiles",
         "@crates//:cgmath",
         "@crates//:chrono",
+        "@crates//:cpu-time",
         "@crates//:crossbeam",
         "@crates//:enum-iterator",
         "@crates//:fastblur",

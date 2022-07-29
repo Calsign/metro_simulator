@@ -22,6 +22,7 @@ CRATES = {
     ),
     "ordered-float": "3.0.0",
     "bencher": "0.1.5",
+    "cpu-time": "1.0.0",
 
     # serde
     "serde": dict(

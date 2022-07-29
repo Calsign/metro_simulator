@@ -109,15 +109,20 @@ impl crate::engine::Engine {
         self.trigger_queue.current_time = entry.time;
         self.time_state.current_time = entry.time;
 
-        // TODO: it would be nice to not have to record the time unless we are profiling
-        let start = std::time::Instant::now();
+        let start = self
+            .trigger_stats
+            .profiling_enabled
+            .then(|| cpu_time::ThreadTime::try_now().ok())
+            .flatten();
         let kind = TriggerKind::from(&entry.trigger);
 
         entry
             .trigger
             .execute(self, self.trigger_queue.current_time)?;
 
-        self.trigger_stats.record_trigger(kind, start.elapsed());
+        if let Some(start) = start {
+            self.trigger_stats.record_trigger(kind, start.elapsed());
+        }
         Ok(())
     }
 
