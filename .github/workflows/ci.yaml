@@ -85,18 +85,8 @@ jobs:
       - name: build and test
         run: bazel test -c opt //... --config ci
 
-      # TODO: re-enable these once cache is populated
-
-      # - name: upload map artifacts
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: maps
-      #     path: build/bazel-out/*/bin/maps/*.json
-
-      # - name: upload binaries
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: binaries
-      #     path: |
-      #       build/bazel-out/k8-opt/bin/viewers/app/desktop
-      #       build/bazel-out/*/bin/mobile/android/app.apk
+      - name: upload release artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: release
+          path: build/bazel-out/k8-opt/bin/release.tar.gz

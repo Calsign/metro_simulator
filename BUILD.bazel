@@ -1,5 +1,28 @@
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
 # generate bazel-project.json for rust-analyzer
 alias(
     name = "gen_rust_project",
     actual = "@rules_rust//tools/rust_analyzer:gen_rust_project",
+)
+
+# android_binary produces three files. this is a gross way to just get the main apk.
+genrule(
+    name = "android_app",
+    srcs = ["//mobile/android:app_all_cpus"],
+    outs = ["app.apk"],
+    # find the parent directory of the first src and find "app.apk" in that directory
+    cmd = "cp $$(dirname $$(echo '$(SRCS)' | cut -d' ' -f1))/app.apk $@",
+)
+
+# release target uploaded at the end of CI
+pkg_tar(
+    name = "release",
+    srcs = [
+        ":android_app",
+        "//maps:sf",
+        "//viewers/app:desktop",
+    ],
+    extension = ".tar.gz",
+    visibility = ["//visibility:private"],
 )

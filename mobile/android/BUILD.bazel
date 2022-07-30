@@ -43,4 +43,5 @@ android_cpu_wrapper(
     cpus = [
         "arm64-v8a",
     ],
+    visibility = ["//visibility:public"],
 )
