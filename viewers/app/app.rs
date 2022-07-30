@@ -615,17 +615,11 @@ impl App {
 #[derive(Debug)]
 pub(crate) struct Overlay {
     pub field: Option<crate::field_overlay::FieldType>,
-    pub traffic: bool,
-    pub parking: bool,
 }
 
 impl Overlay {
     fn new() -> Self {
-        Self {
-            field: None,
-            traffic: false,
-            parking: false,
-        }
+        Self { field: None }
     }
 
     fn draw(&mut self, ui: &mut egui::Ui) {
@@ -635,8 +629,6 @@ impl Overlay {
         for field_type in crate::field_overlay::FieldType::into_enum_iter() {
             ui.radio_value(&mut self.field, Some(field_type), field_type.label());
         }
-        ui.checkbox(&mut self.traffic, "Traffic");
-        ui.checkbox(&mut self.parking, "Parking");
     }
 }
 

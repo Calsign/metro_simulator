@@ -34,7 +34,10 @@ impl App {
             0.2,
         );
 
-        let traffic = self.overlay.traffic.then(|| &self.engine.world_state);
+        let traffic = match self.overlay.field {
+            Some(crate::field_overlay::FieldType::Traffic) => Some(&self.engine.world_state),
+            _ => None,
+        };
 
         self.diagnostics.metro_vertices = 0;
         self.diagnostics.highway_vertices = 0;
@@ -291,31 +294,6 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
                     0.0,
                     max,
                 ))
-            } else if self.app.overlay.traffic {
-                use route::WorldState;
-                let travelers = self
-                    .app
-                    .engine
-                    .world_state
-                    .get_local_road_zone_travelers(data.x, data.y);
-                let traffic_factor = route::local_traffic::congested_travel_factor(
-                    &self.app.engine.state.config,
-                    travelers,
-                );
-                Some(traffic_hue(traffic_factor))
-            } else if self.app.overlay.parking {
-                // TODO: consolidate this with fields
-                use route::WorldState;
-                let parked_cars = self
-                    .app
-                    .engine
-                    .world_state
-                    .get_parking(data.x as f64, data.y as f64);
-                Some(crate::field_overlay::calc_hue(
-                    parked_cars as f32,
-                    0.0,
-                    40.0,
-                ))
             } else if let Some(field) = self.app.overlay.field {
                 Some(field.hue(&self.app.engine, fields, data))
             } else {
@@ -484,7 +462,7 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
             Some(traffic_factor) => {
                 let scaled = (traffic_factor - 1.0).min(5.0) / 5.0;
                 let line_width_factor = 2.0 + 2.0 * scaled as f32;
-                let hue = traffic_hue(traffic_factor);
+                let hue = crate::field_overlay::traffic_hue(traffic_factor);
                 let color = egui::color::Hsva::new(hue, 1.0, 1.0, 1.0).into();
                 (color, line_width * line_width_factor)
             }
@@ -576,9 +554,4 @@ impl<'a, 'b, 'c> route::SplineVisitor<route::Route, route::RouteKey, anyhow::Err
             }),
         )
     }
-}
-
-fn traffic_hue(traffic_factor: f64) -> f32 {
-    let scaled = (traffic_factor - 1.0).min(5.0) / 5.0;
-    (1.0 / 3.0 - (scaled / 3.0)) as f32
 }

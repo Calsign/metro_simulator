@@ -39,6 +39,10 @@ pub(crate) enum FieldType {
     // demand-related
     RawWorkplaceDemand,
     WorkplaceDemand,
+
+    // dynamic
+    Traffic,
+    Parking,
 }
 
 impl FieldType {
@@ -69,6 +73,9 @@ impl FieldType {
 
             Self::RawWorkplaceDemand => "Workplace demand (raw)",
             Self::WorkplaceDemand => "Workplace demand",
+
+            Self::Traffic => "Traffic",
+            Self::Parking => "Parking",
         }
     }
 
@@ -106,10 +113,18 @@ impl FieldType {
             Self::RawConstructionCost | Self::ConstructionCost => 20.0,
 
             Self::RawWorkplaceDemand | Self::WorkplaceDemand => 4.0,
+
+            Self::Traffic => 0.0,
+            Self::Parking => 40.0,
         }
     }
 
-    fn value(&self, fields: &engine::FieldsState, _data: &quadtree::VisitData) -> f32 {
+    fn value(
+        &self,
+        engine: &engine::Engine,
+        fields: &engine::FieldsState,
+        data: &quadtree::VisitData,
+    ) -> f32 {
         match self {
             Self::Population => fields.population.people.density() as f32,
             Self::TotalHousing => fields.population.housing.density() as f32,
@@ -144,6 +159,19 @@ impl FieldType {
 
             Self::RawWorkplaceDemand => fields.raw_demand.raw_workplace_demand.value as f32,
             Self::WorkplaceDemand => fields.demand.workplace_demand.value as f32,
+
+            Self::Traffic => {
+                use route::WorldState;
+                let travelers = engine
+                    .world_state
+                    .get_local_road_zone_travelers(data.x, data.y);
+                route::local_traffic::congested_travel_factor(&engine.state.config, travelers)
+                    as f32
+            }
+            Self::Parking => {
+                use route::WorldState;
+                engine.world_state.get_parking(data.x as f64, data.y as f64) as f32
+            }
         }
     }
 
@@ -153,9 +181,14 @@ impl FieldType {
         fields: &engine::FieldsState,
         data: &quadtree::VisitData,
     ) -> f32 {
-        let max = self.max(engine);
-        let min = self.min(engine);
-        calc_hue(self.value(fields, data), min, max)
+        match self {
+            Self::Traffic => traffic_hue(self.value(engine, fields, data) as f64),
+            _ => {
+                let max = self.max(engine);
+                let min = self.min(engine);
+                calc_hue(self.value(engine, fields, data), min, max)
+            }
+        }
     }
 }
 
@@ -166,4 +199,9 @@ pub fn calc_hue(val: f32, min: f32, max: f32) -> f32 {
     } else {
         0.0
     }
+}
+
+pub fn traffic_hue(traffic_factor: f64) -> f32 {
+    let scaled = (traffic_factor - 1.0).min(5.0) / 5.0;
+    (1.0 / 3.0 - (scaled / 3.0)) as f32
 }
