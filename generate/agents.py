@@ -11,7 +11,7 @@ class Agents(Layer):
     def __init__(self, map_config: MapConfig):
         super().__init__(map_config)
 
-    def get_dataset(self) -> T.Dict[str, T.Any]:
+    def get_dataset(self) -> T.Optional[T.Dict[str, T.Any]]:
         return None
 
     def initialize(self, data: int, node: Quadtree, convolve: ConvolveData):

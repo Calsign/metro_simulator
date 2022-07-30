@@ -72,7 +72,7 @@ class Layer(ABC):
         return cls.__name__.lower()
 
     @abstractmethod
-    def get_dataset(self) -> T.Dict[str, T.Any]:
+    def get_dataset(self) -> T.Optional[T.Dict[str, T.Any]]:
         """
         Return the dataset used by this layer.
         Should fetch it from self.map_config.datasets.

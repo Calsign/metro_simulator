@@ -227,21 +227,18 @@ def generate(
         report_timestamp("read dataset - {}".format(layer.get_name()))
 
         dataset_info = layer.get_dataset()
-        if dataset_info is None:
-            dataset_type = None
-        else:
+
+        if dataset_info is not None:
             dataset_type = dataset_info["data"]["type"]
 
-        if dataset_type == "geotiff":
-            dataset = read_gdal(dataset_info, coords, max_dim)
-        elif dataset_type == "lodes":
-            dataset = read_lodes(dataset_info, coords, max_dim)
-        elif dataset_type == "open_street_map":
-            dataset = read_osm(dataset_info, coords, max_dim)
-        elif dataset_type is None:
-            dataset = None
-        else:
-            raise Exception("Unrecognized dataset type: {}".format(dataset_type))
+            if dataset_type == "geotiff":
+                dataset = read_gdal(dataset_info, coords, max_dim)
+            elif dataset_type == "lodes":
+                dataset = read_lodes(dataset_info, coords, max_dim)
+            elif dataset_type == "open_street_map":
+                dataset = read_osm(dataset_info, coords, max_dim)
+            else:
+                raise Exception("Unrecognized dataset type: {}".format(dataset_type))
 
         if cleaner is not None and hasattr(cleaner, layer.get_name()):
             report_timestamp("cleaning - {}".format(layer.get_name()))

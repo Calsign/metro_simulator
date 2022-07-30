@@ -133,7 +133,7 @@ class MetroLine:
 
 
 class Metros(Layer):
-    def get_dataset(self) -> T.Dict[str, T.Any]:
+    def get_dataset(self) -> T.Optional[T.Dict[str, T.Any]]:
         return self.map_config.datasets["osm"]
 
     @cached_property
@@ -146,11 +146,11 @@ class Metros(Layer):
 
     @cached_property
     def speed_limits(self) -> T.Dict[str, int]:
+        dataset = self.get_dataset()
+        assert dataset is not None
         return {
             network: parse_speed(speed_limit)
-            for network, speed_limit in self.get_dataset()["data"][
-                "subway_speeds"
-            ].items()
+            for network, speed_limit in dataset["data"]["subway_speeds"].items()
         }
 
     @cached_property

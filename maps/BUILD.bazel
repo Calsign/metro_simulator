@@ -4,6 +4,7 @@ load(":maps.bzl", "ALL_MAPS", "create_maps")
 filegroup(
     name = "maps",
     srcs = ALL_MAPS.values(),
+    tags = ["manual"],
     visibility = ["//visibility:public"],
 )
 

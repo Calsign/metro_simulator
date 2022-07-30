@@ -156,4 +156,5 @@ def create_maps():
             longitude = data.longitude,
             cleaner = getattr(data, "cleaner", None),
             cleaner_deps = getattr(data, "cleaner_deps", []),
+            tags = ["manual"],
         )

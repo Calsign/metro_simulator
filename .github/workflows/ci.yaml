@@ -38,6 +38,18 @@ jobs:
           distribution: zulu
           java-version: 11
 
+      # r21 is the latest NDK version supported by bazel, but github actions hosted runners have
+      # dropped support for it, so we need to install it ourselves
+      - name: setup android ndk
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r21e
+          add-to-path: true
+
+      - name: set android ndk environment variable
+        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+
       - name: install apt packages
         run: |
           sudo add-apt-repository ppa:ubuntugis/ubuntugis-unstable &&
@@ -71,21 +83,20 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tmate_debug && always() }}
 
       - name: build and test
-        run: bazel test //... --config ci
+        run: bazel test -c opt //... --config ci
 
-      - name: upload map artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: maps
-          path: build/bazel-out/*/bin/maps/*.json
+      # TODO: re-enable these once cache is populated
 
-      - name: build optimized binaries
-        run: bazel build -c opt //viewers/app:desktop //mobile/android:app_all_cpus --config ci
+      # - name: upload map artifacts
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: maps
+      #     path: build/bazel-out/*/bin/maps/*.json
 
-      - name: upload binaries
-        uses: actions/upload-artifact@v3
-        with:
-          name: binaries
-          path: |
-            build/bazel-out/k8-opt/bin/viewers/app/desktop
-            build/bazel-out/*/bin/mobile/android/app.apk
+      # - name: upload binaries
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: binaries
+      #     path: |
+      #       build/bazel-out/k8-opt/bin/viewers/app/desktop
+      #       build/bazel-out/*/bin/mobile/android/app.apk

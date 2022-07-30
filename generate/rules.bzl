@@ -184,6 +184,7 @@ def map(
         datasets,
         cleaner_deps = [],
         cleaner = None,
+        tags = [],
         visibility = ["//visibility:public"]):
     """
     Generate a map.
@@ -195,6 +196,8 @@ def map(
       datasets: dict mapping dataset type to dataset structs
       cleaner_deps (optional): py_library dependencies for the cleaner
       cleaner (optional): cleaner file (.py)
+      tags (optional): tags for underlying map rule
+      visibility (optional): visibility for underlying map rule
     """
 
     (lat, lon) = _parse_lat_lon(latitude, longitude)
@@ -240,5 +243,6 @@ def map(
     reset_configuration(
         name = name,
         actual = inner_name,
+        tags = tags,
         visibility = visibility,
     )

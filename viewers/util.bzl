@@ -20,4 +20,5 @@ def all_maps(target, name_prefix = "", arg_name = "--"):
                 map,
             ],
             deps = ["@bazel_tools//tools/bash/runfiles"],
+            tags = ["manual"],
         )

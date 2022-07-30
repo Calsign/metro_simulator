@@ -5,7 +5,7 @@ from generate.quadtree import Quadtree, ConvolveData
 
 
 class Terrain(Layer):
-    def get_dataset(self) -> T.Dict[str, T.Any]:
+    def get_dataset(self) -> T.Optional[T.Dict[str, T.Any]]:
         return self.map_config.datasets["terrain"]
 
     def initialize(self, data: int, node: Quadtree, convolve: ConvolveData):

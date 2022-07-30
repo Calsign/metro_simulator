@@ -93,7 +93,7 @@ class SegmentData:
 
 
 class Highways(Layer):
-    def get_dataset(self) -> T.Dict[str, T.Any]:
+    def get_dataset(self) -> T.Optional[T.Dict[str, T.Any]]:
         return self.map_config.datasets["osm"]
 
     @cached_property
