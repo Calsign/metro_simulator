@@ -127,6 +127,10 @@ CRATES = {
         features = ["logger"],
     ),
     "ndk-context": "0.1.0",
+
+    # open street map
+    "osmpbfreader": "0.15",
+    "osm-xml": "0.6",
 }
 
 def all_crates():

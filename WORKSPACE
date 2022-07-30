@@ -90,6 +90,12 @@ crates_repository(
                 patches = ["@//patches:imageproc__weighted_distance_transform.patch"],
             ),
         ],
+        "osmpbfreader": [
+            crate.annotation(
+                patch_args = ["-p1"],
+                patches = ["@//patches:osmpbfreader__pub_tags.patch"],
+            ),
+        ],
     },
     generator = "@cargo_bazel_bootstrap//:cargo-bazel",
     lockfile = "//cargo:crate_universe.lock",

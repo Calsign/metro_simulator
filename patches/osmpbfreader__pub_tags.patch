@@ -1,0 +1,13 @@
+diff --git a/src/objects.rs b/src/objects.rs
+index 4e90460..e851e52 100644
+--- a/src/objects.rs
++++ b/src/objects.rs
+@@ -19,7 +19,7 @@ use std::ops::{Deref, DerefMut};
+ /// tags](http://wiki.openstreetmap.org/wiki/Tags) for more
+ /// information.
+ #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+-pub struct Tags(::flat_map::FlatMap<String, String>);
++pub struct Tags(pub ::flat_map::FlatMap<String, String>);
+ 
+ impl Tags {
+     /// Creates a new, empty `Tags` object.

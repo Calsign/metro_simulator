@@ -1,4 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_binary")
+load("//util:macros.bzl", "ms_rust_binary")
 load("@pip_pkgs//:requirements.bzl", "requirement")
 load(":datasets.bzl", "datasets")
 
@@ -12,5 +13,17 @@ py_binary(
         requirement("argh"),
         requirement("shapely"),
         requirement("osmium"),
+    ],
+)
+
+ms_rust_binary(
+    name = "osm_preprocess",
+    srcs = ["osm_preprocess.rs"],
+    deps = [
+        "@crates//:clap",
+        "@crates//:osm-xml",
+        "@crates//:osmpbfreader",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
