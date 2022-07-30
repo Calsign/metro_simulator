@@ -1,20 +1,8 @@
-load("@rules_python//python:defs.bzl", "py_binary")
 load("//util:macros.bzl", "ms_rust_binary")
 load("@pip_pkgs//:requirements.bzl", "requirement")
 load(":datasets.bzl", "datasets")
 
 datasets.preprocess()
-
-py_binary(
-    name = "open_street_map_preprocess",
-    srcs = ["open_street_map_preprocess.py"],
-    main = "open_street_map_preprocess.py",
-    deps = [
-        requirement("argh"),
-        requirement("shapely"),
-        requirement("osmium"),
-    ],
-)
 
 ms_rust_binary(
     name = "osm_preprocess",

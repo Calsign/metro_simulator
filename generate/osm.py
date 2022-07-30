@@ -11,9 +11,13 @@ from shapely.affinity import affine_transform
 from generate.data import Coords, round_to_pow2, centered_box, EQ_KM_PER_DEG
 
 
+def undecimicro(val: int) -> float:
+    return val / 10**7
+
+
 class SupportsParse(T.Protocol):
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> SupportsParse:
+    def parse(data: T.Dict[str, T.Any], keypoints: T.Dict[str, Node]) -> SupportsParse:
         pass
 
 
@@ -24,8 +28,13 @@ class Way:
     shape: T.Any
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Way:
-        return Way(data["id"], data["tags"], shapely.geometry.shape(data["shape"]))
+    def parse(data: T.Dict[str, T.Any], keypoints: T.Dict[str, Node]) -> Way:
+        shape = [keypoints[node_id].location for node_id in data["nodes"]]
+        return Way(
+            data["id"],
+            data["tags"],
+            shapely.geometry.LineString(shape),
+        )
 
     def transform(self, matrix: T.List[float]):
         self.shape = affine_transform(self.shape, matrix)
@@ -35,11 +44,15 @@ class Way:
 class Node:
     id: int
     tags: T.Dict[str, str]
-    location: T.Tuple[float, float]
+    location: T.Tuple[float, float]  # (lon, lat)
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Node:
-        return Node(**data)
+    def parse(data: T.Dict[str, T.Any], keypoints: T.Dict[str, Node]) -> Node:
+        return Node(
+            data["id"],
+            data["tags"],
+            (undecimicro(data["decimicro_lon"]), undecimicro(data["decimicro_lat"])),
+        )
 
     def transform(self, matrix: T.List[float]):
         p = shapely.geometry.Point(self.location)
@@ -54,8 +67,9 @@ class RelMember:
     role: str
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> RelMember:
-        return RelMember(**data)
+    def parse(data: T.Dict[str, T.Any], keypoints: T.Dict[str, Node]) -> RelMember:
+        (type, ref) = list(data["member"].items())[0]
+        return RelMember(ref, type[0].lower(), data["role"])
 
     def transform(self, matrix: T.List[float]):
         pass
@@ -68,9 +82,11 @@ class Relation:
     members: T.List[RelMember]
 
     @staticmethod
-    def parse(data: T.Dict[str, T.Any]) -> Relation:
+    def parse(data: T.Dict[str, T.Any], keypoints: T.Dict[str, Node]) -> Relation:
         return Relation(
-            data["id"], data["tags"], list(map(RelMember.parse, data["members"]))
+            data["id"],
+            data["tags"],
+            list(map(lambda rel: RelMember.parse(rel, keypoints), data["refs"])),
         )
 
     def transform(self, matrix: T.List[float]):
@@ -170,8 +186,10 @@ def read_osm(dataset: T.Dict[str, T.Any], coords: Coords, max_dim: int) -> T.Any
         with open(path, "r") as f:
             data = json.load(f)
 
+        keypoints = {data["id"]: Node.parse(data, {}) for data in data["keypoints"]}
+
         for field, cls in FIELDS.items():
-            getattr(osm, field).extend([cls.parse(d) for d in data[field]])
+            getattr(osm, field).extend([cls.parse(d, keypoints) for d in data[field]])
 
     # sort to ensure hermeticity
     for field in FIELDS:
