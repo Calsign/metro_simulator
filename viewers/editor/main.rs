@@ -689,7 +689,7 @@ impl druid::Widget<State> for Content {
         let mut highway_total_visited = 0;
 
         if state.show_highways {
-            for (_, highway_segment) in engine.state.highways.get_segments().iter().sorted() {
+            for (_, highway_segment) in engine.state.highways.segments().iter().sorted() {
                 let mut spline_visitor =
                     PaintSplineVisitor::new(ctx, env, state, state.show_highway_directions);
                 highway_segment
@@ -705,7 +705,7 @@ impl druid::Widget<State> for Content {
                         .unwrap();
 
                     // draw start and end
-                    let keys = highway_segment.get_keys();
+                    let keys = highway_segment.keys();
                     if let (Some(first), Some(last)) = (keys.first(), keys.last()) {
                         use druid::RenderContext;
 
@@ -985,12 +985,15 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f>
-    highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64>, anyhow::Error>
-    for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+    spline_util::SplineVisitor<
+        network::Segment<highway::HighwaySegment>,
+        cgmath::Vector2<f64>,
+        anyhow::Error,
+    > for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(
         &mut self,
-        _segment: &highway::HighwaySegment,
+        _segment: &network::Segment<highway::HighwaySegment>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
@@ -1042,13 +1045,13 @@ struct PaintHighwayKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
     state: &'f State,
 }
 
-impl<'a, 'b, 'c, 'd, 'e, 'f> highway::KeyVisitor<anyhow::Error>
+impl<'a, 'b, 'c, 'd, 'e, 'f> network::KeyVisitor<highway::HighwaySegment, anyhow::Error>
     for PaintHighwayKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(
         &mut self,
-        _segment: &highway::HighwaySegment,
-        key: &highway::HighwayKey,
+        _segment: &network::Segment<highway::HighwaySegment>,
+        key: &network::Key,
     ) -> Result<(), anyhow::Error> {
         use druid::RenderContext;
 

@@ -164,11 +164,8 @@ impl Route {
                     dd = default_dd;
                 }
                 Edge::Highway { segment, .. } => {
-                    let segment = state
-                        .highways
-                        .get_segment(*segment)
-                        .expect("missing highway segment");
-                    for key in segment.get_spline_keys() {
+                    let segment = state.highways.segment(*segment);
+                    for key in segment.spline_keys() {
                         keys.push(RouteKey::new(
                             f64p_f32p(key.value.into()),
                             d + key.t as f32,

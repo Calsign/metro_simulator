@@ -25,3 +25,9 @@ ms_rust_library(
         "@crates//:splines",
     ],
 )
+
+ms_rust_library(
+    name = "id_cmp",
+    srcs = ["id_cmp.rs"],
+    visibility = ["//visibility:public"],
+)

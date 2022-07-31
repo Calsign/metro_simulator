@@ -11,12 +11,12 @@ pub enum Node {
         metro_line: u64,
     },
     HighwayJunction {
-        junction: u64,
+        junction: network::JunctionHandle,
         position: (f64, f64),
         address: quadtree::Address,
     },
     HighwayRamp {
-        junction: u64,
+        junction: network::JunctionHandle,
         position: (f64, f64),
         address: quadtree::Address,
     },

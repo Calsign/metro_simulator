@@ -155,6 +155,7 @@ type Triangulations = ModeMap<spade::DelaunayTriangulation<triangulation_ext::Tr
 pub fn construct_base_graph<F: state::Fields>(
     input: BaseGraphInput<'_, F>,
 ) -> Result<Graph, Error> {
+    use highway::timing::HighwayTiming;
     use itertools::Itertools;
     use spade::Triangulation;
     use triangulation_ext::SafeTriangulationInsert;
@@ -321,12 +322,12 @@ pub fn construct_base_graph<F: state::Fields>(
     let mut junction_map = HashMap::new();
     let mut segment_map = HashMap::new();
 
-    for junction in input.state.highways.get_junctions().values() {
+    for junction in input.state.highways.junctions().values() {
         // TODO: filter on junctions
 
-        let (x, y) = junction.location;
+        let (x, y) = junction.location.into();
         let address = quadtree::Address::from_xy(x as u64, y as u64, input.state.config.max_depth);
-        let node_id = if let Some(ramp) = &junction.ramp {
+        let node_id = if let Some(ramp) = &junction.data.ramp {
             let outer_id = graph.add_node(Node::HighwayRamp {
                 junction: junction.id,
                 position: (x, y),
@@ -361,14 +362,14 @@ pub fn construct_base_graph<F: state::Fields>(
         junction_map.insert(junction.id, node_id);
     }
 
-    for segment in input.state.highways.get_segments().values() {
+    for segment in input.state.highways.segments().values() {
         if let Some(ref filter) = input.filter_highway_segments {
-            if !filter.contains(&segment.id) {
+            if !filter.contains(&segment.id.inner()) {
                 continue;
             }
             // NOTE: print to stderr so that we can pipe dump output to xdot
             eprintln!(
-                "Filtering highway segments selected segment {}: {:?}",
+                "Filtering highway segments selected segment {:?}: {:?}",
                 &segment.id, &segment.data
             );
         }
@@ -443,8 +444,8 @@ mod highway_tests {
     // used only for tests
     #[derive(derive_more::Constructor)]
     struct SegmentData {
-        start: u64,
-        end: u64,
+        start: usize,
+        end: usize,
     }
 
     #[derive(Debug, Default, Clone)]
@@ -453,7 +454,7 @@ mod highway_tests {
     impl state::Fields for DummyFields {}
 
     fn setup_problem(junctions: Vec<JunctionData>, segments: Vec<SegmentData>) -> Graph {
-        let data = HighwayData {
+        let data = HighwaySegment {
             name: None,
             refs: vec![],
             lanes: None,
@@ -466,14 +467,20 @@ mod highway_tests {
             min_tile_size: 1,
         });
 
-        for junction in &junctions {
-            state.highways.add_junction(junction.location, None);
+        let mut handle_map = HashMap::new();
+        for (i, junction) in junctions.iter().enumerate() {
+            let handle = state
+                .highways
+                .add_junction(junction.location, HighwayJunction { ramp: None });
+            handle_map.insert(i, handle);
         }
         for segment in &segments {
+            let start = handle_map[&segment.start];
+            let end = handle_map[&segment.end];
             state.highways.add_segment(
                 data.clone(),
-                segment.start,
-                segment.end,
+                start,
+                end,
                 Some(vec![
                     junctions[segment.start as usize].location.into(),
                     junctions[segment.end as usize].location.into(),

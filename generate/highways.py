@@ -268,7 +268,9 @@ class Highways(Layer):
                 else:
                     ramp = None
 
-                junction_id = state.add_highway_junction(x, y, ramp)
+                junction_id = state.add_highway_junction(
+                    x, y, engine.HighwayJunctionData(ramp)
+                )
                 junction_map[point] = junction_id
                 return junction_id
 
@@ -277,7 +279,7 @@ class Highways(Layer):
             start_id = get_junction_id(start)
             end_id = get_junction_id(end)
 
-            data = engine.HighwayData(
+            data = engine.HighwaySegmentData(
                 segment_data.name,
                 segment_data.ref or [],
                 segment_data.lanes,

@@ -207,30 +207,40 @@ impl Engine {
         )
     }
 
-    fn add_highway_junction(&mut self, x: f64, y: f64, ramp: Option<RampDirection>) -> u64 {
-        self.engine
-            .state
-            .highways
-            .add_junction((x, y), ramp.map(|ramp| ramp.direction))
+    fn add_highway_junction(
+        &mut self,
+        x: f64,
+        y: f64,
+        data: &HighwayJunctionData,
+    ) -> HighwayJunctionHandle {
+        HighwayJunctionHandle {
+            handle: self
+                .engine
+                .state
+                .highways
+                .add_junction((x, y), data.data.clone()),
+        }
     }
 
     fn add_highway_segment(
         &mut self,
-        data: &HighwayData,
-        start: u64,
-        end: u64,
+        data: &HighwaySegmentData,
+        start: &HighwayJunctionHandle,
+        end: &HighwayJunctionHandle,
         keys: Option<Vec<(f64, f64)>>,
-    ) -> u64 {
-        self.engine.state.highways.add_segment(
-            data.data.clone(),
-            start,
-            end,
-            keys.map(|ks| {
-                ks.iter()
-                    .map(|(x, y)| cgmath::Vector2 { x: *x, y: *y })
-                    .collect()
-            }),
-        )
+    ) -> HighwaySegmentHandle {
+        HighwaySegmentHandle {
+            handle: self.engine.state.highways.add_segment(
+                data.data.clone(),
+                start.handle,
+                end.handle,
+                keys.map(|ks| {
+                    ks.iter()
+                        .map(|(x, y)| cgmath::Vector2 { x: *x, y: *y })
+                        .collect()
+                }),
+            ),
+        }
     }
 
     fn add_agent(
@@ -519,12 +529,12 @@ impl metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, PyErr> for PyS
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
-struct HighwayData {
-    data: highway::HighwayData,
+struct HighwaySegmentData {
+    data: highway::HighwaySegment,
 }
 
 #[pymethods]
-impl HighwayData {
+impl HighwaySegmentData {
     #[new]
     fn new(
         name: Option<String>,
@@ -532,8 +542,8 @@ impl HighwayData {
         lanes: Option<u32>,
         speed_limit: Option<u32>,
     ) -> Self {
-        HighwayData {
-            data: highway::HighwayData::new(name, refs, lanes, speed_limit),
+        Self {
+            data: highway::HighwaySegment::new(name, refs, lanes, speed_limit),
         }
     }
 }
@@ -541,11 +551,23 @@ impl HighwayData {
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
 struct HighwaySegment {
-    segment: highway::HighwaySegment,
+    segment: network::Segment<highway::HighwaySegment>,
 }
 
 #[pymethods]
 impl HighwaySegment {}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwayJunctionHandle {
+    handle: network::JunctionHandle,
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwaySegmentHandle {
+    handle: network::SegmentHandle,
+}
 
 #[pyclass]
 #[derive(Clone, Copy)]
@@ -566,6 +588,22 @@ impl RampDirection {
     fn off_ramp() -> Self {
         Self {
             direction: highway::RampDirection::OffRamp,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwayJunctionData {
+    data: highway::HighwayJunction,
+}
+
+#[pymethods]
+impl HighwayJunctionData {
+    #[new]
+    fn new(ramp_direction: Option<RampDirection>) -> Self {
+        Self {
+            data: highway::HighwayJunction::new(ramp_direction.map(|r| r.direction)),
         }
     }
 }
@@ -623,9 +661,12 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<MetroLine>()?;
     m.add_class::<MetroKey>()?;
 
-    m.add_class::<HighwayData>()?;
+    m.add_class::<HighwaySegmentData>()?;
+    m.add_class::<HighwayJunctionData>()?;
     m.add_class::<HighwaySegment>()?;
     m.add_class::<RampDirection>()?;
+    m.add_class::<HighwayJunctionHandle>()?;
+    m.add_class::<HighwaySegmentHandle>()?;
 
     m.add_class::<Date>()?;
     m.add_class::<AgentData>()?;

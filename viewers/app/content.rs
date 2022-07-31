@@ -43,7 +43,7 @@ impl App {
         self.diagnostics.highway_vertices = 0;
         self.diagnostics.agents = 0;
 
-        for highway_segment in self.engine.state.highways.get_segments().values() {
+        for highway_segment in self.engine.state.highways.segments().values() {
             if bounding_box.intersects(&highway_segment.bounds) {
                 let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                 highway_segment.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
@@ -52,9 +52,9 @@ impl App {
         }
 
         if self.pan.scale >= 4.0 {
-            for highway_junction in self.engine.state.highways.get_junctions().values() {
-                if highway_junction.ramp.is_some() {
-                    let (x, y) = highway_junction.location;
+            for highway_junction in self.engine.state.highways.junctions().values() {
+                if highway_junction.data.ramp.is_some() {
+                    let (x, y) = highway_junction.location.into();
                     if bounding_box.contains(x as u64, y as u64) {
                         let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
                         painter.circle(
@@ -503,17 +503,22 @@ impl<'a, 'b, 'c> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, an
 }
 
 impl<'a, 'b, 'c>
-    highway::SplineVisitor<highway::HighwaySegment, cgmath::Vector2<f64>, anyhow::Error>
-    for DrawSplineVisitor<'a, 'b, 'c>
+    spline_util::SplineVisitor<
+        network::Segment<highway::HighwaySegment>,
+        cgmath::Vector2<f64>,
+        anyhow::Error,
+    > for DrawSplineVisitor<'a, 'b, 'c>
 {
     fn visit(
         &mut self,
-        segment: &highway::HighwaySegment,
+        segment: &network::Segment<highway::HighwaySegment>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
+        use highway::timing::HighwayTiming;
         use route::WorldState;
+
         self.visit(
             &egui::Color32::from_gray(204),
             1.0,

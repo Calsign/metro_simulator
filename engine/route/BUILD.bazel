@@ -24,6 +24,7 @@ ms_rust_library(
     deps = [
         "//engine/highway",
         "//engine/metro",
+        "//engine/network",
         "//engine/quadtree",
         "//engine/state",
         "//util:spline_util",

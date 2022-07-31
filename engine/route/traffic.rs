@@ -17,13 +17,13 @@ pub const OBSERVATION_WEIGHT: f64 = 0.3;
 const TOLERANCE: f64 = 0.0001;
 
 pub trait WorldState {
-    fn get_highway_segment_travelers(&self, segment: u64) -> f64;
+    fn get_highway_segment_travelers(&self, segment: network::SegmentHandle) -> f64;
     fn get_metro_segment_travelers(&self, segment: u64, start: Address, end: Address) -> f64;
     fn get_local_road_zone_travelers(&self, x: u64, y: u64) -> f64;
     fn get_local_road_travelers(&self, start: (f64, f64), end: (f64, f64), distance: f64) -> f64;
     fn get_parking(&self, x: f64, y: f64) -> f64;
 
-    fn iter_highway_segments(&self) -> CongestionIterator<'_, u64>;
+    fn iter_highway_segments(&self) -> CongestionIterator<'_, network::SegmentHandle>;
     fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)>;
     fn iter_local_road_zones(&self) -> CongestionIterator<'_, (u64, u64)>;
     fn iter_parking_zones(&self) -> CongestionIterator<'_, (u64, u64)>;
@@ -36,7 +36,7 @@ pub trait WorldState {
 #[non_exhaustive]
 pub struct WorldStateImpl {
     /// map from highway segment IDs to number of travelers
-    highway_segments: HashMap<u64, f64>,
+    highway_segments: HashMap<network::SegmentHandle, f64>,
     /// map from (metro line ID, start station address, end station address) pairs to number of
     /// travelers
     #[serde_as(as = "Vec<(_, _)>")]
@@ -316,7 +316,7 @@ impl WorldStateImpl {
             |id, self_v, other_v| {
                 if (self_v - other_v).abs() > TOLERANCE {
                     errors.push(format!(
-                        "highway segment mismatch for id {}: {} != {}",
+                        "highway segment mismatch for id {:?}: {} != {}",
                         id, self_v, other_v,
                     ))
                 }
@@ -380,7 +380,7 @@ impl WorldStateImpl {
 }
 
 impl WorldState for WorldStateImpl {
-    fn get_highway_segment_travelers(&self, segment: u64) -> f64 {
+    fn get_highway_segment_travelers(&self, segment: network::SegmentHandle) -> f64 {
         *self.highway_segments.get(&segment).unwrap_or(&0.0)
     }
 
@@ -413,7 +413,7 @@ impl WorldState for WorldStateImpl {
         self.parking_zone(x as u64, y as u64)
     }
 
-    fn iter_highway_segments(&self) -> CongestionIterator<'_, u64> {
+    fn iter_highway_segments(&self) -> CongestionIterator<'_, network::SegmentHandle> {
         CongestionIterator {
             iterator: Box::new(self.highway_segments.iter().map(|(k, v)| (*k, *v))),
             total: Some(self.highway_segments.len()),
@@ -588,7 +588,7 @@ pub struct WorldStatePredictor<'a> {
 }
 
 impl<'a> WorldState for WorldStatePredictor<'a> {
-    fn get_highway_segment_travelers(&self, segment: u64) -> f64 {
+    fn get_highway_segment_travelers(&self, segment: network::SegmentHandle) -> f64 {
         self.history
             .interpolate(self.prediction_time, |world_state| {
                 world_state.get_highway_segment_travelers(segment)
@@ -623,7 +623,7 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
             })
     }
 
-    fn iter_highway_segments(&self) -> CongestionIterator<'_, u64> {
+    fn iter_highway_segments(&self) -> CongestionIterator<'_, network::SegmentHandle> {
         let snapshot = self
             .history
             .get_current_snapshot_index(self.prediction_time, true);

@@ -1,4 +1,4 @@
-use crate::segment::HighwaySegment;
+use crate::HighwaySegment;
 
 // if a highway doesn't have a known speed limit, we use an assumed speed
 pub const DEFAULT_SPEED: u32 = 27; // ~60 mph
@@ -26,12 +26,20 @@ pub const K_EXPONENTIAL_FACTOR: f64 = 3.22;
 /// we need a bound on total time to keep things from breaking
 pub const MAX_CONGESTED_TIME: f64 = 1200.0; // 20 minutes
 
-impl HighwaySegment {
-    pub fn travel_time(&self, tile_size: f64) -> f64 {
+pub trait HighwayTiming {
+    fn travel_time(&self, tile_size: f64) -> f64;
+    fn critical_capacity(&self, tile_size: u32, people_per_sim: u32) -> f64;
+    fn congested_travel_factor(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64;
+    fn congested_travel_time(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64;
+    fn is_jammed(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> bool;
+}
+
+impl HighwayTiming for network::Segment<HighwaySegment> {
+    fn travel_time(&self, tile_size: f64) -> f64 {
         let speed = self.data.speed_limit.unwrap_or(DEFAULT_SPEED) as f64;
         assert!(
             speed > 0.0,
-            "speed for segment id {} is <= 0: {}",
+            "speed for segment id {:?} is <= 0: {}",
             self.id,
             speed
         );
@@ -45,7 +53,7 @@ impl HighwaySegment {
      * NOTE: This is a really primitive modeling of traffic flow. It is sufficient for now,
      * but could be worth investigating more sophisticated techniques in the future.
      */
-    pub fn critical_capacity(&self, tile_size: u32, people_per_sim: u32) -> f64 {
+    fn critical_capacity(&self, tile_size: u32, people_per_sim: u32) -> f64 {
         let length = self.length() * tile_size as f64; // meters
         let speed = self.data.speed_limit.unwrap_or(DEFAULT_SPEED) as f64; // meters per second
         let lanes = self.data.lanes.unwrap_or(DEFAULT_LANES) as f64;
@@ -53,29 +61,19 @@ impl HighwaySegment {
         (length * speed * lanes / car_factor * K_CRITICAL_CAPACITY).ceil()
     }
 
-    pub fn congested_travel_factor(
-        &self,
-        tile_size: u32,
-        people_per_sim: u32,
-        travelers: f64,
-    ) -> f64 {
+    fn congested_travel_factor(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64 {
         let critical_capacity = self.critical_capacity(tile_size, people_per_sim);
         congested_travel_factor(critical_capacity, travelers)
     }
 
-    pub fn congested_travel_time(
-        &self,
-        tile_size: u32,
-        people_per_sim: u32,
-        travelers: f64,
-    ) -> f64 {
+    fn congested_travel_time(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64 {
         let base_travel_time = self.travel_time(tile_size as f64);
         let factor = self.congested_travel_factor(tile_size, people_per_sim, travelers);
         assert!(factor >= 1.0);
         (base_travel_time * factor).min(MAX_CONGESTED_TIME)
     }
 
-    pub fn is_jammed(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> bool {
+    fn is_jammed(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> bool {
         let critical_capacity = self.critical_capacity(tile_size, people_per_sim);
         is_jammed(critical_capacity, travelers)
     }

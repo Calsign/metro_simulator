@@ -298,9 +298,7 @@ impl App {
                 self.engine
                     .state
                     .highways
-                    .get_segments()
-                    .get(&highway_segment_id)
-                    .expect("missing highway segment")
+                    .segment(highway_segment_id)
                     .bounds
                     .intersects(&bounding_box)
             } else {

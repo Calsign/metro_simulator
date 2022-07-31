@@ -25,8 +25,8 @@ pub enum Edge {
         station: metro::Station,
     },
     Highway {
-        segment: u64,
-        data: highway::HighwayData,
+        segment: network::SegmentHandle,
+        data: highway::HighwaySegment,
         time: f64,
     },
     HighwayRamp {
@@ -125,11 +125,10 @@ impl Edge {
                 segment: segment_id,
                 ..
             } => {
+                use highway::timing::HighwayTiming;
+
                 let travelers = world_state.get_highway_segment_travelers(*segment_id);
-                let segment = state
-                    .highways
-                    .get_segment(*segment_id)
-                    .expect("missing highway segment");
+                let segment = state.highways.segment(*segment_id);
 
                 segment.congested_travel_time(
                     state.config.min_tile_size,
@@ -216,13 +215,10 @@ impl Edge {
                 (position.x as f32, position.y as f32)
             }
             Edge::Highway { segment, .. } => {
-                let segment = state
-                    .highways
-                    .get_segment(*segment)
-                    .expect("missing highway segment");
+                let segment = state.highways.segment(*segment);
 
                 let position = segment
-                    .get_spline()
+                    .spline()
                     .clamped_sample(fraction as f64 * segment.length())
                     .expect("highway spline is empty");
                 (position.x as f32, position.y as f32)
@@ -260,11 +256,10 @@ impl Edge {
                 segment: segment_id,
                 ..
             } => {
+                use highway::timing::HighwayTiming;
+
                 let travelers = world_state.get_highway_segment_travelers(*segment_id);
-                let segment = state
-                    .highways
-                    .get_segment(*segment_id)
-                    .expect("missing highway segment");
+                let segment = state.highways.segment(*segment_id);
                 segment.is_jammed(
                     state.config.min_tile_size,
                     state.config.people_per_sim,
@@ -307,7 +302,14 @@ impl std::fmt::Display for Edge {
             } => {
                 let name = data.name.clone().unwrap_or_else(|| "unknown".to_string());
                 let refs = data.refs.join(";");
-                write!(f, "highway:{}:{}:{}:{:.2}", segment, name, refs, time)
+                write!(
+                    f,
+                    "highway:{}:{}:{}:{:.2}",
+                    segment.inner(),
+                    name,
+                    refs,
+                    time
+                )
             }
             HighwayRamp { .. } => write!(f, "ramp"),
             ModeSegment { mode, distance, .. } => {

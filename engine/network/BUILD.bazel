@@ -1,19 +1,19 @@
 load("//util:macros.bzl", "ms_rust_library")
 
 ms_rust_library(
-    name = "highway",
+    name = "network",
     srcs = [
-        "highways.rs",
+        "junction.rs",
         "lib.rs",
-        "timing.rs",
+        "network.rs",
+        "segment.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//engine/network",
         "//engine/quadtree",
+        "//util:id_cmp",
         "//util:spline_util",
         "@crates//:cgmath",
-        "@crates//:itertools",
         "@crates//:serde",
         "@crates//:splines",
     ],
