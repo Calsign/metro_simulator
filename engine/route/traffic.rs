@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use uom::si::time::day;
 use uom::si::u64::Time;
 
-use quadtree::Address;
-
 use crate::common::{Error, Mode};
 use crate::edge::Edge;
 
@@ -18,13 +16,13 @@ const TOLERANCE: f64 = 0.0001;
 
 pub trait WorldState {
     fn get_highway_segment_travelers(&self, segment: network::SegmentHandle) -> f64;
-    fn get_metro_segment_travelers(&self, segment: u64, start: Address, end: Address) -> f64;
+    fn get_metro_segment_travelers(&self, segment: network::SegmentHandle) -> f64;
     fn get_local_road_zone_travelers(&self, x: u64, y: u64) -> f64;
     fn get_local_road_travelers(&self, start: (f64, f64), end: (f64, f64), distance: f64) -> f64;
     fn get_parking(&self, x: f64, y: f64) -> f64;
 
     fn iter_highway_segments(&self) -> CongestionIterator<'_, network::SegmentHandle>;
-    fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)>;
+    fn iter_metro_segments(&self) -> CongestionIterator<'_, network::SegmentHandle>;
     fn iter_local_road_zones(&self) -> CongestionIterator<'_, (u64, u64)>;
     fn iter_parking_zones(&self) -> CongestionIterator<'_, (u64, u64)>;
 }
@@ -40,7 +38,7 @@ pub struct WorldStateImpl {
     /// map from (metro line ID, start station address, end station address) pairs to number of
     /// travelers
     #[serde_as(as = "Vec<(_, _)>")]
-    metro_segments: HashMap<(u64, Address, Address), f64>,
+    metro_segments: HashMap<network::SegmentHandle, f64>,
     /// flattened grid of local traffic zones, row major
     local_roads: Vec<f64>,
     /// flattened grid of parking zones, row major
@@ -82,14 +80,11 @@ impl WorldStateImpl {
                 f(self.highway_segments.entry(*segment).or_insert(0.0), 1.0)?;
             }
             Edge::MetroSegment {
-                metro_line,
-                start,
-                stop,
-                ..
+                oriented_segment, ..
             } => {
                 f(
                     self.metro_segments
-                        .entry((*metro_line, *start, *stop))
+                        .entry(oriented_segment.segment)
                         .or_insert(0.0),
                     1.0,
                 )?;
@@ -326,11 +321,11 @@ impl WorldStateImpl {
         Self::compare_hash_maps(
             &self.metro_segments,
             &other.metro_segments,
-            |(id, start, end), self_v, other_v| {
+            |segment, self_v, other_v| {
                 if (self_v - other_v).abs() > TOLERANCE {
                     errors.push(format!(
-                        "metro segment mismatch for id {}, start: {:?} end: {:?}; {} ! {}",
-                        id, start, end, self_v, other_v,
+                        "metro segment mismatch for id {:?}; {} ! {}",
+                        segment, self_v, other_v,
                     ))
                 }
             },
@@ -384,11 +379,8 @@ impl WorldState for WorldStateImpl {
         *self.highway_segments.get(&segment).unwrap_or(&0.0)
     }
 
-    fn get_metro_segment_travelers(&self, metro_line: u64, start: Address, end: Address) -> f64 {
-        *self
-            .metro_segments
-            .get(&(metro_line, start, end))
-            .unwrap_or(&0.0)
+    fn get_metro_segment_travelers(&self, segment: network::SegmentHandle) -> f64 {
+        *self.metro_segments.get(&segment).unwrap_or(&0.0)
     }
 
     fn get_local_road_zone_travelers(&self, x: u64, y: u64) -> f64 {
@@ -420,7 +412,7 @@ impl WorldState for WorldStateImpl {
         }
     }
 
-    fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)> {
+    fn iter_metro_segments(&self) -> CongestionIterator<'_, network::SegmentHandle> {
         CongestionIterator {
             iterator: Box::new(self.metro_segments.iter().map(|(k, v)| (*k, *v))),
             total: Some(self.metro_segments.len()),
@@ -595,10 +587,10 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
             })
     }
 
-    fn get_metro_segment_travelers(&self, metro_line: u64, start: Address, end: Address) -> f64 {
+    fn get_metro_segment_travelers(&self, segment: network::SegmentHandle) -> f64 {
         self.history
             .interpolate(self.prediction_time, |world_state| {
-                world_state.get_metro_segment_travelers(metro_line, start, end)
+                world_state.get_metro_segment_travelers(segment)
             })
     }
 
@@ -638,19 +630,17 @@ impl<'a> WorldState for WorldStatePredictor<'a> {
         }
     }
 
-    fn iter_metro_segments(&self) -> CongestionIterator<'_, (u64, Address, Address)> {
+    fn iter_metro_segments(&self) -> CongestionIterator<'_, network::SegmentHandle> {
         let snapshot = self
             .history
             .get_current_snapshot_index(self.prediction_time, true);
         CongestionIterator {
-            iterator: Box::new(self.history.snapshots[snapshot].metro_segments.keys().map(
-                |(segment, start, end)| {
-                    (
-                        (*segment, *start, *end),
-                        self.get_metro_segment_travelers(*segment, *start, *end),
-                    )
-                },
-            )),
+            iterator: Box::new(
+                self.history.snapshots[snapshot]
+                    .metro_segments
+                    .keys()
+                    .map(|segment| ((*segment), self.get_metro_segment_travelers(*segment))),
+            ),
             total: Some(self.history.snapshots[snapshot].metro_segments.len()),
         }
     }

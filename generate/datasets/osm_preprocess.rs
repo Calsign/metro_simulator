@@ -50,6 +50,8 @@ fn is_stop(tags: &Tags) -> bool {
 fn is_subway(tags: &Tags) -> bool {
     // https://wiki.openstreetmap.org/wiki/Tag:railway%3Dsubway
     tags.any_value("railway", ["subway", "light_rail", "rail"])
+        && !(tags.any_value("usage", ["military", "test", "tourism"])
+            || tags.any_value("service", ["yard", "siding", "spur"]))
 }
 
 fn is_highway(tags: &Tags) -> bool {

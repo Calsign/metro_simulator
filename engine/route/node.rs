@@ -8,7 +8,11 @@ pub enum Node {
     },
     MetroStop {
         station: metro::Station,
-        metro_line: u64,
+        metro_line: metro::MetroLineHandle,
+    },
+    RailJunction {
+        junction: network::JunctionHandle,
+        address: quadtree::Address,
     },
     HighwayJunction {
         junction: network::JunctionHandle,
@@ -39,6 +43,7 @@ impl Node {
                 station: metro::Station { address, .. },
                 ..
             }
+            | RailJunction { address, .. }
             | HighwayJunction { address, .. }
             | HighwayRamp { address, .. }
             | Parking { address }
@@ -56,6 +61,7 @@ impl Node {
                 station: metro::Station { address, .. },
                 ..
             }
+            | RailJunction { address, .. }
             | Parking { address }
             | Endpoint { address } => {
                 let (x, y) = address.to_xy();
@@ -80,7 +86,8 @@ impl std::fmt::Display for Node {
             MetroStop {
                 station,
                 metro_line,
-            } => write!(f, "stop:{}:{}", metro_line, station.name),
+            } => write!(f, "stop:{:?}:{}", metro_line, station.name),
+            RailJunction { .. } => write!(f, "junction"),
             HighwayJunction {
                 position: (x, y), ..
             } => write!(f, "junction:({:.1}, {:.1})", x, y),

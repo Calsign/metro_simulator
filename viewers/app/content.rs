@@ -68,11 +68,37 @@ impl App {
             }
         }
 
-        for metro_line in self.engine.state.metro_lines.values() {
-            if bounding_box.intersects(metro_line.get_bounds()) {
-                let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
-                metro_line.visit_spline(&mut spline_visitor, spline_scale, &bounding_box)?;
-                self.diagnostics.metro_vertices += spline_visitor.visited;
+        if self.pan.scale >= 4.0 {
+            for railway_junction in self.engine.state.railways.junctions().values() {
+                let (x, y) = railway_junction.location.into();
+                if bounding_box.contains(x as u64, y as u64) {
+                    let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
+                    painter.circle(
+                        pos,
+                        self.scale_point(4.0, 4.0),
+                        egui::Color32::from_gray(255),
+                        egui::Stroke::none(),
+                    );
+                }
+            }
+        }
+
+        for railway_segment in self.engine.state.railways.segments().values() {
+            if bounding_box.intersects(&railway_segment.bounds) {
+                let metro_lines = self
+                    .engine
+                    .state
+                    .metros
+                    .railway_segment_metro_lines(railway_segment.id);
+                if metro_lines.len() > 0 {
+                    let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
+                    railway_segment.visit_spline(
+                        &mut spline_visitor,
+                        spline_scale,
+                        &bounding_box,
+                    )?;
+                    self.diagnostics.metro_vertices += spline_visitor.visited;
+                }
             }
         }
 
@@ -480,18 +506,37 @@ impl<'a, 'b, 'c> DrawSplineVisitor<'a, 'b, 'c> {
     }
 }
 
-impl<'a, 'b, 'c> metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow::Error>
-    for DrawSplineVisitor<'a, 'b, 'c>
+impl<'a, 'b, 'c>
+    spline_util::SplineVisitor<
+        network::Segment<metro::RailwaySegment>,
+        cgmath::Vector2<f64>,
+        anyhow::Error,
+    > for DrawSplineVisitor<'a, 'b, 'c>
 {
     fn visit(
         &mut self,
-        line: &metro::MetroLine,
+        segment: &network::Segment<metro::RailwaySegment>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<()> {
         let color = match self.traffic {
-            None => egui::Color32::from_rgb(line.color.red, line.color.green, line.color.blue),
+            None => {
+                let metro_lines = self
+                    .app
+                    .engine
+                    .state
+                    .metros
+                    .railway_segment_metro_lines(segment.id);
+                if let Some(metro_line_id) = metro_lines.iter().min() {
+                    // TODO: draw multiple colors in parallel like other mapping tools
+                    let metro_line = self.app.engine.state.metros.metro_line(*metro_line_id);
+                    let color = metro_line.data.color;
+                    egui::Color32::from_rgb(color.red, color.green, color.blue)
+                } else {
+                    egui::Color32::from_rgb(255, 255, 255)
+                }
+            }
             Some(_) => {
                 // when we're drawing traffic, make all metro lines white so that we can distinguish
                 // traffic colors from metro line colors

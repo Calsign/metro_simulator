@@ -1,7 +1,9 @@
+use once_cell::unsync::OnceCell;
 use serde::{Deserialize, Serialize};
 
 use crate::junction::JunctionHandle;
 use crate::network::Key;
+use crate::timing::TimingConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SegmentHandle(pub(crate) u64);
@@ -18,8 +20,13 @@ pub struct Segment<T> {
     pub data: T,
     keys: Vec<Key>,
     pub bounds: quadtree::Rect,
+    /// spline mapping distance (in coordinate space) along spline to location on map
     spline: splines::Spline<f64, Key>,
+    /// length (in coordinate space)
     length: f64,
+    /// spline mapping time to distance (in meters) along spline
+    #[serde(skip)]
+    dist_spline: OnceCell<(TimingConfig, splines::Spline<f64, f64>)>,
     start: JunctionHandle,
     end: JunctionHandle,
 }
@@ -40,6 +47,7 @@ impl<T> Segment<T> {
             bounds: quadtree::Rect::xywh(0, 0, 0, 0),
             spline: splines::Spline::from_vec(Vec::new()),
             length: 0.0,
+            dist_spline: OnceCell::new(),
             start: start_junction,
             end: end_junction,
         }
@@ -126,6 +134,29 @@ impl<T> Segment<T> {
         }
 
         Ok(())
+    }
+
+    fn construct_dist_spline(&self, config: &TimingConfig) -> splines::Spline<f64, f64> {
+        let speed_keys = crate::timing::speed_keys(&self.keys, config);
+        crate::timing::dist_spline(&speed_keys)
+    }
+
+    pub fn dist_spline(&self, config: TimingConfig) -> &splines::Spline<f64, f64> {
+        // TODO: if we're really serious about having multiple configs, we can make this a memoized
+        // function
+        let (stored_config, stored_splines) = self
+            .dist_spline
+            .get_or_init(|| (config, self.construct_dist_spline(&config)));
+        assert_eq!(stored_config, &config);
+        stored_splines
+    }
+
+    pub fn travel_time(&self, config: TimingConfig) -> f64 {
+        self.dist_spline(config)
+            .keys()
+            .last()
+            .map(|key| key.t)
+            .unwrap_or(0.0)
     }
 }
 

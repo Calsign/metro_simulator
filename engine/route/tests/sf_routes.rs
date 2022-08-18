@@ -67,7 +67,7 @@ impl RoutePredicate {
             HasMetroLine(id) => route
                 .nodes
                 .iter()
-                .any(|n| matches!(n, Node::MetroStop { metro_line, .. } if metro_line == id)),
+                .any(|n| matches!(n, Node::MetroStop { metro_line, .. } if metro_line.inner() == *id)),
             HasHighwaySegmentName(name) => route
                 .edges
                 .iter()
@@ -133,7 +133,10 @@ lazy_static! {
             *SF_DOWNTOWN,
             vec![
                 CostInRangeMinutes(15.0, 40.0),
-                HasMetroStation("San Francisco International Airport".into()),
+                Or(vec![
+                    HasMetroStation("San Francisco International Airport".into()),
+                    HasMetroStation("International Terminal G".into()),
+                ]),
                 HasMetroStop("Daly City".into()),
                 HasMetroStation("Montgomery Street".into()),
                 Not(HasMetroStop(StringPredicate::ContainsStr("Oakland")).into()),

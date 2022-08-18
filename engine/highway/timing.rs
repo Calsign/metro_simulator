@@ -27,7 +27,7 @@ pub const K_EXPONENTIAL_FACTOR: f64 = 3.22;
 pub const MAX_CONGESTED_TIME: f64 = 1200.0; // 20 minutes
 
 pub trait HighwayTiming {
-    fn travel_time(&self, tile_size: f64) -> f64;
+    fn highway_travel_time(&self, tile_size: f64) -> f64;
     fn critical_capacity(&self, tile_size: u32, people_per_sim: u32) -> f64;
     fn congested_travel_factor(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64;
     fn congested_travel_time(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64;
@@ -35,7 +35,8 @@ pub trait HighwayTiming {
 }
 
 impl HighwayTiming for network::Segment<HighwaySegment> {
-    fn travel_time(&self, tile_size: f64) -> f64 {
+    fn highway_travel_time(&self, tile_size: f64) -> f64 {
+        // TODO: use fancy time calculation provided by network
         let speed = self.data.speed_limit.unwrap_or(DEFAULT_SPEED) as f64;
         assert!(
             speed > 0.0,
@@ -67,7 +68,7 @@ impl HighwayTiming for network::Segment<HighwaySegment> {
     }
 
     fn congested_travel_time(&self, tile_size: u32, people_per_sim: u32, travelers: f64) -> f64 {
-        let base_travel_time = self.travel_time(tile_size as f64);
+        let base_travel_time = self.highway_travel_time(tile_size as f64);
         let factor = self.congested_travel_factor(tile_size, people_per_sim, travelers);
         assert!(factor >= 1.0);
         (base_travel_time * factor).min(MAX_CONGESTED_TIME)

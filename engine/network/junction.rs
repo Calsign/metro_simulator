@@ -52,4 +52,9 @@ impl<T> Junction<T> {
     pub(crate) fn add_outgoing(&mut self, id: SegmentHandle) {
         self.outgoing.push(id);
     }
+
+    pub fn address(&self, max_depth: u32) -> quadtree::Address {
+        let (x, y) = self.location.into();
+        quadtree::Address::from_xy(x as u64, y as u64, max_depth)
+    }
 }

@@ -5,17 +5,20 @@ ms_rust_library(
     srcs = [
         "color.rs",
         "lib.rs",
+        "metros.rs",
+        "railways.rs",
         "schedule.rs",
-        "timing.rs",
-        "types.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//engine/network",
         "//engine/quadtree",
+        "//util:id_cmp",
         "//util:spline_util",
         "@crates//:cgmath",
         "@crates//:chrono",
         "@crates//:itertools",
+        "@crates//:lazy_static",
         "@crates//:once_cell",
         "@crates//:serde",
         "@crates//:splines",
@@ -35,6 +38,8 @@ ms_rust_test(
 ms_rust_binary(
     name = "timetable_tool",
     srcs = ["timetable_tool.rs"],
+    # TODO: fix this
+    tags = ["manual"],
     visibility = ["//visibility:public"],
     deps = [
         ":metro",

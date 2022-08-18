@@ -192,20 +192,22 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
         .with_child(
             druid::widget::Button::new("New Metro Line")
                 .on_click(
-                    |ctx: &mut druid::EventCtx, state: &mut MetroLinesState, _env: &druid::Env| {
-                        let mut engine = state.engine.lock().unwrap();
-                        // TODO: default metro speed specified here as 35 m/s, or 79 mph
-                        let id =
-                            engine
-                                .state
-                                .add_metro_line(String::from("Metro Line"), None, 35, None);
+                    |_ctx: &mut druid::EventCtx,
+                     _state: &mut MetroLinesState,
+                     _env: &druid::Env| {
+                        // let mut engine = state.engine.lock().unwrap();
+                        // // TODO: default metro speed specified here as 35 m/s, or 79 mph
+                        // let id =
+                        //     engine
+                        //         .state
+                        //         .add_metro_line(String::from("Metro Line"), None, 35, None);
 
-                        state.states.insert(id, MetroLineState::new());
+                        // state.states.insert(id, MetroLineState::new());
 
-                        // TODO: this isn't quite enough to make it fully refresh
-                        ctx.children_changed();
-                        ctx.request_layout();
-                        ctx.request_paint();
+                        // // TODO: this isn't quite enough to make it fully refresh
+                        // ctx.children_changed();
+                        // ctx.request_layout();
+                        // ctx.request_paint();
                     },
                 )
                 .lens(State::metro_lines),
@@ -220,29 +222,31 @@ fn build_metro_lines_panel() -> impl druid::Widget<State> {
                             .lens(MetroLineData::state),
                     )
                     .with_child(
-                        druid::widget::Painter::new(|ctx, data: &MetroLineData, _env| {
-                            use druid::RenderContext;
-                            let metro_line = data.metro_line.lock().unwrap();
-                            let center = (ctx.size().width / 2.0, ctx.size().height / 2.0);
-                            let circle = druid::kurbo::Circle::new(
-                                center,
-                                f64::min(ctx.size().width, ctx.size().height) / 4.0,
-                            );
-                            let color = metro_line.color;
-                            ctx.fill(
-                                circle,
-                                &druid::Color::rgb8(color.red, color.green, color.blue),
-                            );
+                        druid::widget::Painter::new(|_ctx, _data: &MetroLineData, _env| {
+                            // use druid::RenderContext;
+                            // let metro_line = data.metro_line.lock().unwrap();
+                            // let center = (ctx.size().width / 2.0, ctx.size().height / 2.0);
+                            // let circle = druid::kurbo::Circle::new(
+                            //     center,
+                            //     f64::min(ctx.size().width, ctx.size().height) / 4.0,
+                            // );
+                            // let color = metro_line.color;
+                            // ctx.fill(
+                            //     circle,
+                            //     &druid::Color::rgb8(color.red, color.green, color.blue),
+                            // );
                         })
                         .fix_size(20.0, 20.0),
                     )
                     .with_child(
                         druid::widget::TextBox::new()
                             .lens(druid::lens::Map::new(
-                                |data: &MetroLineData| data.metro_line.lock().unwrap().name.clone(),
+                                |data: &MetroLineData| {
+                                    data.metro_line.lock().unwrap().data.name.clone()
+                                },
                                 |data: &mut MetroLineData, inner: String| {
                                     let mut metro_line = data.metro_line.lock().unwrap();
-                                    metro_line.name = inner;
+                                    metro_line.data.name = inner;
                                 },
                             ))
                             .scroll()
@@ -356,7 +360,7 @@ impl MetroLineState {
 #[derive(Debug, Clone, druid::Data, druid::Lens)]
 struct MetroLinesState {
     engine: Arc<Mutex<engine::Engine>>,
-    states: druid::im::HashMap<u64, MetroLineState>,
+    states: druid::im::HashMap<metro::MetroLineHandle, MetroLineState>,
 }
 
 impl MetroLinesState {
@@ -365,7 +369,7 @@ impl MetroLinesState {
 
         {
             let engine = engine.lock().unwrap();
-            for id in engine.state.metro_lines.keys() {
+            for id in engine.state.metros.metro_lines().keys() {
                 states.insert(*id, MetroLineState::new());
             }
         }
@@ -393,27 +397,27 @@ impl druid::widget::ListIter<MetroLineData> for MetroLinesState {
     fn for_each(&self, mut cb: impl FnMut(&MetroLineData, usize)) {
         let engine = self.engine.lock().unwrap();
 
-        for (i, (id, metro_line)) in engine.state.metro_lines.iter().enumerate() {
+        for (i, (id, metro_line)) in engine.state.metros.metro_lines().iter().enumerate() {
             // TODO: this clone is disgusting
             let data = MetroLineData::new(metro_line, &self.states[id]);
             cb(&data, i);
         }
     }
 
-    fn for_each_mut(&mut self, mut cb: impl FnMut(&mut MetroLineData, usize)) {
-        let mut engine = self.engine.lock().unwrap();
+    fn for_each_mut(&mut self, mut _cb: impl FnMut(&mut MetroLineData, usize)) {
+        let mut _engine = self.engine.lock().unwrap();
 
-        for (i, (id, metro_line)) in engine.state.metro_lines.iter_mut().enumerate() {
-            // TODO: this double clone is even more disgusting
-            let mut data = MetroLineData::new(metro_line, &self.states[id]);
-            cb(&mut data, i);
-            *metro_line = data.metro_line.lock().unwrap().clone();
-            *self.states.get_mut(id).unwrap() = data.state;
-        }
+        // for (i, (id, metro_line)) in engine.state.metros.metro_lines().iter_mut().enumerate() {
+        //     // TODO: this double clone is even more disgusting
+        //     let mut data = MetroLineData::new(metro_line, &self.states[id]);
+        //     cb(&mut data, i);
+        //     *metro_line = data.metro_line.lock().unwrap().clone();
+        //     *self.states.get_mut(id).unwrap() = data.state;
+        // }
     }
 
     fn data_len(&self) -> usize {
-        self.engine.lock().unwrap().state.metro_lines.len()
+        self.engine.lock().unwrap().state.metros.metro_lines().len()
     }
 }
 
@@ -666,23 +670,15 @@ impl druid::Widget<State> for Content {
         let mut metro_total_visited = 0;
 
         if state.show_metros {
-            for (id, metro_line) in engine.state.metro_lines.iter().sorted() {
-                if state.metro_lines.states[id].visible {
-                    let mut spline_visitor =
-                        PaintSplineVisitor::new(ctx, env, state, state.show_metro_directions);
-                    metro_line
-                        .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
-                        .unwrap();
-                    metro_total_visited += &spline_visitor.visited;
+            for (_id, segment) in engine.state.railways.segments().iter().sorted() {
+                let mut spline_visitor =
+                    PaintSplineVisitor::new(ctx, env, state, state.show_metro_directions);
+                segment
+                    .visit_spline(&mut spline_visitor, spline_scale, &bounding_box)
+                    .unwrap();
+                metro_total_visited += &spline_visitor.visited;
 
-                    if state.show_metro_keys {
-                        let mut key_visitor = PaintMetroKeysVisitor { ctx, env, state };
-
-                        metro_line
-                            .visit_keys(&mut key_visitor, &bounding_box)
-                            .unwrap();
-                    }
-                }
+                // TODO: show metro keys in new system
             }
         }
 
@@ -969,17 +965,21 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
 }
 
 impl<'a, 'b, 'c, 'd, 'e, 'f>
-    metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, anyhow::Error>
-    for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
+    spline_util::SplineVisitor<
+        network::Segment<metro::RailwaySegment>,
+        cgmath::Vector2<f64>,
+        anyhow::Error,
+    > for PaintSplineVisitor<'a, 'b, 'c, 'd, 'e, 'f>
 {
     fn visit(
         &mut self,
-        line: &metro::MetroLine,
+        _segment: &network::Segment<metro::RailwaySegment>,
         vertex: cgmath::Vector2<f64>,
         t: f64,
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<(), anyhow::Error> {
-        let color = druid::Color::rgb8(line.color.red, line.color.green, line.color.blue);
+        // TODO: display metro line colors with new system
+        let color = druid::Color::grey8(255);
         self.visit(&color, 2.0, vertex, t, prev)
     }
 }
@@ -999,42 +999,6 @@ impl<'a, 'b, 'c, 'd, 'e, 'f>
         prev: Option<cgmath::Vector2<f64>>,
     ) -> Result<(), anyhow::Error> {
         self.visit(&druid::Color::grey8(204), 1.0, vertex, t, prev)
-    }
-}
-
-struct PaintMetroKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
-    ctx: &'a mut druid::PaintCtx<'c, 'd, 'e>,
-    #[allow(dead_code)]
-    env: &'b druid::Env,
-    state: &'f State,
-}
-
-impl<'a, 'b, 'c, 'd, 'e, 'f> metro::KeyVisitor<anyhow::Error>
-    for PaintMetroKeysVisitor<'a, 'b, 'c, 'd, 'e, 'f>
-{
-    fn visit(
-        &mut self,
-        line: &metro::MetroLine,
-        key: &metro::MetroKey,
-    ) -> Result<(), anyhow::Error> {
-        use druid::RenderContext;
-
-        match key {
-            metro::MetroKey::Key(loc) => {
-                let point = (
-                    loc.x * self.state.content.scale + self.state.content.tx,
-                    loc.y * self.state.content.scale + self.state.content.ty,
-                );
-
-                self.ctx.fill(
-                    druid::kurbo::Circle::new(point, 5.0),
-                    &druid::Color::rgb8(line.color.red, line.color.green, line.color.blue),
-                );
-            }
-            metro::MetroKey::Stop(_, _) => {}
-        }
-
-        Ok(())
     }
 }
 

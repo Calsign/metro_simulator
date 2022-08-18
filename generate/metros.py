@@ -1,18 +1,20 @@
 import typing as T
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from functools import cached_property, lru_cache
+from functools import cached_property
 from enum import Enum
+from collections import defaultdict
 
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import nearest_points
 from matplotlib.colors import to_rgba
 
 from generate.common import parse_speed
-from generate.data import MapConfig
+from generate.data import MapConfig, address_from_coords
 from generate.layer import Layer, Tile
 from generate.quadtree import Quadtree, ConvolveData
+from generate.network import Network, InputNode, InputWay, Segment
+from generate.highways import parse_speed_limit
 
 from generate import osm
 
@@ -31,45 +33,6 @@ def parse_color(color: str):
             raise Exception("Unrecognized color: {}".format(color))
 
 
-@lru_cache
-def address_from_coords(x: int, y: int, max_depth: int) -> T.List[int]:
-    max_dim = 2**max_depth
-
-    min_x = 0
-    max_x = max_dim
-    min_y = 0
-    max_y = max_dim
-
-    quadrant_map = {
-        (False, False): 0,
-        (True, False): 1,
-        (False, True): 2,
-        (True, True): 3,
-    }
-
-    address = []
-
-    for _ in range(max_depth):
-        cx = (max_x + min_x) / 2
-        cy = (max_y + min_y) / 2
-        right = x >= cx
-        bottom = y >= cy
-
-        if right:
-            min_x = cx
-        else:
-            max_x = cx
-
-        if bottom:
-            min_y = cy
-        else:
-            max_y = cy
-
-        address.append(quadrant_map[(right, bottom)])
-
-    return address
-
-
 def round_station_location(loc: T.Tuple[float, float]) -> T.Tuple[int, int]:
     x, y = loc
     return (round(x - 0.5), round(y - 0.5))
@@ -77,72 +40,45 @@ def round_station_location(loc: T.Tuple[float, float]) -> T.Tuple[int, int]:
 
 @dataclass
 class Station:
-    id: int
     name: str
     location: T.Tuple[float, float]
     x: int
     y: int
-    metro_lines: T.List[int]
-
-
-class MetroKeyBase(ABC):
-    @abstractmethod
-    def to_engine(self):
-        pass
 
 
 @dataclass
-class MetroKey(MetroKeyBase):
-    x: float
-    y: float
-
-    def to_engine(self):
-        import engine
-
-        return engine.MetroKey.key(self.x, self.y)
+class JunctionData:
+    station: Station
 
 
 @dataclass
-class MetroStop(MetroKeyBase):
-    x: float
-    y: float
-    station_name: str
-    station_address: T.List[int]
-    max_depth: int
+class SegmentData:
+    speed_limit: T.Optional[int]
 
-    def to_engine(self):
-        import engine
 
-        return engine.MetroKey.stop(
-            self.x,
-            self.y,
-            engine.MetroStation(
-                self.station_name, engine.Address(self.station_address, self.max_depth)
-            ),
-        )
+@dataclass
+class Schedule:
+    fixed_frequency: int
+
+
+@dataclass
+class MetroLineData:
+    name: str
+    color: T.Tuple[int, int, int]
+    schedule: Schedule
+    speed_limit: int
 
 
 @dataclass
 class MetroLine:
-    id: int
-    name: str
-    color: T.Tuple[int, int, int]
-    speed_limit: int
-    keys: T.List[MetroKeyBase]
-    stations: T.List[Station]
+    data: MetroLineData
+    segments: T.List[Segment]
 
 
-class Metros(Layer):
-    def get_dataset(self) -> T.Optional[T.Dict[str, T.Any]]:
-        return self.map_config.datasets["osm"]
-
-    @cached_property
-    def max_depth(self) -> int:
-        return self.map_config.engine_config["max_depth"]
-
-    @cached_property
-    def max_dim(self) -> int:
-        return 2**self.max_depth
+class Metros(Network):
+    def __init__(self, map_config: MapConfig):
+        super().__init__(map_config, has_way_segment_map=True)
+        self.metro_lines: T.List[MetroLine] = []
 
     @cached_property
     def speed_limits(self) -> T.Dict[str, int]:
@@ -154,13 +90,8 @@ class Metros(Layer):
         }
 
     @cached_property
-    def metro_lines_stations(self) -> T.Tuple[T.List[MetroLine], T.List[Station]]:
-        seen_routes = set()
-        metro_lines = []
-
-        stations: T.List[Station] = []
-        stations_all_coords: T.List[T.Tuple[float, float]] = []
-        stations_coord_map: T.Dict[T.Tuple[int, int], Station] = {}
+    def stations(self) -> T.List[Station]:
+        stations = []
 
         for station in self.osm.stations:
             name = station.tags.get("name")
@@ -168,177 +99,287 @@ class Metros(Layer):
                 print("Warning: station {} is missing name".format(station.id))
                 name = ""
 
-            stations_all_coords.append(station.location)
-            rx, ry = round_station_location(station.location)
-            if 0 <= rx <= self.max_dim and 0 <= ry <= self.max_dim:
-                st = Station(station.id, name, station.location, rx, ry, [])
-                stations.append(st)
-                stations_coord_map[(rx, ry)] = st
+            (rx, ry) = round_station_location(station.location)
 
-        for route in self.osm.subway_routes:
+            if 0 <= rx < self.max_dim and 0 <= ry < self.max_dim:
+                stations.append(Station(name, station.location, rx, ry))
+
+        return stations
+
+    def get_ways(self, osm: osm.OsmData) -> T.Generator[InputWay, None, None]:
+        for subway in self.osm.subways:
+            # already filtered by the preprocessor
+            yield InputWay(
+                subway,
+                False,
+                SegmentData(parse_speed_limit(subway.tags)),
+            )
+
+    def get_nodes(self, osm: osm.OsmData) -> T.Generator[InputNode, None, None]:
+        station_map = {(station.x, station.y): station for station in self.stations}
+        stations_multipoint = MultiPoint(
+            [(station.x, station.y) for station in self.stations]
+        )
+
+        for stop in osm.stops:
+            (nearest_point, _) = nearest_points(
+                stations_multipoint, Point(stop.location)
+            )
+            nearest_xy = (nearest_point.x, nearest_point.y)
+            assert nearest_xy in station_map
+            station = station_map[nearest_xy]
+            yield InputNode(stop.location, 100, JunctionData(station))
+
+    def bake_junction(
+        self, data: T.Optional[T.Any], state: T.Any, point: T.Tuple[float, float]
+    ) -> T.Any:
+        import engine
+
+        (x, y) = point
+
+        if data is None:
+            station = None
+        else:
+            address = address_from_coords(
+                data.station.x, data.station.y, self.max_depth
+            )
+            station = engine.Station(
+                data.station.name, engine.Address(address, self.max_depth)
+            )
+
+        return state.add_railway_junction(x, y, engine.RailwayJunctionData(station))
+
+    def bake_segment(
+        self,
+        data: T.Optional[SegmentData],
+        state: T.Any,
+        start_id: T.Any,
+        end_id: T.Any,
+        points: T.List[T.Tuple[float, float]],
+    ) -> T.Any:
+        import engine
+
+        data = engine.RailwaySegmentData(data.speed_limit)
+        return state.add_railway_segment(data, start_id, end_id, points)
+
+    def post_init(self, dataset: osm.OsmData, qtree: Quadtree) -> None:
+        super().post_init(dataset, qtree)
+
+        for station in self.stations:
+            address = address_from_coords(station.x, station.y, self.max_depth)
+            child = qtree.get_or_create_child(address, lambda: ({}, None))
+            # NOTE: higher priority than water
+            self.set_node_data(child, [station], 110)
+
+        del station
+        del address
+        del child
+
+        seen_routes = set()
+        for (route_index, route) in enumerate(self.osm.subway_routes):
             # if we are crossing state boundaries, we have multiple copies of each route
             if route.id in seen_routes:
                 continue
             seen_routes.add(route.id)
 
-            name = route.tags.get("name")
-            color = route.tags.get("colour")
-            assert name is not None, route
+            # TODO: instead of assuming the OSM way ordering is reliable, find a good ordering of
+            # the segments with the correct orientation
+            segment_sets: T.List[T.Set[Segment]] = []
 
-            last_point = None
-            stops: T.List[osm.Node] = []
-            spline_all_coords: T.List[T.Tuple[float, float]] = []
-            spline_coord_map: T.Dict[T.Tuple[float, float], int] = {}
-
-            # pull out ways
             for member in route.members:
                 if (
                     member.type == "w"
                     and member.ref in self.osm.subway_map
                     and member.role == ""
                 ):
-                    subway = self.osm.subway_map[member.ref]
+                    way = self.osm.subway_map[member.ref]
+                    if way.id not in self.way_segment_map:
+                        # this can happen if the way is out of bounds
+                        continue
 
-                    if color is None:
-                        color = subway.tags.get("colour")
+                    way_segments = self.way_segment_map[way.id]
+                    if len(segment_sets) == 0 or way_segments != segment_sets[-1]:
+                        segment_sets.append(way_segments)
 
-                    first, last = subway.shape.boundary.geoms
-                    if last_point is not None and last.distance(
-                        last_point
-                    ) < first.distance(last_point):
-                        # the way is flipped around for some reason. need to correct it
-                        last_point = first
-                        coords = reversed(subway.shape.coords)
-                    else:
-                        last_point = last
-                        coords = subway.shape.coords
-
-                    for (x, y) in coords:
-                        # discard out-of-bounds data
-                        if 0 <= x <= self.max_dim and 0 <= y <= self.max_dim:
-                            if (x, y) not in spline_coord_map:
-                                spline_coord_map[(x, y)] = len(spline_all_coords)
-                                spline_all_coords.append((x, y))
                 elif (
                     member.type == "n"
                     and member.ref in self.osm.stop_map
                     and member.role == "stop"
                 ):
-                    stop = self.osm.stop_map[member.ref]
-                    x, y = stop.location
-                    if 0 <= x <= self.max_dim and 0 <= y <= self.max_dim:
-                        stops.append(stop)
+                    pass
 
-            # empty for whatever reason, so don't attempt to generate
-            if len(stations_all_coords) == 0 or len(spline_all_coords) == 0:
+            if len(segment_sets) == 0:
                 continue
 
-            keys: T.List[T.Any] = []
+            del member
+            del way
+            del way_segments
 
-            for x, y in spline_all_coords:
-                keys.append(MetroKey(x, y))
+            segments: T.List[Segment] = []
 
-            stations_multipoint = MultiPoint(stations_all_coords)
-            spline_linestring = LineString(spline_all_coords)
-            spline_multipoint = MultiPoint(spline_all_coords)
+            # rectify segment sets into segments
+            for (i, segment_set) in enumerate(segment_sets):
+                assert len(segment_set) > 0
 
-            to_insert = {}
-            line_stations = []
+                # linearize
+                junctions: T.Mapping[
+                    T.Tuple[float, float], T.List[Segment]
+                ] = defaultdict(list)
+                for segment_id in segment_set:
+                    segment = self.id_segment_map[segment_id]
+                    junctions[segment.start].append(segment)
+                    junctions[segment.end].append(segment)
 
-            for stop in stops:
-                # find the nearest point on the spline so that we can insert the stop
-                loc = Point(stop.location)
-                pt, _ = nearest_points(spline_multipoint, loc)
-                index = spline_coord_map[pt.coords[0]]
+                del segment_id
+                del segment
 
-                # Sometimes stops aren't actually on the line due to data errors. It's unclear which
-                # is correct (the line or the stop), but we don't have a good way of recovering, so
-                # we just ignore this stop.
-                max_stop_offset = 500 / self.map_config.engine_config["min_tile_size"]
-                if loc.distance(pt) > max_stop_offset:
-                    print(
-                        "Warning: stop is too far from line, stop: {}, distance: {}".format(
-                            stop, loc.distance(pt)
+                endpoints: T.List[T.Tuple[float, float]] = []
+                for (point, segs) in junctions.items():
+                    assert len(segs) in (1, 2), (len(segs), segs)
+                    if len(segs) == 1:
+                        endpoints.append(point)
+
+                assert len(endpoints) == 2
+
+                del point
+                del segs
+
+                current_point = endpoints[0]
+                linearized_segments = [junctions[current_point][0]]
+                while True:
+                    next_points = [
+                        endpoint
+                        for endpoint in linearized_segments[-1].endpoints()
+                        if endpoint != current_point
+                    ]
+                    assert len(next_points) == 1
+                    next_point = next_points[0]
+                    next_junction = junctions[next_point]
+                    assert len(next_junction) in (1, 2)
+                    next_segments = [
+                        seg for seg in next_junction if seg != linearized_segments[-1]
+                    ]
+                    if len(next_segments) == 0:
+                        # reached the end
+                        assert next_point in endpoints, (current_point, endpoints)
+                        break
+                    next_segment = next_segments[0]
+                    linearized_segments.append(next_segment)
+                    current_point = next_point
+
+                    del next_points
+                    del next_point
+                    del next_junction
+                    del next_segments
+                    del next_segment
+
+                assert len(linearized_segments) == len(segment_set), (
+                    "metro line",
+                    route.tags,
+                    "metro line index",
+                    route_index,
+                    "index",
+                    i,
+                    "endpoints",
+                    endpoints,
+                    "linearized segments",
+                    linearized_segments,
+                    "segment set",
+                    [self.id_segment_map[seg] for seg in segment_set],
+                )
+
+                del endpoints
+
+                def check(segment: Segment, linearized_segment: Segment) -> bool:
+                    return segment.has_endpoint(
+                        linearized_segment.start
+                    ) or segment.has_endpoint(linearized_segment.end)
+
+                if len(segments) == 0:
+                    # First one; don't have a reference point, so just add them. If we get the
+                    # orientation wrong, we will need to fix it later.
+                    segments.extend(linearized_segments)
+                else:
+                    # find correct orientation
+
+                    if check(segments[-1], linearized_segments[0]):
+                        segments.extend(linearized_segments)
+                    elif check(segments[-1], linearized_segments[-1]):
+                        segments.extend(reversed(linearized_segments))
+
+                    # we may have picked the wrong orientation for the first set
+                    elif i == 1 and check(segments[0], linearized_segments[0]):
+                        segments.reverse()
+                        segments.extend(linearized_segments)
+                    elif i == 1 and check(segments[0], linearized_segments[-1]):
+                        segments.reverse()
+                        segments.extend(reversed(linearized_segments))
+
+                    # we might be at a turnaround
+                    # the longest this can be is a single pre-split segment, i.e. a segment set
+                    elif i >= 1 and check(
+                        segments[-len(segment_sets[i - 1])], linearized_segments[0]
+                    ):
+                        segments.extend(
+                            reversed(segments[-len(segment_sets[i - 1]) : -1])
                         )
-                    )
-                    continue
+                        segments.extend(linearized_segments)
+                    elif i >= 1 and check(
+                        segments[-len(segment_sets[i - 1])], linearized_segments[-1]
+                    ):
+                        segments.extend(
+                            reversed(segments[-len(segment_sets[i - 1]) : -1])
+                        )
+                        segments.extend(reversed(linearized_segments))
 
-                # Put stop into the correct slot between neighboring keys in the spline.
-                # TODO: This is only relevant if the stop location isn't one of the key points.
-                # For everything I've tested so far, the stop is also a key point, so this
-                # is basically untested (and it's unclear if it is ever necessary with OSM data).
-                prev = Point(spline_all_coords[index - 1])
-                spline_pt, _ = nearest_points(spline_linestring, loc)
-                if prev.distance(spline_pt) < prev.distance(pt):
-                    index -= 1
+                    else:
+                        assert False, (
+                            "metro line",
+                            route.tags,
+                            "metro line index",
+                            route_index,
+                            "index",
+                            i,
+                            "all prev endpoints",
+                            [segment.endpoints() for segment in segments],
+                            "prev endpoints",
+                            segments[-1].endpoints(),
+                            "prev segments",
+                            [self.id_segment_map[seg] for seg in segment_sets[i - 1]],
+                            "current segments",
+                            [self.id_segment_map[seg] for seg in segment_set],
+                            "current linearized segments",
+                            linearized_segments,
+                        )
 
-                # find the nearest station so that we can associate this stop with the station
-                station_pt, _ = nearest_points(stations_multipoint, loc)
-                station_x, station_y = round_station_location(
-                    (station_pt.x, station_pt.y)
-                )
-                station_address = address_from_coords(
-                    station_x,
-                    station_y,
-                    self.max_depth,
-                )
-                station_data = stations_coord_map[(station_x, station_y)]
-                line_stations.append(station_data)
+                del segment_set
+                del linearized_segments
 
-                x, y = stop.location
-                to_insert[index] = MetroStop(
-                    x, y, station_data.name, station_address, self.max_depth
-                )
+            if len(segments) == 0:
+                continue
 
-            # NOTE: traverse in reverse order so that we don't mess up the indices
-            for index in reversed(sorted(to_insert)):
-                keys.insert(index, to_insert[index])
+            del segment_sets
 
+            name = route.tags.get("name")
+            assert name is not None, route
+
+            color = route.tags.get("colour")
             if color is None:
                 print("Warning: missing color for metro line {}".format(name))
                 color = "#000000"
-
             parsed_color = parse_color(color)
+            # TODO: generate schedules
+            schedule = Schedule(60 * 15)
 
-            # only add line if it has some in-bounds data
-            if len(keys) > 0:
-                network = route.tags["network"]
-                if network not in self.speed_limits:
-                    raise Exception(
-                        "Missing speed limit for metro network {}".format(network)
-                    )
-                speed_limit = self.speed_limits[network]
-
-                metro_lines.append(
-                    MetroLine(
-                        route.id, name, parsed_color, speed_limit, keys, line_stations
-                    )
+            metro_network = route.tags["network"]
+            if metro_network not in self.speed_limits:
+                raise Exception(
+                    "Missing speed limit for metro network {}".format(metro_network)
                 )
+            speed_limit = self.speed_limits[metro_network]
 
-        return (metro_lines, stations)
-
-    @property
-    def metro_lines(self) -> T.List[MetroLine]:
-        return self.metro_lines_stations[0]
-
-    @property
-    def stations(self) -> T.List[Station]:
-        return self.metro_lines_stations[1]
-
-    def initialize(self, data: int, node: Quadtree, convolve: ConvolveData) -> None:
-        assert False
-
-    def post_init(self, dataset: osm.OsmData, qtree: Quadtree) -> None:
-        self.osm = dataset
-
-        # add stations
-        for station in self.stations:
-            x, y = map(round, station.location)
-            address = address_from_coords(x, y, self.max_depth)
-
-            child = qtree.get_or_create_child(address, lambda: ({}, None))
-            # NOTE: higher priority than water
-            self.set_node_data(child, [station], 110)
+            data = MetroLineData(name, parsed_color, schedule, speed_limit)
+            self.metro_lines.append(MetroLine(data, segments))
 
     def merge(self, node: Quadtree, convolve: ConvolveData) -> None:
         pass
@@ -346,21 +387,39 @@ class Metros(Layer):
     def finalize(self, data: Station) -> Tile:
         return Tile(
             "MetroStationTile",
-            dict(name=data.name, x=data.x, y=data.y, ids=data.metro_lines),
+            dict(
+                name=data.name,
+                x=data.x,
+                y=data.y,
+                # TODO: set metro lines
+                ids=[],
+            ),
         )
 
     def fuse(self, entities: T.List[Station]) -> Station:
         assert False, entities
 
     def modify_state(self, state: T.Any, qtree: Quadtree) -> None:
-        # add metro lines
+        super().modify_state(state, qtree)
+
+        import engine
+
         for metro_line in self.metro_lines:
-            line_id = state.add_metro_line(
-                metro_line.name,
-                metro_line.color,
-                metro_line.speed_limit,
-                [k.to_engine() for k in metro_line.keys],
+            segment_handles = []
+            for segment in metro_line.segments:
+                assert segment.handle is not None
+                segment_handles.append(segment.handle)
+
+            state.add_metro_line(
+                engine.MetroLineData(
+                    metro_line.data.color,
+                    metro_line.data.name,
+                    engine.Schedule.fixed_frequency(
+                        metro_line.data.schedule.fixed_frequency
+                    ),
+                    metro_line.data.speed_limit,
+                ),
+                segment_handles,
             )
 
-            for station in metro_line.stations:
-                station.metro_lines.append(line_id)
+        state.validate_metro_lines()

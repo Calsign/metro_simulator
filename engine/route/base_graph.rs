@@ -156,7 +156,7 @@ pub fn construct_base_graph<F: state::Fields>(
     input: BaseGraphInput<'_, F>,
 ) -> Result<Graph, Error> {
     use highway::timing::HighwayTiming;
-    use itertools::Itertools;
+    use metro::RailwayTiming;
     use spade::Triangulation;
     use triangulation_ext::SafeTriangulationInsert;
 
@@ -213,106 +213,125 @@ pub fn construct_base_graph<F: state::Fields>(
     };
 
     let mut station_map = HashMap::new();
-    for metro_line in input.state.metro_lines.values() {
+    for metro_line in input.state.metros.metro_lines().values() {
         if let Some(ref filter) = input.filter_metro_lines {
-            if !filter.contains(&metro_line.id) {
+            if !filter.contains(&metro_line.id.inner()) {
                 continue;
             }
             // NOTE: print to stderr so that we can pipe dump output to xdot
             eprintln!(
-                "Filtering metro lines selected {}: {}",
-                &metro_line.id, &metro_line.name
+                "Filtering metro lines selected {:?}: {}",
+                &metro_line.id, &metro_line.data.name
             );
         }
 
-        let mut stop_map = HashMap::new();
+        let mut junction_map = HashMap::new();
+        for junction_id in metro_line.junctions(&input.state.railways) {
+            let junction = input.state.railways.junction(junction_id);
+            let (junction_graph_id, address) = match &junction.data.station {
+                Some(station) => {
+                    let station_id = *station_map.entry(station.address).or_insert_with(|| {
+                        let station_id = graph.add_node(Node::MetroStation {
+                            station: station.clone(),
+                        });
 
-        let speed_keys = metro::timing::speed_keys(
-            metro_line.get_keys(),
-            tile_size,
-            metro_line.speed_limit as f64,
-        );
-        let timetable = metro::timing::timetable(&speed_keys);
-        for (station, _) in timetable.iter() {
-            let station_id = *station_map.entry(station.address).or_insert_with(|| {
-                let station_id = graph.add_node(Node::MetroStation {
-                    station: station.clone(),
-                });
+                        // for now, we assume that every station offers parking
+                        let (parking_walking, _) = add_parking(
+                            station.address,
+                            &mut graph,
+                            &mut terminal_nodes,
+                            &mut inference_triangulation,
+                        )
+                        .unwrap();
 
-                // for now, we assume that every station offers parking
-                let (parking_walking, _) = add_parking(
-                    station.address,
-                    &mut graph,
-                    &mut terminal_nodes,
-                    &mut inference_triangulation,
-                )
-                .unwrap();
+                        let location = station.address.to_xy_f64();
 
-                let location = station.address.to_xy_f64();
+                        // NOTE: can't put this node into the inference triangulation because it
+                        // occupies the same point as the parking node.
+                        graph.add_edge(
+                            station_id,
+                            parking_walking,
+                            Edge::ModeSegment {
+                                mode: Mode::Walking,
+                                distance: 0.0,
+                                start: location,
+                                stop: location,
+                            },
+                            input.state,
+                        );
+                        graph.add_edge(
+                            parking_walking,
+                            station_id,
+                            Edge::ModeSegment {
+                                mode: Mode::Walking,
+                                distance: 0.0,
+                                start: location,
+                                stop: location,
+                            },
+                            input.state,
+                        );
 
-                // NOTE: can't put this node into the inference triangulation because it
-                // occupies the same point as the parking node.
-                graph.add_edge(
-                    station_id,
-                    parking_walking,
-                    Edge::ModeSegment {
-                        mode: Mode::Walking,
-                        distance: 0.0,
-                        start: location,
-                        stop: location,
-                    },
-                    input.state,
-                );
-                graph.add_edge(
-                    parking_walking,
-                    station_id,
-                    Edge::ModeSegment {
-                        mode: Mode::Walking,
-                        distance: 0.0,
-                        start: location,
-                        stop: location,
-                    },
-                    input.state,
-                );
+                        station_id
+                    });
 
-                station_id
-            });
+                    let stop_id = graph.add_node(Node::MetroStop {
+                        station: station.clone(),
+                        metro_line: metro_line.id,
+                    });
 
-            let stop_id = graph.add_node(Node::MetroStop {
-                station: station.clone(),
-                metro_line: metro_line.id,
-            });
-            stop_map.insert(station.address, stop_id);
+                    graph.add_edge(
+                        station_id,
+                        stop_id,
+                        Edge::MetroEmbark {
+                            metro_line: metro_line.id,
+                            station: station.clone(),
+                        },
+                        input.state,
+                    );
 
-            graph.add_edge(
-                station_id,
-                stop_id,
-                Edge::MetroEmbark {
-                    metro_line: metro_line.id,
-                    station: station.clone(),
-                },
-                input.state,
-            );
+                    graph.add_edge(
+                        stop_id,
+                        station_id,
+                        Edge::MetroDisembark {
+                            metro_line: metro_line.id,
+                            station: station.clone(),
+                        },
+                        input.state,
+                    );
 
-            graph.add_edge(
-                stop_id,
-                station_id,
-                Edge::MetroDisembark {
-                    metro_line: metro_line.id,
-                    station: station.clone(),
-                },
-                input.state,
-            );
+                    (stop_id, station.address)
+                }
+                None => {
+                    let address = junction.address(input.state.config.max_depth);
+                    let id = graph.add_node(Node::RailJunction {
+                        junction: junction_id,
+                        address,
+                    });
+                    (id, address)
+                }
+            };
+            junction_map.insert(junction_id, (junction_graph_id, address));
         }
-        for ((left, left_t), (right, right_t)) in timetable.iter().tuple_windows() {
+
+        for oriented_segment in metro_line.segments() {
+            let segment = input.state.railways.segment(oriented_segment.segment);
+            let (start_id, start_address) =
+                junction_map[&oriented_segment.start_junction(&input.state.railways)];
+            let (end_id, end_address) =
+                junction_map[&oriented_segment.end_junction(&input.state.railways)];
             graph.add_edge(
-                stop_map[&left.address],
-                stop_map[&right.address],
+                start_id,
+                end_id,
                 Edge::MetroSegment {
                     metro_line: metro_line.id,
-                    time: right_t - left_t,
-                    start: left.address,
-                    stop: right.address,
+                    oriented_segment: *oriented_segment,
+                    time: segment.railway_travel_time(
+                        metro_line.data.speed_limit,
+                        tile_size,
+                        &input.state.railways,
+                    ),
+                    start: start_address,
+                    stop: end_address,
                 },
                 input.state,
             );
@@ -384,7 +403,7 @@ pub fn construct_base_graph<F: state::Fields>(
             Edge::Highway {
                 segment: segment.id,
                 data: segment.data.clone(),
-                time: segment.travel_time(tile_size),
+                time: segment.highway_travel_time(tile_size),
             },
             input.state,
         );

@@ -7,6 +7,7 @@ ms_rust_library(
         "lib.rs",
         "network.rs",
         "segment.rs",
+        "timing.rs",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -14,6 +15,8 @@ ms_rust_library(
         "//util:id_cmp",
         "//util:spline_util",
         "@crates//:cgmath",
+        "@crates//:itertools",
+        "@crates//:once_cell",
         "@crates//:serde",
         "@crates//:splines",
     ],

@@ -26,6 +26,7 @@ py_library(
         "layer.py",
         "lodes.py",
         "metros.py",
+        "network.py",
         "osm.py",
         "quadtree.py",
         "simple_density.py",

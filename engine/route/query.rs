@@ -258,7 +258,14 @@ pub fn best_route(
                     Mode::Driving,
                 )?
                 .into_iter(),
-            ),
+            )
+            .chain(potential_route(
+                &mut base_graph,
+                input.start,
+                input.end,
+                Mode::Walking,
+                Mode::Walking,
+            )?),
         )
         .map(|route| construct_route(&base_graph.graph, input, &route)),
         Some(CarConfig::CollectParkedCar { address }) => {

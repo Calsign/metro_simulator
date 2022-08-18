@@ -1,6 +1,5 @@
 use quadtree::Quadtree;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use crate::config::Config;
 
@@ -65,9 +64,9 @@ pub enum SerdeFormat {
 pub struct State<F: Fields> {
     pub config: Config,
     pub qtree: Quadtree<BranchState<F>, LeafState<F>>,
-    pub metro_lines: BTreeMap<u64, metro::MetroLine>,
-    metro_line_counter: u64,
+    pub railways: metro::Railways,
     pub highways: highway::Highways,
+    pub metros: metro::Metros,
     #[serde(skip)]
     pub collect_tiles: CollectTilesVisitor,
 }
@@ -78,9 +77,9 @@ impl<F: Fields> State<F> {
         Self {
             config,
             qtree,
-            metro_lines: BTreeMap::new(),
-            metro_line_counter: 0,
+            railways: metro::Railways::new(),
             highways: highway::Highways::new(),
+            metros: metro::Metros::new(),
             collect_tiles: CollectTilesVisitor::default(),
         }
     }
@@ -116,38 +115,6 @@ impl<F: Fields> State<F> {
         };
         *leaf = decoded;
         Ok(())
-    }
-
-    pub fn add_metro_line(
-        &mut self,
-        name: String,
-        color: Option<metro::Color>,
-        speed_limit: u32,
-        keys: Option<Vec<metro::MetroKey>>,
-    ) -> u64 {
-        let id = self.metro_line_counter;
-        self.metro_line_counter += 1;
-
-        let color = match color {
-            Some(color) => color,
-            None => metro::DEFAULT_COLORS[id as usize % metro::DEFAULT_COLORS.len()].into(),
-        };
-
-        let mut metro_line = metro::MetroLine::new(
-            id,
-            color,
-            speed_limit,
-            name,
-            self.config.min_tile_size as f64,
-        );
-
-        if let Some(keys) = keys {
-            metro_line.set_keys(keys);
-        }
-
-        self.metro_lines.insert(id, metro_line);
-
-        id
     }
 
     /**

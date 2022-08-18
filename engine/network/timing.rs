@@ -1,24 +1,12 @@
-use cgmath as cg;
+use crate::network::Key;
 
-use crate::types;
-
-// recommended by https://link.springer.com/article/10.1007/s40864-015-0012-y
-pub const MAX_ACCEL: f64 = 1.5;
-// time that a train waits at a station
-// estimate, in practice this varies based on number of passengers
-pub const STATION_TIME: f64 = 30.0;
-
-trait GetVec {
-    fn vec(&self, tile_size: f64) -> cg::Vector2<f64>;
-}
-
-impl GetVec for types::MetroKey {
-    fn vec(&self, tile_size: f64) -> cg::Vector2<f64> {
-        match self {
-            types::MetroKey::Key(vec) => vec * tile_size,
-            types::MetroKey::Stop(vec, _) => vec * tile_size,
-        }
-    }
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct TimingConfig {
+    pub tile_size: f64,
+    pub max_speed: f64,
+    pub max_acceleration: f64,
+    pub start_speed: f64,
+    pub end_speed: f64,
 }
 
 /**
@@ -38,7 +26,6 @@ impl GetVec for types::MetroKey {
  */
 #[derive(PartialEq, Debug, Clone)]
 pub struct SqrtPair {
-    pub station: Option<types::Station>,
     /// distance marker of center
     pub t: f64,
     /// speed bound
@@ -102,58 +89,43 @@ impl PartialOrd for SqrtPair {
 }
 
 /**
- * Convert each metro key into a speed bound, a SqrtPair.
+ * Convert each key into a speed bound, a SqrtPair.
  */
-pub fn speed_bounds(keys: &[types::MetroKey], tile_size: f64, max_speed: f64) -> Vec<SqrtPair> {
-    use cg::Angle;
-    use cg::InnerSpace;
-    use cg::MetricSpace;
+pub fn speed_bounds(keys: &[Key], config: &TimingConfig) -> Vec<SqrtPair> {
+    use cgmath::Angle;
+    use cgmath::InnerSpace;
+    use cgmath::MetricSpace;
     use itertools::Itertools;
 
     let mut speed_bounds = Vec::new();
     let mut t = 0.0; // total distance
 
-    let get_station = |key: &types::MetroKey| match *key {
-        types::MetroKey::Stop(_, ref station) => Some(station.clone()),
-        types::MetroKey::Key(_) => None,
-    };
-
-    // start from rest
     speed_bounds.push(SqrtPair {
-        station: keys.first().and_then(get_station),
         t,
-        b: 0.0,
-        a: MAX_ACCEL,
+        b: config.start_speed,
+        a: config.max_acceleration,
     });
 
     for (prev_key, key, next_key) in keys.iter().tuple_windows() {
-        t += key.vec(tile_size).distance(prev_key.vec(tile_size));
-        let (top_speed, station) = match key {
-            types::MetroKey::Key(_) => {
-                // TODO: account for duplicate key vecs (angle will be undefined)
-                let angle_diff = (key.vec(tile_size) - prev_key.vec(tile_size))
-                    .angle(next_key.vec(tile_size) - key.vec(tile_size));
-                // NOTE: approximation
-                let top_speed = max_speed * (1.0 - angle_diff.sin().abs());
-                assert!(
-                    top_speed > 0.0,
-                    "turns must be less than 90 degrees: {:?} => {:?} => {:?}, angle: {:?}",
-                    prev_key,
-                    key,
-                    next_key,
-                    angle_diff,
-                );
-                (top_speed, None)
-            }
-            // NOTE: come to a full stop at stops
-            types::MetroKey::Stop(_, station) => (0.0, Some(station.clone())),
-        };
+        t += key.distance(*prev_key) * config.tile_size;
+
+        // TODO: account for duplicate key vecs (angle will be undefined)
+        let angle_diff = (key - prev_key).angle(next_key - key);
+        // NOTE: approximation
+        let top_speed = config.max_speed * (1.0 - angle_diff.sin().abs());
+        assert!(
+            top_speed > 0.0,
+            "turns must be less than 90 degrees: {:?} => {:?} => {:?}, angle: {:?}",
+            prev_key,
+            key,
+            next_key,
+            angle_diff,
+        );
 
         speed_bounds.push(SqrtPair {
-            station,
             t,
             b: top_speed,
-            a: MAX_ACCEL,
+            a: config.max_acceleration,
         });
     }
 
@@ -161,15 +133,13 @@ pub fn speed_bounds(keys: &[types::MetroKey], tile_size: f64, max_speed: f64) ->
         // account for the distance of the last key
         let last = &keys[keys.len() - 1];
         let second_to_last = &keys[keys.len() - 2];
-        t += last.vec(tile_size).distance(second_to_last.vec(tile_size));
+        t += last.distance(*second_to_last) * config.tile_size;
     }
 
-    // finish at rest
     speed_bounds.push(SqrtPair {
-        station: keys.last().and_then(get_station),
         t,
-        b: 0.0,
-        a: MAX_ACCEL,
+        b: config.end_speed,
+        a: config.max_acceleration,
     });
 
     speed_bounds
@@ -178,7 +148,7 @@ pub fn speed_bounds(keys: &[types::MetroKey], tile_size: f64, max_speed: f64) ->
 /**
  * Assumes input is sorted by t (i.e. horizontally).
  *
- * This is O(n^2), but in most realistic cases it will be O(n).
+ * This is O(n) because each entry can be added and removed at most once.
  */
 fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
     let mut minima: Vec<SqrtPair> = Vec::new();
@@ -188,21 +158,14 @@ fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
                 None => minima.push(sqrt_pair),
                 Some(std::cmp::Ordering::Less) => continue,
                 Some(std::cmp::Ordering::Greater) => {
-                    // peel off entries on the stack
-                    // this is what makes this O(n^2)
+                    // Peel off entries on the stack. This looks like it could make this O(n^2), but
+                    // we will only ever pull each entry off once.
                     while matches!(minima.last(), Some(last) if last > &sqrt_pair) {
                         std::mem::drop(minima.pop())
                     }
                     minima.push(sqrt_pair);
                 }
-                Some(std::cmp::Ordering::Equal) => match minima.last_mut() {
-                    Some(last) => {
-                        if last.station.is_none() {
-                            last.station = sqrt_pair.station;
-                        }
-                    }
-                    None => (),
-                },
+                Some(std::cmp::Ordering::Equal) => (),
             },
             None => {
                 minima.push(sqrt_pair);
@@ -214,7 +177,6 @@ fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct SpeedKey {
-    pub station: Option<types::Station>,
     pub t: f64,
     pub v: f64,
 }
@@ -223,18 +185,14 @@ pub struct SpeedKey {
  * Converts from a sequence of SqrtPairs in speed-distance space to a
  * sequence of SpeedKeys in speed-time space.
  */
-fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>, max_speed: f64) -> Vec<SpeedKey> {
+fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>, config: &TimingConfig) -> Vec<SpeedKey> {
     use itertools::Itertools;
 
     let mut speed_keys = Vec::new();
     let mut t = 0.0; // total time
 
     if let Some(first) = minimal_speed_bounds.first() {
-        speed_keys.push(SpeedKey {
-            station: first.station.clone(),
-            t,
-            v: first.b,
-        });
+        speed_keys.push(SpeedKey { t, v: first.b });
     }
 
     for (left, right) in minimal_speed_bounds.iter().tuple_windows() {
@@ -242,55 +200,33 @@ fn time_rectify(minimal_speed_bounds: Vec<SqrtPair>, max_speed: f64) -> Vec<Spee
             .intersection(right)
             .expect("found two consecutive SqrtPairs with no intersection");
 
-        // boarding time at each station
-        if left.station.is_some() {
-            t += STATION_TIME;
-            speed_keys.push(SpeedKey {
-                station: None,
-                t,
-                v: 0.0,
-            });
-        }
-
-        if intersection.b > max_speed {
-            let (_, l_int) = left.intersect_bound(max_speed).unwrap();
-            let (r_int, _) = right.intersect_bound(max_speed).unwrap();
-            // t += (l_int - left.t) / left.average_speed(l_int);
+        if intersection.b > config.max_speed {
+            let (_, l_int) = left.intersect_bound(config.max_speed).unwrap();
+            let (r_int, _) = right.intersect_bound(config.max_speed).unwrap();
             t += left.travel_time(l_int);
             speed_keys.push(SpeedKey {
-                station: None,
                 t,
-                v: max_speed,
+                v: config.max_speed,
             });
-            t += (r_int - l_int) / max_speed;
+            t += (r_int - l_int) / config.max_speed;
             speed_keys.push(SpeedKey {
-                station: None,
                 t,
-                v: max_speed,
+                v: config.max_speed,
             });
             t += right.travel_time(r_int);
-            speed_keys.push(SpeedKey {
-                station: right.station.clone(),
-                t,
-                v: right.b,
-            });
+            speed_keys.push(SpeedKey { t, v: right.b });
         } else {
             if left.t != intersection.t {
                 t += left.travel_time(intersection.t)
             }
             speed_keys.push(SpeedKey {
-                station: None,
                 t,
                 v: intersection.b,
             });
             if right.t != intersection.t {
                 t += right.travel_time(intersection.t)
             }
-            speed_keys.push(SpeedKey {
-                station: right.station.clone(),
-                t,
-                v: right.b,
-            });
+            speed_keys.push(SpeedKey { t, v: right.b });
         }
     }
 
@@ -347,26 +283,15 @@ fn distance_spline(speed_keys: &[SpeedKey]) -> Vec<splines::Key<f64, f64>> {
     dist_keys
 }
 
-pub fn speed_keys(keys: &[types::MetroKey], tile_size: f64, max_speed: f64) -> Vec<SpeedKey> {
+pub fn speed_keys(keys: &[Key], config: &TimingConfig) -> Vec<SpeedKey> {
     // convert each key into a speed bound
-    let speed_bounds = speed_bounds(keys, tile_size, max_speed);
+    let speed_bounds = speed_bounds(keys, config);
 
     // identify the minima in the speed bound partial order; only these turn into keys in the final speed curve
     let minima = sqrt_pair_minima(speed_bounds);
 
     // rectify from speed-distance space to distance-time space
-    time_rectify(minima, max_speed)
-}
-
-pub fn timetable(speed_keys: &[SpeedKey]) -> Vec<(types::Station, f64)> {
-    let mut timetable = Vec::new();
-    for key in speed_keys {
-        if let Some(station) = &key.station {
-            timetable.push((station.clone(), key.t));
-        }
-    }
-
-    timetable
+    time_rectify(minima, config)
 }
 
 pub fn dist_spline(keys: &[SpeedKey]) -> splines::Spline<f64, f64> {
@@ -380,28 +305,24 @@ mod sqrt_pair_tests {
     use float_cmp::assert_approx_eq;
 
     const F1: SqrtPair = SqrtPair {
-        station: None,
         t: 0.0,
         b: 0.0,
         a: 1.0,
     };
 
     const F2: SqrtPair = SqrtPair {
-        station: None,
         t: 1.0,
         b: 0.0,
         a: 1.0,
     };
 
     const F3: SqrtPair = SqrtPair {
-        station: None,
         t: 0.0,
         b: 1.0,
         a: 1.0,
     };
 
     const F4: SqrtPair = SqrtPair {
-        station: None,
         t: 3.5,
         b: 1.0,
         a: 1.0,
@@ -483,13 +404,11 @@ mod dist_spline_tests {
         let speed_keys = time_rectify(
             vec![
                 SqrtPair {
-                    station: None,
                     t: 0.0,
                     b: 0.0,
                     a: 0.5,
                 },
                 SqrtPair {
-                    station: None,
                     t: 2.0,
                     b: 0.0,
                     a: 0.5,
@@ -509,21 +428,9 @@ mod dist_spline_tests {
     #[test]
     fn distance_spline_test() {
         let keys = distance_spline(&[
-            SpeedKey {
-                station: None,
-                t: 0.0,
-                v: 0.0,
-            },
-            SpeedKey {
-                station: None,
-                t: 2.0,
-                v: 1.0,
-            },
-            SpeedKey {
-                station: None,
-                t: 4.0,
-                v: 0.0,
-            },
+            SpeedKey { t: 0.0, v: 0.0 },
+            SpeedKey { t: 2.0, v: 1.0 },
+            SpeedKey { t: 4.0, v: 0.0 },
         ]);
         assert_eq!(keys.len(), 3);
         assert_approx_eq!(f64, keys[0].t, 0.0);

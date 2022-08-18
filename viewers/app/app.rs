@@ -305,15 +305,13 @@ impl App {
                 true
             }
         };
-        let metro_segment_in_bounds = |(metro_line, start, end)| {
+        let railway_segment_in_bounds = |railway_segment_id| {
             if self.congestion_analysis.filter_visible {
                 self.engine
                     .state
-                    .metro_lines
-                    .get(&metro_line)
-                    .expect("missing metro line")
-                    .get_segment_bounds(start, end)
-                    .expect("invalid metro segment")
+                    .railways
+                    .segment(railway_segment_id)
+                    .bounds
                     .intersects(&bounding_box)
             } else {
                 true
@@ -355,7 +353,7 @@ impl App {
                         CongestionType::MetroSegments => {
                             let data = snapshot
                                 .iter_metro_segments()
-                                .filter(|k, _| metro_segment_in_bounds(k));
+                                .filter(|k, _| railway_segment_in_bounds(k));
                             self.congestion_analysis.historical_quantity.get(data)
                         }
                         CongestionType::LocalRoads => {
@@ -387,7 +385,7 @@ impl App {
                                     .engine
                                     .world_state
                                     .iter_metro_segments()
-                                    .filter(|k, _| metro_segment_in_bounds(k));
+                                    .filter(|k, _| railway_segment_in_bounds(k));
                                 self.congestion_analysis.historical_quantity.get(data)
                             }
                             CongestionType::LocalRoads => {
@@ -429,7 +427,7 @@ impl App {
                     .engine
                     .world_state
                     .iter_metro_segments()
-                    .filter(|k, v| v > 0.0 && metro_segment_in_bounds(k));
+                    .filter(|k, v| v > 0.0 && railway_segment_in_bounds(k));
                 data.histogram(48, 200.0)
             }
             CongestionType::LocalRoads => {

@@ -112,53 +112,33 @@ impl Route {
             let dd: f32;
             match &edge {
                 Edge::MetroSegment {
-                    metro_line,
-                    start,
-                    stop,
+                    metro_line: metro_line_id,
+                    oriented_segment,
                     ..
                 } => {
-                    let metro_line = state
-                        .metro_lines
-                        .get(metro_line)
-                        .expect("missing metro line");
-                    let dist_spline = &metro_line.get_splines().dist_spline;
+                    use metro::RailwayTiming;
 
-                    let start_index = *metro_line
-                        .get_splines()
-                        .index_map
-                        .get(start)
-                        .expect("start index not found");
-                    let stop_index = *metro_line
-                        .get_splines()
-                        .index_map
-                        .get(stop)
-                        .expect("end index not found");
+                    let metro_line = state.metros.metro_line(*metro_line_id);
+                    let segment = state.railways.segment(oriented_segment.segment);
+                    let dist_spline = segment.railway_dist_spline(
+                        metro_line.data.speed_limit,
+                        state.config.min_tile_size as f64,
+                        &state.railways,
+                    );
 
-                    let start_key = dist_spline.keys()[start_index];
-                    let stop_key = dist_spline.keys()[stop_index];
-
-                    for key in &dist_spline.keys()[start_index..=stop_index] {
-                        let time = (key.t - start_key.t) as f32;
-                        let dist = (key.value - start_key.value) as f32;
-
-                        assert!(time >= 0.0, "{}", time);
-                        assert!(dist >= 0.0, "{}", dist);
-
-                        let location = metro_line
-                            .get_splines()
-                            .spline
-                            .clamped_sample(key.value / state.config.min_tile_size as f64)
-                            .unwrap();
+                    oriented_segment.maybe_reversed_iter(dist_spline.keys().iter(), |key| {
+                        let dist = key.value / state.config.min_tile_size as f64;
+                        let location = segment.spline().clamped_sample(dist).unwrap();
                         // TODO: it is probably insufficient to describe this as walking
                         keys.push(RouteKey::new(
                             f64p_f32p(location.into()),
-                            d + dist,
-                            t + time,
+                            d + dist as f32,
+                            t + key.t as f32,
                             Mode::Walking,
                         ));
-                    }
+                    });
 
-                    dd = (stop_key.value - start_key.value) as f32;
+                    dd = segment.length() as f32;
                 }
                 Edge::MetroEmbark { .. } | Edge::MetroDisembark { .. } => {
                     dd = default_dd;

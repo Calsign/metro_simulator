@@ -11,17 +11,18 @@ pub const RAMP_TIME: f64 = 30.0;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Edge {
     MetroSegment {
-        metro_line: u64,
+        metro_line: metro::MetroLineHandle,
+        oriented_segment: metro::OrientedSegment,
         time: f64,
         start: quadtree::Address,
         stop: quadtree::Address,
     },
     MetroEmbark {
-        metro_line: u64,
+        metro_line: metro::MetroLineHandle,
         station: metro::Station,
     },
     MetroDisembark {
-        metro_line: u64,
+        metro_line: metro::MetroLineHandle,
         station: metro::Station,
     },
     Highway {
@@ -57,11 +58,8 @@ impl Edge {
                 metro_line: metro_line_id,
                 ..
             } => {
-                let metro_line = state
-                    .metro_lines
-                    .get(metro_line_id)
-                    .expect("missing metro line");
-                metro_line.schedule.expected_waiting_time() as f64
+                let metro_line = state.metros.metro_line(*metro_line_id);
+                metro_line.data.schedule.expected_waiting_time() as f64
             }
             MetroDisembark { .. } => 0.0,
             Highway { time, .. } => *time,
@@ -88,35 +86,35 @@ impl Edge {
             MetroSegment { time, .. } => *time,
             MetroEmbark {
                 metro_line: metro_line_id,
-                station,
+                ..
             } => {
-                let metro_line = state
-                    .metro_lines
-                    .get(metro_line_id)
-                    .expect("missing metro line");
+                let metro_line = state.metros.metro_line(*metro_line_id);
                 match current_time {
-                    None => metro_line.schedule.expected_waiting_time() as f64,
-                    Some(current_time) => {
-                        let current_time_f64 = current_time as f64;
-                        // TODO: agents for trains so that they can respond to congestion and get
-                        // delayed and stuff
-                        let station_time = metro_line
-                            .get_splines()
-                            .time_map
-                            .get(&station.address)
-                            .expect("station not found");
-                        let departure = metro_line
-                            .schedule
-                            .next_departure((current_time_f64 - station_time).floor() as u64)
-                            as f64
-                            + station_time;
-                        assert!(
-                            departure > current_time_f64,
-                            "{}, {}",
-                            departure,
-                            current_time
-                        );
-                        departure - current_time_f64
+                    None => metro_line.data.schedule.expected_waiting_time() as f64,
+                    Some(_current_time) => {
+                        // let current_time_f64 = current_time as f64;
+                        // // TODO: agents for trains so that they can respond to congestion and get
+                        // // delayed and stuff
+                        // let station_time = metro_line
+                        //     .get_splines()
+                        //     .time_map
+                        //     .get(&station.address)
+                        //     .expect("station not found");
+                        // let departure = metro_line
+                        //     .schedule
+                        //     .next_departure((current_time_f64 - station_time).floor() as u64)
+                        //     as f64
+                        //     + station_time;
+                        // assert!(
+                        //     departure > current_time_f64,
+                        //     "{}, {}",
+                        //     departure,
+                        //     current_time
+                        // );
+                        // departure - current_time_f64
+
+                        // TODO: re-implement the new way
+                        metro_line.data.schedule.expected_waiting_time() as f64
                     }
                 }
             }
@@ -180,38 +178,27 @@ impl Edge {
     ) -> (f32, f32) {
         match &self {
             Edge::MetroSegment {
-                metro_line,
-                start,
-                stop,
+                metro_line: metro_line_id,
+                oriented_segment,
                 ..
             } => {
-                let metro_line = state
-                    .metro_lines
-                    .get(metro_line)
-                    .expect("missing metro line");
-                let dist_spline = &metro_line.get_splines().dist_spline;
-                let position_spline = &metro_line.get_splines().spline;
+                use metro::RailwayTiming;
 
-                let start_index = *metro_line
-                    .get_splines()
-                    .index_map
-                    .get(start)
-                    .expect("start index not found");
-                let end_index = *metro_line
-                    .get_splines()
-                    .index_map
-                    .get(stop)
-                    .expect("end index not found");
-
-                let start_key = dist_spline.keys()[start_index];
-                let end_key = dist_spline.keys()[end_index];
-
-                let dist = dist_spline
-                    .clamped_sample(fraction as f64 * (end_key.t - start_key.t) + start_key.t)
-                    .expect("dist spline is empty");
-                let position = position_spline
+                let metro_line = state.metros.metro_line(*metro_line_id);
+                let segment = state.railways.segment(oriented_segment.segment);
+                let dist = segment
+                    .railway_dist_spline(
+                        metro_line.data.speed_limit,
+                        state.config.min_tile_size as f64,
+                        &state.railways,
+                    )
+                    .clamped_sample(oriented_segment.maybe_reversed_fraction(fraction) as f64)
+                    .unwrap_or(0.0);
+                let position = segment
+                    .spline()
                     .clamped_sample(dist / state.config.min_tile_size as f64)
-                    .expect("position spline is empty");
+                    .expect("empty spline");
+
                 (position.x as f32, position.y as f32)
             }
             Edge::Highway { segment, .. } => {
@@ -285,16 +272,23 @@ impl std::fmt::Display for Edge {
         use Edge::*;
         match self {
             MetroSegment {
-                metro_line, time, ..
-            } => write!(f, "metro:{}:{:.2}", metro_line, time),
+                metro_line,
+                oriented_segment,
+                time,
+                ..
+            } => write!(
+                f,
+                "metro:{:?}:{:?}:{:.2}",
+                metro_line, oriented_segment, time
+            ),
             MetroEmbark {
                 metro_line,
                 station,
-            } => write!(f, "embark:{}:{}", metro_line, station.name),
+            } => write!(f, "embark:{:?}:{}", metro_line, station.name),
             MetroDisembark {
                 metro_line,
                 station,
-            } => write!(f, "disembark:{}:{}", metro_line, station.name),
+            } => write!(f, "disembark:{:?}:{}", metro_line, station.name),
             Highway {
                 segment,
                 data,

@@ -192,19 +192,54 @@ impl Engine {
         )
     }
 
+    fn add_railway_junction(
+        &mut self,
+        x: f64,
+        y: f64,
+        data: &RailwayJunctionData,
+    ) -> RailwayJunctionHandle {
+        RailwayJunctionHandle {
+            handle: self
+                .engine
+                .state
+                .railways
+                .add_junction((x, y), data.data.clone()),
+        }
+    }
+
+    fn add_railway_segment(
+        &mut self,
+        data: &RailwaySegmentData,
+        start: &RailwayJunctionHandle,
+        end: &RailwayJunctionHandle,
+        keys: Option<Vec<(f64, f64)>>,
+    ) -> RailwaySegmentHandle {
+        RailwaySegmentHandle {
+            handle: self.engine.state.railways.add_segment(
+                data.data.clone(),
+                start.handle,
+                end.handle,
+                keys.map(|ks| {
+                    ks.iter()
+                        .map(|(x, y)| cgmath::Vector2 { x: *x, y: *y })
+                        .collect()
+                }),
+            ),
+        }
+    }
+
     fn add_metro_line(
         &mut self,
-        name: String,
-        color: Option<(u8, u8, u8)>,
-        speed_limit: u32,
-        keys: Option<Vec<pyo3::PyRef<MetroKey>>>,
-    ) -> u64 {
-        self.engine.state.add_metro_line(
-            name,
-            color.map(|c| c.into()),
-            speed_limit,
-            keys.map(|v| v.iter().map(|k| k.key.clone()).collect()),
-        )
+        data: &MetroLineData,
+        segments: Vec<pyo3::PyRef<RailwaySegmentHandle>>,
+    ) -> MetroLineHandle {
+        MetroLineHandle {
+            handle: self.engine.state.metros.add_metro_line(
+                data.data.clone(),
+                segments.iter().map(|segment| segment.handle).collect(),
+                &self.engine.state.railways,
+            ),
+        }
     }
 
     fn add_highway_junction(
@@ -260,42 +295,11 @@ impl Engine {
         self.engine.state.highways.validate();
     }
 
-    fn get_metro_line(&self, id: u64) -> Option<MetroLine> {
+    fn validate_metro_lines(&self) {
         self.engine
             .state
-            .metro_lines
-            .get(&id)
-            .map(|line| line.clone().into())
-    }
-
-    fn visit_metro_line(
-        &self,
-        metro_line: &MetroLine,
-        visitor: &PyAny,
-        step: f64,
-        min_x: u64,
-        max_x: u64,
-        min_y: u64,
-        max_y: u64,
-    ) -> PyResult<()> {
-        if !visitor.is_callable() {
-            return Err(pyo3::exceptions::PyTypeError::new_err(
-                "visitor must be callable",
-            ));
-        }
-        let mut visitor = PySplineVisitor {
-            visitor: visitor.into(),
-        };
-        metro_line.metro_line.visit_spline(
-            &mut visitor,
-            step,
-            &quadtree::Rect {
-                min_x,
-                max_x,
-                min_y,
-                max_y,
-            },
-        )
+            .metros
+            .validate(&self.engine.state.railways);
     }
 
     fn get_address(&self, x: u64, y: u64) -> PyResult<Address> {
@@ -422,12 +426,12 @@ impl
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
-struct MetroStation {
+struct Station {
     station: metro::Station,
 }
 
 #[pymethods]
-impl MetroStation {
+impl Station {
     #[new]
     fn new(name: &str, address: &Address) -> Self {
         Self {
@@ -446,85 +450,89 @@ impl MetroStation {
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
-struct MetroLine {
-    metro_line: metro::MetroLine,
+struct RailwaySegmentData {
+    data: metro::RailwaySegment,
 }
 
 #[pymethods]
-impl MetroLine {
-    #[getter]
-    fn id(&self) -> u64 {
-        self.metro_line.id
-    }
-
-    #[getter]
-    fn name(&self) -> &str {
-        &self.metro_line.name
-    }
-
-    #[getter]
-    fn color(&self) -> (u8, u8, u8) {
-        self.metro_line.color.into()
-    }
-
-    #[getter]
-    fn length(&self) -> f64 {
-        self.metro_line.get_splines().length
-    }
-
-    #[getter]
-    fn stops(&self) -> Vec<MetroStation> {
-        self.metro_line
-            .get_splines()
-            .stops
-            .iter()
-            .map(|station| station.clone().into())
-            .collect()
+impl RailwaySegmentData {
+    #[new]
+    fn new(speed_limit: Option<u32>) -> Self {
+        Self {
+            data: metro::RailwaySegment::new(speed_limit),
+        }
     }
 }
 
 #[pyclass]
 #[derive(derive_more::From, derive_more::Into)]
-struct MetroKey {
-    key: metro::MetroKey,
+struct RailwayJunctionData {
+    data: metro::RailwayJunction,
 }
 
 #[pymethods]
-impl MetroKey {
-    #[staticmethod]
-    fn key(x: f64, y: f64) -> Self {
+impl RailwayJunctionData {
+    #[new]
+    fn new(station: Option<&Station>) -> Self {
         Self {
-            key: metro::MetroKey::Key((x, y).into()),
-        }
-    }
-
-    #[staticmethod]
-    fn stop(x: f64, y: f64, station: &MetroStation) -> Self {
-        Self {
-            key: metro::MetroKey::Stop((x, y).into(), station.station.clone()),
+            data: metro::RailwayJunction::new(station.map(|station| station.station.clone())),
         }
     }
 }
 
-struct PySplineVisitor {
-    visitor: PyObject,
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct RailwayJunctionHandle {
+    handle: network::JunctionHandle,
 }
 
-impl metro::SplineVisitor<metro::MetroLine, cgmath::Vector2<f64>, PyErr> for PySplineVisitor {
-    fn visit(
-        &mut self,
-        line: &metro::MetroLine,
-        vertex: cgmath::Vector2<f64>,
-        t: f64,
-        _prev: Option<cgmath::Vector2<f64>>,
-    ) -> PyResult<()> {
-        Python::with_gil(|py| {
-            let line = MetroLine::from(line.clone());
-            let vertex: (f64, f64) = vertex.into();
-            self.visitor.call1(py, (line, vertex, t))?;
-            Ok(())
-        })
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct RailwaySegmentHandle {
+    handle: network::SegmentHandle,
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct Schedule {
+    schedule: metro::Schedule,
+}
+
+#[pymethods]
+impl Schedule {
+    #[staticmethod]
+    fn fixed_frequency(fixed_frequency: u64) -> Self {
+        Self {
+            schedule: metro::Schedule::fixed_frequency(fixed_frequency),
+        }
     }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct MetroLineData {
+    data: metro::MetroLineData,
+}
+
+#[pymethods]
+impl MetroLineData {
+    #[new]
+    fn new(color: (u8, u8, u8), name: String, schedule: &Schedule, speed_limit: u32) -> Self {
+        Self {
+            data: metro::MetroLineData {
+                color: color.into(),
+                name,
+                schedule: schedule.schedule.clone(),
+                speed_limit,
+            },
+        }
+    }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct MetroLineHandle {
+    handle: metro::MetroLineHandle,
 }
 
 #[pyclass]
@@ -546,27 +554,6 @@ impl HighwaySegmentData {
             data: highway::HighwaySegment::new(name, refs, lanes, speed_limit),
         }
     }
-}
-
-#[pyclass]
-#[derive(derive_more::From, derive_more::Into)]
-struct HighwaySegment {
-    segment: network::Segment<highway::HighwaySegment>,
-}
-
-#[pymethods]
-impl HighwaySegment {}
-
-#[pyclass]
-#[derive(derive_more::From, derive_more::Into)]
-struct HighwayJunctionHandle {
-    handle: network::JunctionHandle,
-}
-
-#[pyclass]
-#[derive(derive_more::From, derive_more::Into)]
-struct HighwaySegmentHandle {
-    handle: network::SegmentHandle,
 }
 
 #[pyclass]
@@ -606,6 +593,18 @@ impl HighwayJunctionData {
             data: highway::HighwayJunction::new(ramp_direction.map(|r| r.direction)),
         }
     }
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwayJunctionHandle {
+    handle: network::JunctionHandle,
+}
+
+#[pyclass]
+#[derive(derive_more::From, derive_more::Into)]
+struct HighwaySegmentHandle {
+    handle: network::SegmentHandle,
 }
 
 #[pyclass]
@@ -657,13 +656,17 @@ fn engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<VisitData>()?;
     m.add_class::<Engine>()?;
 
-    m.add_class::<MetroStation>()?;
-    m.add_class::<MetroLine>()?;
-    m.add_class::<MetroKey>()?;
+    m.add_class::<RailwaySegmentData>()?;
+    m.add_class::<RailwayJunctionData>()?;
+    m.add_class::<Station>()?;
+    m.add_class::<RailwayJunctionHandle>()?;
+    m.add_class::<RailwaySegmentHandle>()?;
+    m.add_class::<MetroLineData>()?;
+    m.add_class::<Schedule>()?;
+    m.add_class::<MetroLineHandle>()?;
 
     m.add_class::<HighwaySegmentData>()?;
     m.add_class::<HighwayJunctionData>()?;
-    m.add_class::<HighwaySegment>()?;
     m.add_class::<RampDirection>()?;
     m.add_class::<HighwayJunctionHandle>()?;
     m.add_class::<HighwaySegmentHandle>()?;
