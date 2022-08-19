@@ -162,6 +162,8 @@ class Highways(Network):
     ) -> T.Any:
         import engine
 
+        assert data is not None
+
         data = engine.HighwaySegmentData(
             data.name,
             data.ref or [],

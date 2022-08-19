@@ -159,6 +159,8 @@ class Metros(Network):
     ) -> T.Any:
         import engine
 
+        assert data is not None
+
         data = engine.RailwaySegmentData(data.speed_limit)
         return state.add_railway_segment(data, start_id, end_id, points)
 
@@ -184,7 +186,7 @@ class Metros(Network):
 
             # TODO: instead of assuming the OSM way ordering is reliable, find a good ordering of
             # the segments with the correct orientation
-            segment_sets: T.List[T.Set[Segment]] = []
+            segment_sets: T.List[T.Set[int]] = []
 
             for member in route.members:
                 if (

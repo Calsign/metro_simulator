@@ -81,10 +81,10 @@ class Network(Layer):
     def __init__(self, map_config: MapConfig, has_way_segment_map=False):
         super().__init__(map_config)
         self.segments: T.List[Segment] = []
-        self.nodes: T.Mapping[T.Tuple[float, float], Node] = {}
+        self.nodes: T.Dict[T.Tuple[float, float], Node] = {}
         # map from way ids to the segments containing them
-        self.way_segment_map: T.Mapping[int, T.Set[int]] = defaultdict(set)
-        self.id_segment_map: T.Mapping[int, Segment] = {}
+        self.way_segment_map: T.Dict[int, T.Set[int]] = defaultdict(set)
+        self.id_segment_map: T.Dict[int, Segment] = {}
         # TODO: Currently way_segment_map is incompatible with bidirectional ways
         # because we assume that ways have unique ids. There are ways to address
         # this, but we don't need to yet because we only use bidirectional ways
@@ -106,7 +106,9 @@ class Network(Layer):
         """
         raise NotImplementedError()
 
-    def bake_junction(self, data: T.Optional[T.Any], state: T.Any) -> T.Any:
+    def bake_junction(
+        self, data: T.Optional[T.Any], state: T.Any, coords: T.Tuple[float, float]
+    ) -> T.Any:
         raise NotImplementedError()
 
     def bake_segment(
@@ -149,7 +151,7 @@ class Network(Layer):
     def construct_data(self) -> None:
         # each item is a (incoming, outgoing) tuple
         coord_map: T.Dict[
-            T.Tuple[float, float], T.Tuple[T.List[osm.Way], T.List[osm.Way]]
+            T.Tuple[float, float], T.Tuple[T.List[InputWay], T.List[InputWay]]
         ] = defaultdict(lambda: ([], []))
 
         for input_way in self.get_ways(self.osm):
@@ -258,7 +260,7 @@ class Network(Layer):
         del way
         del coords
 
-        junction_counts: T.Mapping[T.Tuple[float, float], int] = defaultdict(lambda: 0)
+        junction_counts: T.Dict[T.Tuple[float, float], int] = defaultdict(lambda: 0)
 
         for segment in self.segments:
             junction_counts[round_coords(segment.start)] += 1
