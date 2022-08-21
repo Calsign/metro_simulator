@@ -30,7 +30,7 @@ impl App {
 
         // 5 pixel resolution
         let spline_scale = f64::max(
-            self.options.spline_resolution as f64 / self.pan.scale as f64,
+            self.display_options.spline_resolution as f64 / self.pan.scale as f64,
             0.2,
         );
 
@@ -53,7 +53,9 @@ impl App {
 
         if self.pan.scale >= 4.0 {
             for highway_junction in self.engine.state.highways.junctions().values() {
-                if highway_junction.data.ramp.is_some() {
+                if self.display_options.show_highway_junctions
+                    || highway_junction.data.ramp.is_some()
+                {
                     let (x, y) = highway_junction.location.into();
                     if bounding_box.contains(x as u64, y as u64) {
                         let pos = egui::Pos2::from(self.pan.to_screen_ff((x as f32, y as f32)));
@@ -68,7 +70,7 @@ impl App {
             }
         }
 
-        if self.pan.scale >= 4.0 {
+        if self.display_options.show_railway_junctions && self.pan.scale >= 4.0 {
             for railway_junction in self.engine.state.railways.junctions().values() {
                 let (x, y) = railway_junction.location.into();
                 if bounding_box.contains(x as u64, y as u64) {
@@ -90,7 +92,7 @@ impl App {
                     .state
                     .metros
                     .railway_segment_metro_lines(railway_segment.id);
-                if metro_lines.len() > 0 {
+                if self.display_options.show_all_railways || metro_lines.len() > 0 {
                     let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                     railway_segment.visit_spline(
                         &mut spline_visitor,
@@ -299,7 +301,7 @@ impl<'a, 'b> DrawQtreeVisitor<'a, 'b> {
         is_leaf: bool,
     ) {
         let width = data.width as f32 * self.app.pan.scale;
-        let threshold = self.app.options.field_resolution as f32;
+        let threshold = self.app.display_options.field_resolution as f32;
         if is_leaf || (width >= threshold && width < threshold * 2.0) {
             // if we have selected an isochrone, draw that instead of the field
             let hue = if let crate::app::IsochroneQueryState::Calculated { isochrone_map } =
@@ -349,7 +351,7 @@ impl<'a, 'b>
         data: &quadtree::VisitData,
     ) -> Result<bool> {
         let should_descend =
-            data.width as f32 * self.app.pan.scale >= self.app.options.min_tile_size as f32;
+            data.width as f32 * self.app.pan.scale >= self.app.display_options.min_tile_size as f32;
 
         if !should_descend && self.app.overlay.field.is_none() {
             let full_rect = self.get_full_rect(data);

@@ -13,7 +13,7 @@ lazy_static::lazy_static! {
 pub struct App {
     pub(crate) engine: engine::Engine,
     pub(crate) overlay: Overlay,
-    pub(crate) options: Options,
+    pub(crate) display_options: DisplayOptions,
     pub(crate) diagnostics: Diagnostics,
     pub(crate) pan: PanState,
     pub(crate) route_query: RouteQuery,
@@ -30,7 +30,7 @@ impl App {
             pan: PanState::new(&engine),
             overlay: Overlay::new(),
             engine,
-            options: Options::new(),
+            display_options: DisplayOptions::new(),
             diagnostics: Diagnostics::default(),
             route_query: RouteQuery::new(),
             isochrone_query: IsochroneQuery::new(),
@@ -61,7 +61,7 @@ impl App {
                     ui.collapsing("Time", |ui| self.draw_time_state(ui));
                     ui.collapsing("Overlay", |ui| self.overlay.draw(ui));
                     ui.collapsing("Stats", |ui| self.draw_stats(ui));
-                    ui.collapsing("Display options", |ui| self.options.draw(ui));
+                    ui.collapsing("Display options", |ui| self.display_options.draw(ui));
                     ui.collapsing("Diagnostics", |ui| self.diagnostics.draw(self, ui));
                     ui.collapsing("Query routes", |ui| self.draw_route_query(ui));
                     ui.collapsing("Isochrone", |ui| self.draw_isochrone_query(ui));
@@ -629,18 +629,24 @@ impl Overlay {
 }
 
 #[derive(Debug)]
-pub(crate) struct Options {
+pub(crate) struct DisplayOptions {
     pub min_tile_size: u32,
     pub spline_resolution: u32,
     pub field_resolution: u32,
+    pub show_all_railways: bool,
+    pub show_railway_junctions: bool,
+    pub show_highway_junctions: bool,
 }
 
-impl Options {
+impl DisplayOptions {
     fn new() -> Self {
         Self {
             min_tile_size: 2,
             spline_resolution: 5,
             field_resolution: 10,
+            show_all_railways: false,
+            show_railway_junctions: false,
+            show_highway_junctions: false,
         }
     }
 
@@ -651,6 +657,12 @@ impl Options {
         ui.add(egui::Slider::new(&mut self.spline_resolution, 1..=100));
         ui.label("Field resolution:");
         ui.add(egui::Slider::new(&mut self.field_resolution, 3..=100));
+
+        ui.separator();
+
+        ui.checkbox(&mut self.show_all_railways, "Show all railways");
+        ui.checkbox(&mut self.show_railway_junctions, "Show railway junctions");
+        ui.checkbox(&mut self.show_highway_junctions, "Show highway junctions");
     }
 }
 
