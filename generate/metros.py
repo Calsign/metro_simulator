@@ -27,7 +27,9 @@ class BrokenMetroLineException(Exception):
         metro_line: osm.Relation,
         route_index: int,
         segment_set_index: int,
-        all_prev_endpoints: T.List[T.Tuple[float, float]],
+        all_prev_endpoints: T.List[
+            T.Tuple[T.Tuple[float, float], T.Tuple[float, float]]
+        ],
         prev_endpoints: T.List[T.Tuple[float, float]],
         prev_segments: T.List[Segment],
         current_segments: T.List[Segment],
@@ -58,7 +60,7 @@ class HandleBrokenMetroLineStrategy(Enum):
 
     @staticmethod
     def default() -> HandleBrokenMetroLineStrategy:
-        HandleBrokenMetroLineStrategy.FAIL
+        return HandleBrokenMetroLineStrategy.FAIL
 
 
 def parse_color(color: str):
@@ -123,7 +125,7 @@ class Metros(Network):
         self.metro_lines: T.List[MetroLine] = []
 
     @cached_property
-    def speed_limits(self) -> T.Dict[str, int]:
+    def speed_limits(self) -> T.Mapping[str, int]:
         dataset = self.get_dataset()
         assert dataset is not None
         return {
@@ -132,13 +134,16 @@ class Metros(Network):
         }
 
     @cached_property
-    def broken_metro_line_strategies(self) -> T.Dict[str, str]:
+    def broken_metro_line_strategies(
+        self,
+    ) -> T.Mapping[str, HandleBrokenMetroLineStrategy]:
         dataset = self.get_dataset()
         assert dataset is not None
         strategies = defaultdict(HandleBrokenMetroLineStrategy.default)
         for network, strategy in dataset["data"][
             "broken_metro_line_strategies"
         ].items():
+            assert isinstance(network, str)
             strategies[network] = HandleBrokenMetroLineStrategy[strategy.upper()]
         return strategies
 
@@ -385,7 +390,7 @@ class Metros(Network):
                         all_prev_endpoints=[
                             segment.endpoints() for segment in segments
                         ],
-                        prev_endpoints=segments[-1].endpoints(),
+                        prev_endpoints=list(segments[-1].endpoints()),
                         prev_segments=[
                             self.id_segment_map[seg] for seg in segment_sets[i - 1]
                         ],
