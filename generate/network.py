@@ -187,13 +187,23 @@ class Network(Layer):
                 return
 
             segment = Segment(None, points, segment_data, None, way_ids)
-            self.segments.append(segment)
+
             if self.has_way_segment_map:
                 for way_id in way_ids:
-                    # TODO: what does it mean to have duplicates here, and is that OK?
-                    assert way_id not in self.way_segment_map
+                    if way_id in self.way_segment_map:
+                        # abandon ship; don't add to segments
+
+                        # TODO: why does this happen?
+
+                        # Sp far I've only seen this happen for one-way segments, but it's possible
+                        # we are still fine with multi-way segments.
+                        assert len(way_ids) == 1
+                        return
+
                     self.way_segment_map[way_id].add(id(segment))
                     self.id_segment_map[id(segment)] = segment
+
+            self.segments.append(segment)
 
         for (point, in_ways, out_ways) in intersections:
             # NOTE: only use diverging edges to avoid double-counting

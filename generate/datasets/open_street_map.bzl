@@ -120,12 +120,13 @@ def _get_deps(latitude, longitude, regions = None):
 
     return ["//generate/datasets:{}".format(_build_name(region)) for region in regions]
 
-def _construct(regions, subway_speeds = {}):
+def _construct(regions, subway_speeds = {}, broken_metro_line_strategies = {}):
     def get_deps(latitude, longitude):
         return _get_deps(latitude, longitude, regions)
 
     data = {k: v for k, v in open_street_map.data.items()}
     data["subway_speeds"] = subway_speeds
+    data["broken_metro_line_strategies"] = broken_metro_line_strategies
 
     return struct(
         workspace_deps = open_street_map.workspace_deps,

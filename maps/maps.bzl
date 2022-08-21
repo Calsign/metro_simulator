@@ -99,6 +99,9 @@ maps["boston"] = struct(
             subway_speeds = {
                 "MBTA": "60 mph",
             },
+            broken_metro_line_strategies = {
+                "MBTA": "skip",
+            },
         ),
     },
     engine_config = ":config",

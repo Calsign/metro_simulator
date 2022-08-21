@@ -127,8 +127,12 @@ class Highways(Network):
         for highway in self.osm.highways:
             highway_tag = highway.tags.get("highway")
             if highway_tag in ["motorway_link", "trunk_link"]:
+                endpoints = [round_coords(c) for c in highway.shape.boundary.geoms]
+                if len(endpoints) == 0:
+                    # TODO: this is confusing
+                    continue
                 # in general we might have an off-ramp at the start and an on-ramp at the end
-                first, last = (round_coords(c) for c in highway.shape.boundary.geoms)
+                first, last = endpoints
                 # TODO: currently this will attach both an off-ramp and an on-ramp, which is incorrect
                 yield InputNode(first, 10, JunctionData(RampDirection.OFF_RAMP))
                 yield InputNode(last, 10, JunctionData(RampDirection.ON_RAMP))

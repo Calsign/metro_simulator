@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing as T
 
 from dataclasses import dataclass
@@ -17,6 +19,46 @@ from generate.network import Network, InputNode, InputWay, Segment
 from generate.highways import parse_speed_limit
 
 from generate import osm
+
+
+class BrokenMetroLineException(Exception):
+    def __init__(
+        self,
+        metro_line: osm.Relation,
+        route_index: int,
+        segment_set_index: int,
+        all_prev_endpoints: T.List[T.Tuple[float, float]],
+        prev_endpoints: T.List[T.Tuple[float, float]],
+        prev_segments: T.List[Segment],
+        current_segments: T.List[Segment],
+        linearized_segments: T.List[Segment],
+    ) -> None:
+        super().__init__(
+            f"""
+Broken metro line. Details:
+
+Metro line: {metro_line}
+
+Route index: {route_index}
+Segment set index: {segment_set_index}
+
+All previous endpoints: {all_prev_endpoints}
+Previous endpoints: {prev_endpoints}
+Previous segments: {prev_segments}
+
+Current segments: {current_segments}
+Linearized segments: {linearized_segments}
+        """
+        )
+
+
+class HandleBrokenMetroLineStrategy(Enum):
+    FAIL = 1
+    SKIP = 2
+
+    @staticmethod
+    def default() -> HandleBrokenMetroLineStrategy:
+        HandleBrokenMetroLineStrategy.FAIL
 
 
 def parse_color(color: str):
@@ -88,6 +130,17 @@ class Metros(Network):
             network: parse_speed(speed_limit)
             for network, speed_limit in dataset["data"]["subway_speeds"].items()
         }
+
+    @cached_property
+    def broken_metro_line_strategies(self) -> T.Dict[str, str]:
+        dataset = self.get_dataset()
+        assert dataset is not None
+        strategies = defaultdict(HandleBrokenMetroLineStrategy.default)
+        for network, strategy in dataset["data"][
+            "broken_metro_line_strategies"
+        ].items():
+            strategies[network] = HandleBrokenMetroLineStrategy[strategy.upper()]
+        return strategies
 
     @cached_property
     def stations(self) -> T.List[Station]:
@@ -164,6 +217,213 @@ class Metros(Network):
         data = engine.RailwaySegmentData(data.speed_limit)
         return state.add_railway_segment(data, start_id, end_id, points)
 
+    def post_init_route(self, route_index: int, route: osm.Relation) -> None:
+        # TODO: instead of assuming the OSM way ordering is reliable, find a good ordering of
+        # the segments with the correct orientation
+        segment_sets: T.List[T.Set[int]] = []
+
+        for member in route.members:
+            if (
+                member.type == "w"
+                and member.ref in self.osm.subway_map
+                and member.role == ""
+            ):
+                way = self.osm.subway_map[member.ref]
+                if way.id not in self.way_segment_map:
+                    # this can happen if the way is out of bounds
+                    continue
+
+                way_segments = self.way_segment_map[way.id]
+                if len(segment_sets) == 0 or way_segments != segment_sets[-1]:
+                    segment_sets.append(way_segments)
+
+            elif (
+                member.type == "n"
+                and member.ref in self.osm.stop_map
+                and member.role == "stop"
+            ):
+                pass
+
+        if len(segment_sets) == 0:
+            return
+
+        del member
+        del way
+        del way_segments
+
+        segments: T.List[Segment] = []
+
+        # rectify segment sets into segments
+        for (i, segment_set) in enumerate(segment_sets):
+            assert len(segment_set) > 0
+
+            # linearize
+            junctions: T.Mapping[T.Tuple[float, float], T.List[Segment]] = defaultdict(
+                list
+            )
+            for segment_id in segment_set:
+                segment = self.id_segment_map[segment_id]
+                junctions[segment.start].append(segment)
+                junctions[segment.end].append(segment)
+
+            del segment_id
+            del segment
+
+            endpoints: T.List[T.Tuple[float, float]] = []
+            for (point, segs) in junctions.items():
+                assert len(segs) in (1, 2), (len(segs), segs)
+                if len(segs) == 1:
+                    endpoints.append(point)
+
+            assert len(endpoints) == 2, (
+                endpoints,
+                [self.id_segment_map[seg] for seg in segment_set],
+            )
+
+            del point
+            del segs
+
+            current_point = endpoints[0]
+            linearized_segments = [junctions[current_point][0]]
+            while True:
+                next_points = [
+                    endpoint
+                    for endpoint in linearized_segments[-1].endpoints()
+                    if endpoint != current_point
+                ]
+                assert len(next_points) == 1
+                next_point = next_points[0]
+                next_junction = junctions[next_point]
+                assert len(next_junction) in (1, 2)
+                next_segments = [
+                    seg for seg in next_junction if seg != linearized_segments[-1]
+                ]
+                if len(next_segments) == 0:
+                    # reached the end
+                    assert next_point in endpoints, (current_point, endpoints)
+                    break
+                next_segment = next_segments[0]
+                linearized_segments.append(next_segment)
+                current_point = next_point
+
+                del next_points
+                del next_point
+                del next_junction
+                del next_segments
+                del next_segment
+
+            assert len(linearized_segments) == len(segment_set), (
+                "metro line",
+                route.tags,
+                "metro line index",
+                route_index,
+                "index",
+                i,
+                "endpoints",
+                endpoints,
+                "linearized segments",
+                linearized_segments,
+                "segment set",
+                [self.id_segment_map[seg] for seg in segment_set],
+            )
+
+            del endpoints
+
+            def check(segment: Segment, linearized_segment: Segment) -> bool:
+                return segment.has_endpoint(
+                    linearized_segment.start
+                ) or segment.has_endpoint(linearized_segment.end)
+
+            if len(segments) == 0:
+                # First one; don't have a reference point, so just add them. If we get the
+                # orientation wrong, we will need to fix it later.
+                segments.extend(linearized_segments)
+            else:
+                # find correct orientation
+
+                if check(segments[-1], linearized_segments[0]):
+                    segments.extend(linearized_segments)
+                elif check(segments[-1], linearized_segments[-1]):
+                    segments.extend(reversed(linearized_segments))
+
+                # we may have picked the wrong orientation for the first set
+                elif i == 1 and check(segments[0], linearized_segments[0]):
+                    segments.reverse()
+                    segments.extend(linearized_segments)
+                elif i == 1 and check(segments[0], linearized_segments[-1]):
+                    segments.reverse()
+                    segments.extend(reversed(linearized_segments))
+
+                # we might be at a turnaround
+                # the longest this can be is a single pre-split segment, i.e. a segment set
+                elif i >= 1 and check(
+                    segments[-len(segment_sets[i - 1])], linearized_segments[0]
+                ):
+                    segments.extend(reversed(segments[-len(segment_sets[i - 1]) : -1]))
+                    segments.extend(linearized_segments)
+                elif i >= 1 and check(
+                    segments[-len(segment_sets[i - 1])], linearized_segments[-1]
+                ):
+                    segments.extend(reversed(segments[-len(segment_sets[i - 1]) : -1]))
+                    segments.extend(reversed(linearized_segments))
+
+                elif (
+                    self.broken_metro_line_strategies[route.tags["network"]]
+                    == HandleBrokenMetroLineStrategy.SKIP
+                ):
+                    # sure thing, let's just skip it
+                    print(
+                        "Skipping broken metro line: {}".format(route.tags.get("name"))
+                    )
+                    return
+
+                else:
+                    raise BrokenMetroLineException(
+                        metro_line=route,
+                        route_index=route_index,
+                        segment_set_index=i,
+                        all_prev_endpoints=[
+                            segment.endpoints() for segment in segments
+                        ],
+                        prev_endpoints=segments[-1].endpoints(),
+                        prev_segments=[
+                            self.id_segment_map[seg] for seg in segment_sets[i - 1]
+                        ],
+                        current_segments=[
+                            self.id_segment_map[seg] for seg in segment_set
+                        ],
+                        linearized_segments=linearized_segments,
+                    )
+
+            del segment_set
+            del linearized_segments
+
+        if len(segments) == 0:
+            return
+
+        del segment_sets
+
+        name = route.tags.get("name")
+        assert name is not None, route
+
+        color = route.tags.get("colour")
+        if color is None:
+            print("Warning: missing color for metro line {}".format(name))
+            color = "#000000"
+        parsed_color = parse_color(color)
+        # TODO: generate schedules
+        schedule = Schedule(60 * 15)
+
+        metro_network = route.tags["network"]
+        if metro_network not in self.speed_limits:
+            raise Exception(
+                "Missing speed limit for metro network {}".format(metro_network)
+            )
+        speed_limit = self.speed_limits[metro_network]
+
+        data = MetroLineData(name, parsed_color, schedule, speed_limit)
+        self.metro_lines.append(MetroLine(data, segments))
+
     def post_init(self, dataset: osm.OsmData, qtree: Quadtree) -> None:
         super().post_init(dataset, qtree)
 
@@ -184,204 +444,7 @@ class Metros(Network):
                 continue
             seen_routes.add(route.id)
 
-            # TODO: instead of assuming the OSM way ordering is reliable, find a good ordering of
-            # the segments with the correct orientation
-            segment_sets: T.List[T.Set[int]] = []
-
-            for member in route.members:
-                if (
-                    member.type == "w"
-                    and member.ref in self.osm.subway_map
-                    and member.role == ""
-                ):
-                    way = self.osm.subway_map[member.ref]
-                    if way.id not in self.way_segment_map:
-                        # this can happen if the way is out of bounds
-                        continue
-
-                    way_segments = self.way_segment_map[way.id]
-                    if len(segment_sets) == 0 or way_segments != segment_sets[-1]:
-                        segment_sets.append(way_segments)
-
-                elif (
-                    member.type == "n"
-                    and member.ref in self.osm.stop_map
-                    and member.role == "stop"
-                ):
-                    pass
-
-            if len(segment_sets) == 0:
-                continue
-
-            del member
-            del way
-            del way_segments
-
-            segments: T.List[Segment] = []
-
-            # rectify segment sets into segments
-            for (i, segment_set) in enumerate(segment_sets):
-                assert len(segment_set) > 0
-
-                # linearize
-                junctions: T.Mapping[
-                    T.Tuple[float, float], T.List[Segment]
-                ] = defaultdict(list)
-                for segment_id in segment_set:
-                    segment = self.id_segment_map[segment_id]
-                    junctions[segment.start].append(segment)
-                    junctions[segment.end].append(segment)
-
-                del segment_id
-                del segment
-
-                endpoints: T.List[T.Tuple[float, float]] = []
-                for (point, segs) in junctions.items():
-                    assert len(segs) in (1, 2), (len(segs), segs)
-                    if len(segs) == 1:
-                        endpoints.append(point)
-
-                assert len(endpoints) == 2
-
-                del point
-                del segs
-
-                current_point = endpoints[0]
-                linearized_segments = [junctions[current_point][0]]
-                while True:
-                    next_points = [
-                        endpoint
-                        for endpoint in linearized_segments[-1].endpoints()
-                        if endpoint != current_point
-                    ]
-                    assert len(next_points) == 1
-                    next_point = next_points[0]
-                    next_junction = junctions[next_point]
-                    assert len(next_junction) in (1, 2)
-                    next_segments = [
-                        seg for seg in next_junction if seg != linearized_segments[-1]
-                    ]
-                    if len(next_segments) == 0:
-                        # reached the end
-                        assert next_point in endpoints, (current_point, endpoints)
-                        break
-                    next_segment = next_segments[0]
-                    linearized_segments.append(next_segment)
-                    current_point = next_point
-
-                    del next_points
-                    del next_point
-                    del next_junction
-                    del next_segments
-                    del next_segment
-
-                assert len(linearized_segments) == len(segment_set), (
-                    "metro line",
-                    route.tags,
-                    "metro line index",
-                    route_index,
-                    "index",
-                    i,
-                    "endpoints",
-                    endpoints,
-                    "linearized segments",
-                    linearized_segments,
-                    "segment set",
-                    [self.id_segment_map[seg] for seg in segment_set],
-                )
-
-                del endpoints
-
-                def check(segment: Segment, linearized_segment: Segment) -> bool:
-                    return segment.has_endpoint(
-                        linearized_segment.start
-                    ) or segment.has_endpoint(linearized_segment.end)
-
-                if len(segments) == 0:
-                    # First one; don't have a reference point, so just add them. If we get the
-                    # orientation wrong, we will need to fix it later.
-                    segments.extend(linearized_segments)
-                else:
-                    # find correct orientation
-
-                    if check(segments[-1], linearized_segments[0]):
-                        segments.extend(linearized_segments)
-                    elif check(segments[-1], linearized_segments[-1]):
-                        segments.extend(reversed(linearized_segments))
-
-                    # we may have picked the wrong orientation for the first set
-                    elif i == 1 and check(segments[0], linearized_segments[0]):
-                        segments.reverse()
-                        segments.extend(linearized_segments)
-                    elif i == 1 and check(segments[0], linearized_segments[-1]):
-                        segments.reverse()
-                        segments.extend(reversed(linearized_segments))
-
-                    # we might be at a turnaround
-                    # the longest this can be is a single pre-split segment, i.e. a segment set
-                    elif i >= 1 and check(
-                        segments[-len(segment_sets[i - 1])], linearized_segments[0]
-                    ):
-                        segments.extend(
-                            reversed(segments[-len(segment_sets[i - 1]) : -1])
-                        )
-                        segments.extend(linearized_segments)
-                    elif i >= 1 and check(
-                        segments[-len(segment_sets[i - 1])], linearized_segments[-1]
-                    ):
-                        segments.extend(
-                            reversed(segments[-len(segment_sets[i - 1]) : -1])
-                        )
-                        segments.extend(reversed(linearized_segments))
-
-                    else:
-                        assert False, (
-                            "metro line",
-                            route.tags,
-                            "metro line index",
-                            route_index,
-                            "index",
-                            i,
-                            "all prev endpoints",
-                            [segment.endpoints() for segment in segments],
-                            "prev endpoints",
-                            segments[-1].endpoints(),
-                            "prev segments",
-                            [self.id_segment_map[seg] for seg in segment_sets[i - 1]],
-                            "current segments",
-                            [self.id_segment_map[seg] for seg in segment_set],
-                            "current linearized segments",
-                            linearized_segments,
-                        )
-
-                del segment_set
-                del linearized_segments
-
-            if len(segments) == 0:
-                continue
-
-            del segment_sets
-
-            name = route.tags.get("name")
-            assert name is not None, route
-
-            color = route.tags.get("colour")
-            if color is None:
-                print("Warning: missing color for metro line {}".format(name))
-                color = "#000000"
-            parsed_color = parse_color(color)
-            # TODO: generate schedules
-            schedule = Schedule(60 * 15)
-
-            metro_network = route.tags["network"]
-            if metro_network not in self.speed_limits:
-                raise Exception(
-                    "Missing speed limit for metro network {}".format(metro_network)
-                )
-            speed_limit = self.speed_limits[metro_network]
-
-            data = MetroLineData(name, parsed_color, schedule, speed_limit)
-            self.metro_lines.append(MetroLine(data, segments))
+            self.post_init_route(route_index, route)
 
     def merge(self, node: Quadtree, convolve: ConvolveData) -> None:
         pass
