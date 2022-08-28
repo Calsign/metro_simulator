@@ -45,6 +45,7 @@ pub enum Trigger {
     AgentRouteAdvance,
     AgentLifeDecisions,
     WorkplaceDecisions,
+    AdvanceNetworkTombstones,
     DummyTrigger,
     DoublingTrigger,
 }
@@ -138,18 +139,27 @@ impl TriggerType for UpdateTrafficSender {
     fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         engine.record_traffic_snapshot();
 
-        // This choice of horizon is important; it guarantees that if the engine is serialized and
-        // deserialized during the computation, we can still update the traffic serially with the
-        // correct horizon when we encounter the receiver trigger.
-        let receiver =
-            engine.update_route_weights_async(*UPDATE_TRAFFIC_HORIZON + *UPDATE_TRAFFIC_DEADLINE);
+        // TODO: it could make sense to have this apply to route queries as well
+        lazy_static::lazy_static! {
+            static ref SINGLE_THREAD: bool = std::env::var("DEBUG_SINGLE_THREAD").is_ok();
+        }
 
-        engine.trigger_queue.push_rel(
-            UpdateTrafficReceiver {
-                receiver: Receiver::new(receiver),
-            },
-            *UPDATE_TRAFFIC_DEADLINE,
-        );
+        if *SINGLE_THREAD {
+            engine.update_route_weights(*UPDATE_TRAFFIC_HORIZON);
+        } else {
+            // This choice of horizon is important; it guarantees that if the engine is serialized and
+            // deserialized during the computation, we can still update the traffic serially with the
+            // correct horizon when we encounter the receiver trigger.
+            let receiver = engine
+                .update_route_weights_async(*UPDATE_TRAFFIC_HORIZON + *UPDATE_TRAFFIC_DEADLINE);
+
+            engine.trigger_queue.push_rel(
+                UpdateTrafficReceiver {
+                    receiver: Receiver::new(receiver),
+                },
+                *UPDATE_TRAFFIC_DEADLINE,
+            );
+        }
 
         // re-trigger every hour of simulated time
         engine
@@ -167,16 +177,22 @@ impl TriggerType for UpdateTrafficSender {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct UpdateTrafficReceiver {
     #[serde(skip)]
-    receiver: Receiver<route::FastGraphWrapper>,
+    receiver: Receiver<(route::FastGraphWrapper, u64)>,
 }
 
 impl TriggerType for UpdateTrafficReceiver {
     fn execute(mut self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
         match self.receiver.receive() {
-            Some(graph) => engine.update_route_weights_async_callback(graph?),
-            None => {
+            Some(Ok((graph, version)))
+                if version == engine.base_graph.read().unwrap().version() =>
+            {
+                engine.update_route_weights_async_callback(graph)
+            }
+            Some(Err(err)) => return Err(err),
+            _ => {
                 // We don't have a graph because the engine state was serialized between when the
                 // query was queued and now. The best we can do is re-compute it here.
+                // This also gets triggered when the networks were just updated.
                 engine.update_route_weights(*UPDATE_TRAFFIC_HORIZON);
             }
         }
@@ -604,6 +620,23 @@ impl TriggerType for WorkplaceDecisions {
             .trigger_queue
             .push_rel(self, Time::new::<day>(2).value);
 
+        Ok(())
+    }
+
+    fn debug_context(&self, _state: &Engine) -> Option<String> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct AdvanceNetworkTombstones {}
+
+impl TriggerType for AdvanceNetworkTombstones {
+    fn execute(self, engine: &mut Engine, _time: u64) -> Result<(), Error> {
+        engine.state.advance_network_tombstones();
+        engine
+            .trigger_queue
+            .push_rel(self, Time::new::<day>(1).value);
         Ok(())
     }
 

@@ -156,12 +156,14 @@ impl FastGraphWrapper {
         world_state: &W,
         state: &state::State<F>,
         thread_pool: &mut threadpool::ThreadPool,
-    ) -> crossbeam::channel::Receiver<Result<Self, E>>
+        version: u64,
+    ) -> crossbeam::channel::Receiver<Result<(Self, u64), E>>
     where
         W: WorldState,
         F: state::Fields,
         E: From<Error> + Send + 'static,
     {
+        assert!(self.is_prepared());
         let input_graph = self.create_input(world_state, state);
         assert_eq!(
             input_graph.get_num_nodes(),
@@ -183,14 +185,17 @@ impl FastGraphWrapper {
             )
             .unwrap();
             let path_calculator = fast_paths::create_calculator(&fast_graph);
-            let res = Ok(Self {
-                input,
-                node_map,
-                edge_map,
-                fast_graph: Some(fast_graph),
-                node_ordering: Some(node_ordering),
-                path_calculator: Some(path_calculator),
-            });
+            let res = Ok((
+                Self {
+                    input,
+                    node_map,
+                    edge_map,
+                    fast_graph: Some(fast_graph),
+                    node_ordering: Some(node_ordering),
+                    path_calculator: Some(path_calculator),
+                },
+                version,
+            ));
             sender.send(res).unwrap();
         });
 

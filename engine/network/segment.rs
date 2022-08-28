@@ -1,8 +1,9 @@
 use once_cell::unsync::OnceCell;
 use serde::{Deserialize, Serialize};
 
+use crate::change_state::{ChangeState, WithChangeState};
 use crate::junction::JunctionHandle;
-use crate::network::Key;
+use crate::network::{Handle, Key, WithHandle};
 use crate::timing::TimingConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -11,6 +12,12 @@ pub struct SegmentHandle(pub(crate) u64);
 impl SegmentHandle {
     pub fn inner(&self) -> u64 {
         self.0
+    }
+}
+
+impl Handle for SegmentHandle {
+    fn create(id: u64) -> Self {
+        Self(id)
     }
 }
 
@@ -27,11 +34,34 @@ pub struct Segment<T> {
     /// spline mapping time to distance (in meters) along spline
     #[serde(skip)]
     dist_spline: OnceCell<(TimingConfig, splines::Spline<f64, f64>)>,
-    start: JunctionHandle,
-    end: JunctionHandle,
+    pub(crate) start: JunctionHandle,
+    pub(crate) end: JunctionHandle,
+    pub change_state: ChangeState,
 }
 
 id_cmp::id_cmp!(Segment<T>, id, T);
+
+impl<T: Clone> WithHandle<SegmentHandle> for Segment<T> {
+    fn get_id(&self) -> SegmentHandle {
+        self.id
+    }
+
+    fn clone_new_id(&self, id: SegmentHandle) -> Self {
+        let mut ret = (*self).clone();
+        ret.id = id;
+        ret
+    }
+}
+
+impl<T> WithChangeState for Segment<T> {
+    fn change_state(&self) -> &ChangeState {
+        &self.change_state
+    }
+
+    fn change_state_mut(&mut self) -> &mut ChangeState {
+        &mut self.change_state
+    }
+}
 
 impl<T> Segment<T> {
     pub(crate) fn new(
@@ -50,6 +80,7 @@ impl<T> Segment<T> {
             dist_spline: OnceCell::new(),
             start: start_junction,
             end: end_junction,
+            change_state: ChangeState::Active,
         }
     }
 

@@ -54,3 +54,15 @@ ms_rust_test(
         "@crates//:uom",
     ],
 )
+
+ms_rust_test(
+    name = "network_mutation_test",
+    srcs = ["network_mutation_test.rs"],
+    data = ["//maps:sf"],
+    deps = [
+        "//engine",
+        "@crates//:rand",
+        "@crates//:rand_chacha",
+        "@crates//:uom",
+    ],
+)

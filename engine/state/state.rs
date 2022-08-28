@@ -187,6 +187,16 @@ impl<F: Fields> State<F> {
             }
         }
     }
+
+    pub fn apply_change_set(&mut self) {
+        self.highways.apply_change_set();
+        self.railways.apply_change_set();
+    }
+
+    pub fn advance_network_tombstones(&mut self) {
+        self.highways.advance_tombstones();
+        self.railways.advance_tombstones();
+    }
 }
 
 #[derive(Debug, Clone, Default)]

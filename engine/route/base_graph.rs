@@ -228,6 +228,9 @@ pub fn construct_base_graph<F: state::Fields>(
         let mut junction_map = HashMap::new();
         for junction_id in metro_line.junctions(&input.state.railways) {
             let junction = input.state.railways.junction(junction_id);
+            if !junction.change_state.is_active() {
+                continue;
+            }
             let (junction_graph_id, address) = match &junction.data.station {
                 Some(station) => {
                     let station_id = *station_map.entry(station.address).or_insert_with(|| {
@@ -315,6 +318,9 @@ pub fn construct_base_graph<F: state::Fields>(
 
         for oriented_segment in metro_line.segments() {
             let segment = input.state.railways.segment(oriented_segment.segment);
+            if !segment.change_state.is_active() {
+                continue;
+            }
             let (start_id, start_address) =
                 junction_map[&oriented_segment.start_junction(&input.state.railways)];
             let (end_id, end_address) =
@@ -343,6 +349,10 @@ pub fn construct_base_graph<F: state::Fields>(
 
     for junction in input.state.highways.junctions().values() {
         // TODO: filter on junctions
+
+        if !junction.change_state.is_active() {
+            continue;
+        }
 
         let (x, y) = junction.location.into();
         let address = quadtree::Address::from_xy(x as u64, y as u64, input.state.config.max_depth);
@@ -393,13 +403,37 @@ pub fn construct_base_graph<F: state::Fields>(
             );
         }
 
+        if !segment.change_state.is_active() {
+            continue;
+        }
+
         let edge_id = graph.add_edge(
             *junction_map
                 .get(&segment.start_junction())
-                .expect("missing start junction"),
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing start junction: {:#?}, {:#?}",
+                        segment,
+                        input
+                            .state
+                            .highways
+                            .junctions()
+                            .get(&segment.start_junction())
+                    )
+                }),
             *junction_map
                 .get(&segment.end_junction())
-                .expect("missing end junction"),
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing end junction: {:#?}, {:#?}",
+                        segment,
+                        input
+                            .state
+                            .highways
+                            .junctions()
+                            .get(&segment.end_junction())
+                    )
+                }),
             Edge::Highway {
                 segment: segment.id,
                 data: segment.data.clone(),

@@ -3,6 +3,7 @@ load("//util:macros.bzl", "ms_rust_library")
 ms_rust_library(
     name = "network",
     srcs = [
+        "change_state.rs",
         "junction.rs",
         "lib.rs",
         "network.rs",

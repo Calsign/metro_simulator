@@ -36,6 +36,9 @@ pub enum Error {
 pub struct BaseGraph {
     base_graph: once_cell::sync::OnceCell<route::Graph>,
     per_thread: thread_local::ThreadLocal<std::cell::RefCell<route::Graph>>,
+    /// Used to prevent the UpdateTrafficReceiver trigger from clobbering the new base graph after
+    /// the state is changed. Increments with each state change.
+    version: u64,
 }
 
 impl Default for BaseGraph {
@@ -43,6 +46,7 @@ impl Default for BaseGraph {
         Self {
             base_graph: once_cell::sync::OnceCell::new(),
             per_thread: thread_local::ThreadLocal::new(),
+            version: 0,
         }
     }
 }
@@ -52,6 +56,7 @@ impl Clone for BaseGraph {
         Self {
             base_graph: self.base_graph.clone(),
             per_thread: thread_local::ThreadLocal::new(),
+            version: self.version,
         }
     }
 }
@@ -117,6 +122,20 @@ impl BaseGraph {
 
     pub fn get_stats(&self) -> Option<route::BaseGraphStats> {
         self.base_graph.get().map(|g| g.get_stats())
+    }
+
+    /**
+     * Call this every time the underlying highways, railways, or metro lines are modified. This
+     * will force the base graph to be re-constructed from scratch.
+     */
+    pub fn clear(&mut self) {
+        self.base_graph = once_cell::sync::OnceCell::new();
+        self.clear_thread_cache();
+        self.version += 1;
+    }
+
+    pub fn version(&self) -> u64 {
+        self.version
     }
 }
 
@@ -399,7 +418,6 @@ impl Engine {
             .world_state_history
             .get_predictor(self.time_state.current_time + horizon);
 
-        // TODO: invalidate base graph when metros/highways change
         let mut base_graph = self.base_graph.write().unwrap();
         base_graph
             .get_base_graph_mut(&self.state)
@@ -412,7 +430,7 @@ impl Engine {
     pub fn update_route_weights_async(
         &mut self,
         horizon: u64,
-    ) -> crossbeam::channel::Receiver<Result<route::FastGraphWrapper, Error>> {
+    ) -> crossbeam::channel::Receiver<Result<(route::FastGraphWrapper, u64), Error>> {
         // predict future traffic
         let predicted_state = &self
             .world_state_history
@@ -422,7 +440,12 @@ impl Engine {
         let receiver = base_graph
             .get_base_graph(&self.state)
             .graph
-            .update_weights_async(predicted_state, &self.state, &mut self.thread_pool);
+            .update_weights_async(
+                predicted_state,
+                &self.state,
+                &mut self.thread_pool,
+                base_graph.version,
+            );
 
         receiver
     }
@@ -431,6 +454,12 @@ impl Engine {
         let mut base_graph = self.base_graph.write().unwrap();
         base_graph.get_base_graph_mut(&self.state).graph = graph;
         base_graph.clear_thread_cache();
+    }
+
+    pub fn apply_change_set(&mut self) {
+        let mut base_graph = self.base_graph.write().unwrap();
+        self.state.apply_change_set();
+        base_graph.clear();
     }
 
     /**
@@ -457,6 +486,8 @@ impl Engine {
             }
             self.trigger_queue
                 .push(crate::behavior::WorkplaceDecisions {}, 0);
+            self.trigger_queue
+                .push(crate::behavior::AdvanceNetworkTombstones {}, 0);
         }
     }
 
