@@ -4,23 +4,24 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # RUST
 
-# 0.3.1, 2022-05-07
-RULES_RUST_REF = "612f4362bc2b5d9aa7d9307ecaf3346faba285af"
+# 0.10.0, 2022-09-04
+RULES_RUST_VERSION = "0.10.0"
 
-RUST_VERSION = "1.60.0"
+RUST_VERSION = "1.63.0"
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "rules_rust",
     patch_args = ["-p1"],
     patches = [
-        "//patches:rules_rust__compile_one_dependency.patch",
-        "//patches:rules_rust__android_armeabi-v7a.patch",
         "//patches:rules_rust__alias_deduplicate.patch",
-        "//patches:rules_rust__issue_1265.patch",
     ],
-    sha256 = "79633aebfdae69e88659833c2a64cba51895da007e8e14502bd3e77abb95c33f",
-    strip_prefix = "rules_rust-{}".format(RULES_RUST_REF),
-    urls = ["https://github.com/bazelbuild/rules_rust/archive/{}.tar.gz".format(RULES_RUST_REF)],
+    sha256 = "0cc7e6b39e492710b819e00d48f2210ae626b717a3ab96e048c43ab57e61d204",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_rust/releases/download/{}/rules_rust-v0.10.0.tar.gz".format(RULES_RUST_VERSION),
+        "https://github.com/bazelbuild/rules_rust/releases/download/{0}/rules_rust-v{0}.tar.gz".format(RULES_RUST_VERSION),
+    ],
 )
 
 load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains", "rust_repository_set")
@@ -58,11 +59,13 @@ rust_repository_set(
 
 # CRATE UNIVERSE
 
-load("@rules_rust//crate_universe:deps_bootstrap.bzl", "cargo_bazel_bootstrap")
+load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
+
+# NOTE: need to bootstrap in order to get the patch applied
+crate_universe_dependencies(bootstrap = True)
+
 load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository", "splicing_config")
 load("//cargo:crates.bzl", "all_crates")
-
-cargo_bazel_bootstrap(name = "cargo_bazel_bootstrap")
 
 crates_repository(
     name = "crates",
@@ -97,6 +100,7 @@ crates_repository(
             ),
         ],
     },
+    cargo_lockfile = "//cargo:cargo.lock",
     generator = "@cargo_bazel_bootstrap//:cargo-bazel",
     lockfile = "//cargo:crate_universe.lock",
     packages = all_crates(),
