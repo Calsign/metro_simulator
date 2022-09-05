@@ -14,25 +14,16 @@ ms_rust_library(
         "//engine/network",
         "//engine/quadtree",
         "//util:id_cmp",
-        "//util:spline_util",
-        "@crates//:cgmath",
-        "@crates//:chrono",
         "@crates//:itertools",
         "@crates//:lazy_static",
-        "@crates//:once_cell",
         "@crates//:serde",
         "@crates//:splines",
-        "@crates//:thiserror",
     ],
 )
 
 ms_rust_test(
     name = "metro_tests",
     crate = ":metro",
-    deps = [
-        ":metro",
-        "@crates//:float-cmp",
-    ],
 )
 
 ms_rust_binary(
@@ -46,6 +37,5 @@ ms_rust_binary(
         "//engine",
         "@crates//:clap",
         "@crates//:plotters",
-        "@crates//:plotters-bitmap",
     ],
 )

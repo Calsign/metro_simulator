@@ -396,7 +396,7 @@ mod sqrt_pair_tests {
 
 #[cfg(test)]
 mod dist_spline_tests {
-    use crate::timing::{distance_spline, time_rectify, SpeedKey, SqrtPair};
+    use crate::timing::{distance_spline, time_rectify, SpeedKey, SqrtPair, TimingConfig};
     use float_cmp::assert_approx_eq;
 
     #[test]
@@ -414,7 +414,13 @@ mod dist_spline_tests {
                     a: 0.5,
                 },
             ],
-            1.0,
+            &TimingConfig {
+                tile_size: 1.0,
+                max_speed: 1.0,
+                max_acceleration: 1.0,
+                start_speed: 0.0,
+                end_speed: 0.0,
+            },
         );
         assert_eq!(speed_keys.len(), 3);
         assert_approx_eq!(f64, speed_keys[0].t, 0.0);

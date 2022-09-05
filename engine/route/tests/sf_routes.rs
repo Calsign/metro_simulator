@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use lazy_static::lazy_static;
 
 use engine::Engine;
+use quadtree::Address;
 use route::{best_route, CarConfig, Edge, Graph, Node, QueryInput, Route};
 
 #[derive(Debug, Clone)]
@@ -194,7 +195,7 @@ lazy_static! {
                 HasHighwaySegmentName(StringPredicate::Any),
                 HasMetroStop(StringPredicate::Any),
             ],
-            Some(CarConfig::CollectParkedCar { address: quadtree::Address::from_xy(2273, 1631, 12) }),
+            Some(CarConfig::CollectParkedCar { address: Address::from_xy(2273, 1631, 12) }),
         ),
         // this test addresses a past issue where car routes starting near metro stations didn't work
         RouteTest::new(

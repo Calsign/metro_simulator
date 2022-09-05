@@ -1,8 +1,9 @@
-load("//util:macros.bzl", "ms_rust_benchmark", "ms_rust_test")
+load("//util:macros.bzl", "ms_rust_binary", "ms_rust_test")
 
-ms_rust_benchmark(
+ms_rust_binary(
     name = "simulation_timer",
     srcs = ["simulation_timer.rs"],
+    benchmark = True,
     data = ["//maps:sf"],
     deps = [
         "//engine",
@@ -23,13 +24,12 @@ ms_rust_test(
     ],
 )
 
-ms_rust_benchmark(
+ms_rust_binary(
     name = "fields_timer",
     srcs = ["fields_timer.rs"],
+    benchmark = True,
     data = ["//maps:sf"],
-    deps = [
-        "//engine",
-    ],
+    deps = ["//engine"],
 )
 
 ms_rust_test(

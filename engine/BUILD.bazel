@@ -13,10 +13,10 @@ ms_rust_library(
         "trigger.rs",
     ],
     proc_macro_deps = [
-        "@crates//:enum_dispatch",
-        "@crates//:derive_more",
         "@crates//:derivative",
+        "@crates//:derive_more",
         "@crates//:enum-kinds",
+        "@crates//:enum_dispatch",
     ],
     visibility = ["//visibility:public"],
     deps = [
@@ -31,7 +31,6 @@ ms_rust_library(
         "@crates//:crossbeam",
         "@crates//:enum-iterator",
         "@crates//:fastblur",
-        "@crates//:itertools",
         "@crates//:lazy_static",
         "@crates//:once_cell",
         "@crates//:rand",
@@ -39,7 +38,6 @@ ms_rust_library(
         "@crates//:rand_distr",
         "@crates//:serde",
         "@crates//:serde_json",
-        "@crates//:splines",
         "@crates//:tabled",
         "@crates//:thiserror",
         "@crates//:thread_local",
@@ -52,8 +50,5 @@ ms_rust_library(
 ms_rust_test(
     name = "engine_tests",
     crate = ":engine",
-    deps = [
-        ":engine",
-        "@crates//:float-cmp",
-    ],
+    deps = ["@crates//:float-cmp"],
 )

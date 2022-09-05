@@ -1,4 +1,20 @@
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:exclude build
+
+# gazelle:rust_lockfile cargo/crate_universe.lock
+# gazelle:rust_crates_prefix @crates//:
+
+# gazelle:map_kind rust_library ms_rust_library //util:macros.bzl
+# gazelle:map_kind rust_binary ms_rust_binary //util:macros.bzl
+# gazelle:map_kind rust_test ms_rust_test //util:macros.bzl
+# gazelle:map_kind rust_shared_library ms_rust_shared_library //util:macros.bzl
+
+gazelle(
+    name = "gazelle",
+    gazelle = "@gazelle_rust//:gazelle_bin",
+)
 
 # generate bazel-project.json for rust-analyzer
 alias(

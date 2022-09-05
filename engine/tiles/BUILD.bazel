@@ -5,13 +5,9 @@ ms_rust_library(
     srcs = [
         "lib.rs",
     ],
-    proc_macro_deps = [
-        "@crates//:enum_dispatch",
-    ],
+    proc_macro_deps = ["@crates//:enum_dispatch"],
     visibility = ["//visibility:public"],
-    deps = [
-        "@crates//:serde",
-    ],
+    deps = ["@crates//:serde"],
 )
 
 ms_rust_test(

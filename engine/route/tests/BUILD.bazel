@@ -1,4 +1,4 @@
-load("//util:macros.bzl", "ms_rust_benchmark", "ms_rust_binary", "ms_rust_library", "ms_rust_shared_library", "ms_rust_test")
+load("//util:macros.bzl", "ms_rust_binary", "ms_rust_library", "ms_rust_shared_library", "ms_rust_test")
 
 ms_rust_library(
     name = "sf_routes",
@@ -18,9 +18,10 @@ ms_rust_test(
     deps = [":sf_routes"],
 )
 
-ms_rust_benchmark(
+ms_rust_binary(
     name = "sf_routes_benchmark",
     srcs = ["sf_routes_benchmark.rs"],
+    benchmark = True,
     deps = [
         ":sf_routes",
         "//engine",
@@ -36,31 +37,32 @@ ms_rust_shared_library(
     srcs = ["sf_routes_android_benchmark.rs"],
     tags = ["manual"],
     deps = [
+        ":sf_routes",
         "//engine",
         "//util:benchmark_util",
+        "@crates//:bencher",
         "@crates//:ndk",
         "@crates//:ndk-glue",
     ],
 )
 
-ms_rust_benchmark(
+ms_rust_binary(
     name = "isochrone_benchmark",
     srcs = ["isochrone_benchmark.rs"],
+    benchmark = True,
     deps = [
         ":sf_routes",
         "//engine",
-        "//engine/quadtree",
         "//engine/route",
         "@crates//:bencher",
         "@crates//:once_cell",
     ],
 )
 
-ms_rust_benchmark(
+ms_rust_binary(
     name = "base_graph_timer",
     srcs = ["base_graph_timer.rs"],
+    benchmark = True,
     data = ["//maps:sf"],
-    deps = [
-        "//engine",
-    ],
+    deps = ["//engine"],
 )

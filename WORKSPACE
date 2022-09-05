@@ -2,6 +2,13 @@ workspace(name = "metro_simulator")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+http_archive(
+    name = "gazelle_rust",
+    sha256 = "34f136688bf1b459375ac76a91ef3b2af710f688ca131332ae663a6c5249ebfe",
+    strip_prefix = "gazelle_rust-d4369494a5bb7ea811c46f089984a7267239cb62",
+    url = "https://github.com/Calsign/gazelle_rust/archive/d4369494a5bb7ea811c46f089984a7267239cb62.zip",
+)
+
 # RUST
 
 # 0.10.0, 2022-09-04
@@ -16,6 +23,7 @@ http_archive(
     patch_args = ["-p1"],
     patches = [
         "//patches:rules_rust__alias_deduplicate.patch",
+        "@gazelle_rust//patches:rules_rust_p1.patch",
     ],
     sha256 = "0cc7e6b39e492710b819e00d48f2210ae626b717a3ab96e048c43ab57e61d204",
     urls = [
@@ -277,3 +285,13 @@ rules_pkg_dependencies()
 load("//generate/datasets:datasets.bzl", "datasets")
 
 datasets.workspace_deps()
+
+# GAZELLE
+
+load("@gazelle_rust//:deps1.bzl", "gazelle_rust_dependencies1")
+
+gazelle_rust_dependencies1()
+
+load("@gazelle_rust//:deps2.bzl", "gazelle_rust_dependencies2")
+
+gazelle_rust_dependencies2()

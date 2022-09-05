@@ -10,11 +10,6 @@ ms_rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//engine/network",
-        "//engine/quadtree",
-        "//util:spline_util",
-        "@crates//:cgmath",
-        "@crates//:itertools",
         "@crates//:serde",
-        "@crates//:splines",
     ],
 )

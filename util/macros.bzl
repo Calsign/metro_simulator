@@ -18,8 +18,10 @@ def ms_rust_library(name, **kwargs):
         **kwargs
     )
 
-def ms_rust_binary(name, **kwargs):
+def ms_rust_binary(name, benchmark = False, **kwargs):
     _patch_rustc_flags(kwargs)
+    if benchmark:
+        _patch_kwargs(kwargs, "tags", ["bench"])
     rust_binary(
         name = name,
         **kwargs
@@ -35,14 +37,6 @@ def ms_rust_test(name, **kwargs):
 def ms_rust_shared_library(name, **kwargs):
     _patch_rustc_flags(kwargs)
     rust_shared_library(
-        name = name,
-        **kwargs
-    )
-
-def ms_rust_benchmark(name, **kwargs):
-    _patch_rustc_flags(kwargs)
-    _patch_kwargs(kwargs, "tags", ["bench"])
-    rust_binary(
         name = name,
         **kwargs
     )

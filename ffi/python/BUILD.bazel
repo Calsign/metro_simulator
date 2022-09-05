@@ -4,9 +4,7 @@ load("@rules_python//python:defs.bzl", "py_library", "py_test")
 ms_rust_shared_library(
     name = "bindings",
     srcs = ["bindings.rs"],
-    proc_macro_deps = [
-        "@crates//:derive_more",
-    ],
+    proc_macro_deps = ["@crates//:derive_more"],
     deps = [
         "//engine",
         "//engine/agent",
@@ -16,7 +14,6 @@ ms_rust_shared_library(
         "//engine/quadtree",
         "//engine/state",
         "//engine/tiles",
-        "//util:spline_util",
         "@crates//:cgmath",
         "@crates//:chrono",
         "@crates//:pyo3",

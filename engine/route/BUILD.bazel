@@ -17,8 +17,8 @@ ms_rust_library(
         "traffic.rs",
     ],
     proc_macro_deps = [
-        "@crates//:derive_more",
         "@crates//:derivative",
+        "@crates//:derive_more",
     ],
     visibility = ["//visibility:public"],
     deps = [

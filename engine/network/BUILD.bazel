@@ -1,4 +1,4 @@
-load("//util:macros.bzl", "ms_rust_library")
+load("//util:macros.bzl", "ms_rust_library", "ms_rust_test")
 
 ms_rust_library(
     name = "network",
@@ -21,4 +21,10 @@ ms_rust_library(
         "@crates//:serde",
         "@crates//:splines",
     ],
+)
+
+ms_rust_test(
+    name = "network_test",
+    crate = ":network",
+    deps = ["@crates//:float-cmp"],
 )

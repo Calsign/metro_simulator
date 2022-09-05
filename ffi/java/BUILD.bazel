@@ -5,9 +5,7 @@ load("@rules_cc//cc:defs.bzl", "cc_import")
 ms_rust_shared_library(
     name = "engine",
     srcs = ["engine.rs"],
-    deps = [
-        "@crates//:jni",
-    ],
+    deps = ["@crates//:jni"],
 )
 
 cc_import(

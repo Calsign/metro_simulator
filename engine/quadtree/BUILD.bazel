@@ -13,7 +13,6 @@ ms_rust_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "@crates//:anyhow",
         "@crates//:ordered-float",
         "@crates//:serde",
         "@crates//:thiserror",
