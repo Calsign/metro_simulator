@@ -31,7 +31,7 @@ where
     iterator.into_iter().fold(T::default(), std::ops::Add::add)
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, derive_more::Add)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, derive_more::Add)]
 pub struct SimpleDensity {
     pub total: usize,
     pub area: u64,
@@ -101,7 +101,7 @@ impl std::ops::Add for WeightedAverage {
     }
 }
 
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub struct MinMax {
     pub min: Option<i64>,
     pub max: Option<i64>,

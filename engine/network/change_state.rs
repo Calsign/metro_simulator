@@ -58,14 +58,16 @@ pub struct ChangeSet<T: Eq + std::hash::Hash> {
     removed: HashSet<T>,
 }
 
-impl<T: Eq + std::hash::Hash> ChangeSet<T> {
-    fn new() -> Self {
+impl<T: Eq + std::hash::Hash> Default for ChangeSet<T> {
+    fn default() -> Self {
         Self {
-            created: HashSet::new(),
-            removed: HashSet::new(),
+            created: HashSet::default(),
+            removed: HashSet::default(),
         }
     }
+}
 
+impl<T: Eq + std::hash::Hash> ChangeSet<T> {
     pub fn created(&self) -> &HashSet<T> {
         &self.created
     }
@@ -77,10 +79,10 @@ impl<T: Eq + std::hash::Hash> ChangeSet<T> {
 
 // TODO: I can't get the visibility right with this as a method
 // (it complains about leaking the type Handle)
-fn edit_changeset<'a, 'b, T: Handle, U: WithHandle<T> + WithChangeState>(
-    change_set: &'a mut ChangeSet<T>,
+fn edit_changeset<T: Handle, U: WithHandle<T> + WithChangeState>(
+    change_set: &'_ mut ChangeSet<T>,
     id: T,
-    items: &'b mut ManagedMap<T, U>,
+    items: &'_ mut ManagedMap<T, U>,
 ) -> T {
     assert!(!change_set.removed.contains(&id));
     assert!(items.get(id).change_state().is_staged_active());
@@ -147,9 +149,8 @@ fn advance_tombstones<T: Handle, U: WithHandle<T> + WithChangeState>(
 ) -> Vec<T> {
     // advance tombstones
     for item in items.inner.values_mut() {
-        match item.change_state_mut() {
-            ChangeState::Tombstone { countdown } => *countdown -= 1,
-            _ => (),
+        if let ChangeState::Tombstone { countdown } = item.change_state_mut() {
+            *countdown -= 1;
         }
     }
 
@@ -166,7 +167,7 @@ fn advance_tombstones<T: Handle, U: WithHandle<T> + WithChangeState>(
     to_remove
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct NetworkChangeSet {
     pub junctions: ChangeSet<JunctionHandle>,
     pub segments: ChangeSet<SegmentHandle>,
@@ -174,10 +175,7 @@ pub struct NetworkChangeSet {
 
 impl NetworkChangeSet {
     pub fn new() -> Self {
-        Self {
-            junctions: ChangeSet::new(),
-            segments: ChangeSet::new(),
-        }
+        Self::default()
     }
 }
 
@@ -188,12 +186,8 @@ impl<J: Clone, S: Clone> Network<J, S> {
             // if we just forked this junction, we also need to fork its adjacent segments
 
             // TODO: fix temp vector to satisfy borrow checker
-            let incoming_segments: Vec<SegmentHandle> = self
-                .junction(ret_id)
-                .incoming_segments()
-                .iter()
-                .copied()
-                .collect();
+            let incoming_segments: Vec<SegmentHandle> =
+                self.junction(ret_id).incoming_segments().to_vec();
             for incoming in incoming_segments {
                 // remove segment from the old junction
                 self.junction_mut(ret_id).remove_incoming(incoming);
@@ -230,12 +224,8 @@ impl<J: Clone, S: Clone> Network<J, S> {
                 }
             }
 
-            let outgoing_segments: Vec<SegmentHandle> = self
-                .junction(ret_id)
-                .outgoing_segments()
-                .iter()
-                .copied()
-                .collect();
+            let outgoing_segments: Vec<SegmentHandle> =
+                self.junction(ret_id).outgoing_segments().to_vec();
             for outgoing in outgoing_segments {
                 // remove segment from the old junction
                 self.junction_mut(ret_id).remove_outgoing(outgoing);

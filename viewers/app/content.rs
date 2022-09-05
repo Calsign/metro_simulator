@@ -92,7 +92,7 @@ impl App {
                     .state
                     .metros
                     .railway_segment_metro_lines(railway_segment.id);
-                if self.display_options.show_all_railways || metro_lines.len() > 0 {
+                if self.display_options.show_all_railways || !metro_lines.is_empty() {
                     let mut spline_visitor = DrawSplineVisitor::new(self, &painter, traffic);
                     railway_segment.visit_spline(
                         &mut spline_visitor,

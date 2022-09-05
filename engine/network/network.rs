@@ -73,13 +73,19 @@ pub struct Network<J: Clone, S: Clone> {
     pub(crate) change_set: NetworkChangeSet,
 }
 
-impl<J: Clone, S: Clone> Network<J, S> {
-    pub fn new() -> Self {
+impl<J: Clone, S: Clone> Default for Network<J, S> {
+    fn default() -> Self {
         Self {
             junctions: ManagedMap::new(),
             segments: ManagedMap::new(),
             change_set: NetworkChangeSet::new(),
         }
+    }
+}
+
+impl<J: Clone, S: Clone> Network<J, S> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn junction(&self, id: JunctionHandle) -> &Junction<J> {

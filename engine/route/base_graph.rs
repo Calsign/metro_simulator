@@ -345,7 +345,6 @@ pub fn construct_base_graph<F: state::Fields>(
     }
 
     let mut junction_map = HashMap::new();
-    let mut segment_map = HashMap::new();
 
     for junction in input.state.highways.junctions().values() {
         // TODO: filter on junctions
@@ -407,7 +406,7 @@ pub fn construct_base_graph<F: state::Fields>(
             continue;
         }
 
-        let edge_id = graph.add_edge(
+        graph.add_edge(
             *junction_map
                 .get(&segment.start_junction())
                 .unwrap_or_else(|| {
@@ -441,8 +440,6 @@ pub fn construct_base_graph<F: state::Fields>(
             },
             input.state,
         );
-
-        segment_map.insert(segment.id, edge_id);
     }
 
     if input.add_inferred_edges {

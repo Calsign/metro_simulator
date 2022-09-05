@@ -23,7 +23,7 @@ build:mypy --output_groups=+mypy
 
 build:check --config=rustfmt --config=mypy
 # run clippy by default
-build: --config=clippy
+build --config=clippy
 
 # enable C++ toolchains, necessary for Rust finding the NDK linkers
 common --incompatible_use_cc_configure_from_rules_cc

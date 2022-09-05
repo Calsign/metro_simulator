@@ -251,19 +251,19 @@ impl StatsEntry {
             mean: stats
                 .mean()
                 .map(|mean| format!("{:.2}", mean))
-                .unwrap_or("-".to_string()),
+                .unwrap_or_else(|| "-".to_string()),
             std_dev: stats
                 .std_dev()
                 .map(|std_dev| format!("{:.2}", std_dev))
-                .unwrap_or("-".to_string()),
+                .unwrap_or_else(|| "-".to_string()),
             min: stats
                 .min
                 .map(|min| min.to_string())
-                .unwrap_or("-".to_string()),
+                .unwrap_or_else(|| "-".to_string()),
             max: stats
                 .max
                 .map(|max| max.to_string())
-                .unwrap_or("-".to_string()),
+                .unwrap_or_else(|| "-".to_string()),
         }
     }
 }
@@ -322,7 +322,7 @@ mod incremental_stats_tests {
     use float_cmp::assert_approx_eq;
 
     fn mean(vals: &[u128]) -> Option<f64> {
-        if vals.len() > 0 {
+        if !vals.is_empty() {
             Some(vals.iter().sum::<u128>() as f64 / vals.len() as f64)
         } else {
             None

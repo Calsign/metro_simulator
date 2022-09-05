@@ -56,7 +56,7 @@ impl OrientedSegment {
         }
     }
 
-    pub fn maybe_reversed_iter<'a, T, I, F>(&self, iter: I, mut f: F)
+    pub fn maybe_reversed_iter<T, I, F>(&self, iter: I, mut f: F)
     where
         I: Iterator<Item = T> + DoubleEndedIterator,
         F: FnMut(T),
@@ -197,7 +197,7 @@ impl Metros {
 
 /// Determine correct order for segments (since railways are bidirectional).
 fn orient_segments(
-    segments: &Vec<network::SegmentHandle>,
+    segments: &[network::SegmentHandle],
     railways: &Railways,
 ) -> Vec<OrientedSegment> {
     use itertools::Itertools;

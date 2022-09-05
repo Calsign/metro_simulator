@@ -161,7 +161,7 @@ fn sqrt_pair_minima(input: Vec<SqrtPair>) -> Vec<SqrtPair> {
                     // Peel off entries on the stack. This looks like it could make this O(n^2), but
                     // we will only ever pull each entry off once.
                     while matches!(minima.last(), Some(last) if last > &sqrt_pair) {
-                        std::mem::drop(minima.pop())
+                        minima.pop();
                     }
                     minima.push(sqrt_pair);
                 }

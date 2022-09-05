@@ -1,3 +1,6 @@
+// NOTE: caused by enum-kinds on Trigger
+#![allow(clippy::extra_unused_lifetimes)]
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
