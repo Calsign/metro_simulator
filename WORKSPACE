@@ -23,6 +23,7 @@ http_archive(
     patch_args = ["-p1"],
     patches = [
         "//patches:rules_rust__alias_deduplicate.patch",
+        "//patches:rules_rust__compile_one_dependency.patch",
         "@gazelle_rust//patches:rules_rust_p1.patch",
     ],
     sha256 = "0cc7e6b39e492710b819e00d48f2210ae626b717a3ab96e048c43ab57e61d204",
