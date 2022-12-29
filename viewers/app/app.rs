@@ -407,7 +407,7 @@ impl App {
                         };
                         current_value - history_value
                     });
-                    (history_value as f32, extra.map(|value| value as f32))
+                    (history_value, extra)
                 })
                 .collect(),
         );

@@ -766,16 +766,13 @@ impl<'a, 'b, 'c, 'd, 'e, 'f> PaintQtreeVisitor<'a, 'b, 'c, 'd, 'e, 'f> {
         let width = data.width as f64 * self.state.content.scale;
         let threshold = 10.0;
         if is_leaf || width >= threshold && width < threshold * 2.0 {
-            match field_data_to_color(&self.state.current_field, fields) {
-                Some(color) => {
-                    use druid::RenderContext;
+            if let Some(color) = field_data_to_color(&self.state.current_field, fields) {
+                use druid::RenderContext;
 
-                    // TODO: get_full_rect looks weird because there's overlap,
-                    // get_rect looks weird because there's a gap.
-                    let rect = self.get_rect(data);
-                    self.ctx.fill(rect, &color);
-                }
-                None => (),
+                // TODO: get_full_rect looks weird because there's overlap,
+                // get_rect looks weird because there's a gap.
+                let rect = self.get_rect(data);
+                self.ctx.fill(rect, &color);
             }
         }
     }

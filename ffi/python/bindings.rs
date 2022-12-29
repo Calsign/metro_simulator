@@ -618,7 +618,7 @@ impl Date {
     #[staticmethod]
     fn from_ymd(year: i32, month: u32, day: u32) -> Self {
         Self {
-            date: chrono::NaiveDate::from_ymd(year, month, day),
+            date: chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap(),
         }
     }
 }

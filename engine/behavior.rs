@@ -257,7 +257,7 @@ impl TriggerType for AgentPlanCommuteToWork {
             // we had this originally, but it's tougher with parallelism
             engine.trigger_queue.push(
                 AgentPlanCommuteHome { agent: id },
-                start_time as u64 + Time::new::<hour>(8).value,
+                start_time + Time::new::<hour>(8).value,
             );
         }
 

@@ -128,7 +128,7 @@ mod agent_data_tests {
 
     fn with_birthday(year: i32, month: u32, day: u32) -> AgentData {
         AgentData {
-            birthday: chrono::NaiveDate::from_ymd(year, month, day),
+            birthday: chrono::NaiveDate::from_ymd_opt(year, month, day).unwrap(),
             years_of_education: 0,
         }
     }
@@ -138,27 +138,27 @@ mod agent_data_tests {
         use chrono::NaiveDate;
 
         assert_eq!(
-            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd(2000, 2, 15)),
+            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd_opt(2000, 2, 15).unwrap()),
             Age(0)
         );
         assert_eq!(
-            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd(2000, 10, 1)),
+            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd_opt(2000, 10, 1).unwrap()),
             Age(0),
         );
         assert_eq!(
-            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd(2001, 2, 14)),
+            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd_opt(2001, 2, 14).unwrap()),
             Age(0),
         );
         assert_eq!(
-            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd(2001, 2, 15)),
+            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd_opt(2001, 2, 15).unwrap()),
             Age(1),
         );
         assert_eq!(
-            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd(2001, 10, 1)),
+            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd_opt(2001, 10, 1).unwrap()),
             Age(1),
         );
         assert_eq!(
-            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd(2010, 2, 15)),
+            with_birthday(2000, 2, 15).age(NaiveDate::from_ymd_opt(2010, 2, 15).unwrap()),
             Age(10),
         );
     }

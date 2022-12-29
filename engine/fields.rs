@@ -95,7 +95,7 @@ impl std::ops::Add for WeightedAverage {
             (0.0, 0.0)
         };
         Self {
-            value: self.value as f64 * self_share + other.value as f64 * other_share,
+            value: self.value * self_share + other.value * other_share,
             count: total,
         }
     }

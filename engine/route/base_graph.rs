@@ -532,8 +532,8 @@ mod highway_tests {
                 start,
                 end,
                 Some(vec![
-                    junctions[segment.start as usize].location.into(),
-                    junctions[segment.end as usize].location.into(),
+                    junctions[segment.start].location.into(),
+                    junctions[segment.end].location.into(),
                 ]),
             );
         }

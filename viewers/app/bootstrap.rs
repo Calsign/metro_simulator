@@ -60,8 +60,8 @@ impl State {
         surface.configure(&device, &config);
 
         let platform = Platform::new(PlatformDescriptor {
-            physical_width: size.width as u32,
-            physical_height: size.height as u32,
+            physical_width: size.width,
+            physical_height: size.height,
             scale_factor: window.scale_factor(),
             font_definitions: egui::FontDefinitions::default(),
             style: Default::default(),

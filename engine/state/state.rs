@@ -21,18 +21,10 @@ pub enum Error {
 
 pub trait Fields: std::fmt::Debug + Default + Clone {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BranchState<F: Fields> {
     #[serde(skip)]
     pub fields: F,
-}
-
-impl<F: Fields> BranchState<F> {
-    pub fn default() -> Self {
-        Self {
-            fields: F::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

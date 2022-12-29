@@ -536,7 +536,7 @@ impl WorldStateHistory {
     }
 
     pub fn get_current_snapshot_index(&self, prediction_time: u64, round_forward: bool) -> usize {
-        let offset = if round_forward { 1 } else { 0 };
+        let offset = u64::from(round_forward);
         let periods = (prediction_time + offset) as f64 / self.snapshot_period() as f64;
         let rounded = if round_forward {
             periods.ceil()

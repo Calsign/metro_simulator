@@ -107,8 +107,7 @@ impl Route {
             // TODO: there may be some errors in dimensional analysis, i.e. meters vs coordinates
             let start_location = f64p_f32p(start.location());
             let end_location = f64p_f32p(end.location());
-            let default_dd =
-                cgmath::Vector2::from(start_location).distance(end_location.into()) as f32;
+            let default_dd = cgmath::Vector2::from(start_location).distance(end_location.into());
             let dd: f32;
             match &edge {
                 Edge::MetroSegment {

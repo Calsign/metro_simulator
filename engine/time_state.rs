@@ -30,17 +30,20 @@ impl TimeState {
             target_time: 0,
             paused: true,
             // TODO: make this configurable in the map
-            engine_start_time: chrono::NaiveDate::from_ymd(2020, 1, 1)
-                .and_hms(0, 0, 0)
+            engine_start_time: chrono::NaiveDate::from_ymd_opt(2020, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap()
                 .timestamp() as u64,
         }
     }
 
     pub fn current_date_time(&self) -> chrono::NaiveDateTime {
-        chrono::NaiveDateTime::from_timestamp(
+        chrono::NaiveDateTime::from_timestamp_opt(
             (self.engine_start_time + self.current_time) as i64,
             0,
         )
+        .unwrap()
     }
 
     pub fn pretty_current_date_time(&self) -> String {

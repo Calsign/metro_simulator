@@ -139,7 +139,7 @@ where
         // one neighbor
 
         // TODO: test different starting values besides 100
-        let mut radius = ((self.qtree.width() / 100) as u64).max(1);
+        let mut radius = ((self.qtree.width() as f64 / 100.0) as u64).max(1);
         loop {
             let mut visitor = NearestNeighborsVisitor::new();
             self.visit_radius(&mut visitor, x, y, radius as f64)
