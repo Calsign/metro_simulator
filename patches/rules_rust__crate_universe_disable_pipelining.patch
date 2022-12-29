@@ -1,0 +1,95 @@
+diff --git a/crate_universe/private/crate.bzl b/crate_universe/private/crate.bzl
+index 348edeff..11366e09 100644
+--- a/crate_universe/private/crate.bzl
++++ b/crate_universe/private/crate.bzl
+@@ -78,6 +78,7 @@ def _annotation(
+         data = None,
+         data_glob = None,
+         deps = None,
++        disable_pipelining = False,
+         gen_build_script = None,
+         patch_args = None,
+         patch_tool = None,
+@@ -115,6 +116,7 @@ def _annotation(
+         data (list, optional): A list of labels to add to a crate's `rust_library::data` attribute.
+         data_glob (list, optional): A list of glob patterns to add to a crate's `rust_library::data` attribute.
+         deps (list, optional): A list of labels to add to a crate's `rust_library::deps` attribute.
++        disable_pipelining (bool, optional): If True, disables pipelining for library targets for this crate.
+         gen_build_script (bool, optional): An authorative flag to determine whether or not to produce
+             `cargo_build_script` targets for the current crate.
+         patch_args (list, optional): The `patch_args` attribute of a Bazel repository rule. See
+@@ -160,6 +162,7 @@ def _annotation(
+             data = data,
+             data_glob = data_glob,
+             deps = deps,
++            disable_pipelining = disable_pipelining,
+             gen_build_script = gen_build_script,
+             patch_args = patch_args,
+             patch_tool = patch_tool,
+diff --git a/crate_universe/src/config.rs b/crate_universe/src/config.rs
+index 39f3dd9b..c35c8697 100644
+--- a/crate_universe/src/config.rs
++++ b/crate_universe/src/config.rs
+@@ -174,6 +174,9 @@ pub struct CrateAnnotations {
+     /// [compile_data](https://bazelbuild.github.io/rules_rust/defs.html#rust_library-compile_data) attribute.
+     pub compile_data_glob: Option<BTreeSet<String>>,
+ 
++    /// If true, disables pipelining for library targets generated for this crate.
++    pub disable_pipelining: bool,
++
+     /// Additional data to pass to  the target's
+     /// [rustc_env](https://bazelbuild.github.io/rules_rust/defs.html#rust_library-rustc_env) attribute.
+     pub rustc_env: Option<BTreeMap<String, String>>,
+@@ -297,6 +300,7 @@ impl Add for CrateAnnotations {
+             crate_features: joined_extra_member!(self.crate_features, rhs.crate_features, BTreeSet::new, BTreeSet::extend),
+             data: joined_extra_member!(self.data, rhs.data, BTreeSet::new, BTreeSet::extend),
+             data_glob: joined_extra_member!(self.data_glob, rhs.data_glob, BTreeSet::new, BTreeSet::extend),
++            disable_pipelining: self.disable_pipelining || rhs.disable_pipelining,
+             compile_data: joined_extra_member!(self.compile_data, rhs.compile_data, BTreeSet::new, BTreeSet::extend),
+             compile_data_glob: joined_extra_member!(self.compile_data_glob, rhs.compile_data_glob, BTreeSet::new, BTreeSet::extend),
+             rustc_env: joined_extra_member!(self.rustc_env, rhs.rustc_env, BTreeMap::new, BTreeMap::extend),
+diff --git a/crate_universe/src/context/crate_context.rs b/crate_universe/src/context/crate_context.rs
+index 2ba0c443..a8b1203d 100644
+--- a/crate_universe/src/context/crate_context.rs
++++ b/crate_universe/src/context/crate_context.rs
+@@ -241,6 +241,9 @@ pub struct CrateContext {
+     /// Additional text to add to the generated BUILD file.
+     #[serde(skip_serializing_if = "Option::is_none")]
+     pub additive_build_file_content: Option<String>,
++
++    /// If true, disables pipelining for library targets generated for this crate
++    pub disable_pipelining: bool,
+ }
+ 
+ impl CrateContext {
+@@ -368,6 +371,7 @@ impl CrateContext {
+             build_script_attrs,
+             license,
+             additive_build_file_content: None,
++            disable_pipelining: false,
+         }
+         .with_overrides(extras)
+     }
+@@ -420,6 +424,11 @@ impl CrateContext {
+                 self.common_attrs.data_glob.extend(extra.clone());
+             }
+ 
++            // Disable pipelining
++            if crate_extra.disable_pipelining {
++                self.disable_pipelining = true;
++            }
++
+             // Rustc flags
+             if let Some(extra) = &crate_extra.rustc_flags {
+                 self.common_attrs.rustc_flags.append(&mut extra.clone());
+diff --git a/crate_universe/src/rendering/templates/partials/crate/library.j2 b/crate_universe/src/rendering/templates/partials/crate/library.j2
+index f678bd91..7347a22f 100644
+--- a/crate_universe/src/rendering/templates/partials/crate/library.j2
++++ b/crate_universe/src/rendering/templates/partials/crate/library.j2
+@@ -11,5 +11,6 @@ rust_library(
+         {%- endfor %}
+     ] + {% set deps = crate.common_attrs | get(key="proc_macro_deps", default=Null) %}{% include "partials/crate/deps.j2" %},
+     aliases = {% set selectable = common_aliases %}{% include "partials/crate/aliases.j2" -%},
++    {% if crate.disable_pipelining %}disable_pipelining = True,{% endif %}
+ {% include "partials/crate/common_attrs.j2" %}
+ )

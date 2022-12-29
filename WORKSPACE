@@ -2,33 +2,32 @@ workspace(name = "metro_simulator")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+GAZELLE_RUST_COMMIT = "ca7ef4f31bc98f5d33ae969987d4163e5c5054a3"
+
 http_archive(
     name = "gazelle_rust",
-    sha256 = "34f136688bf1b459375ac76a91ef3b2af710f688ca131332ae663a6c5249ebfe",
-    strip_prefix = "gazelle_rust-d4369494a5bb7ea811c46f089984a7267239cb62",
-    url = "https://github.com/Calsign/gazelle_rust/archive/d4369494a5bb7ea811c46f089984a7267239cb62.zip",
+    sha256 = "db1e92f878479452c3dbd2c3f5327625719f574b18c635468b10592d4c78b6b1",
+    strip_prefix = "gazelle_rust-{}".format(GAZELLE_RUST_COMMIT),
+    url = "https://github.com/Calsign/gazelle_rust/archive/{}.zip".format(GAZELLE_RUST_COMMIT),
 )
 
 # RUST
 
-# 0.10.0, 2022-09-04
-RULES_RUST_VERSION = "0.10.0"
+# 0.15.0, 2022-12-28
+RULES_RUST_VERSION = "0.15.0"
 
-RUST_VERSION = "1.63.0"
-
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+RUST_VERSION = "1.66.0"
 
 http_archive(
     name = "rules_rust",
     patch_args = ["-p1"],
     patches = [
-        "//patches:rules_rust__alias_deduplicate.patch",
-        "//patches:rules_rust__compile_one_dependency.patch",
         "@gazelle_rust//patches:rules_rust_p1.patch",
+        "//patches:rules_rust__crate_universe_disable_pipelining.patch",
     ],
-    sha256 = "0cc7e6b39e492710b819e00d48f2210ae626b717a3ab96e048c43ab57e61d204",
+    sha256 = "5c2b6745236f8ce547f82eeacbbcc81d736734cc8bd92e60d3e3cdfa6e167bb5",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_rust/releases/download/{}/rules_rust-v0.10.0.tar.gz".format(RULES_RUST_VERSION),
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_rust/releases/download/{0}/rules_rust-v{0}.tar.gz".format(RULES_RUST_VERSION),
         "https://github.com/bazelbuild/rules_rust/releases/download/{0}/rules_rust-v{0}.tar.gz".format(RULES_RUST_VERSION),
     ],
 )
@@ -40,7 +39,6 @@ rules_rust_dependencies()
 # register default toolchains
 rust_register_toolchains(
     edition = "2021",
-    include_rustc_srcs = True,
     version = RUST_VERSION,
 )
 
@@ -70,45 +68,15 @@ rust_repository_set(
 
 load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
 
-# NOTE: need to bootstrap in order to get the patch applied
+# NOTE: need to bootstrap in order to patch cargo_bazel
 crate_universe_dependencies(bootstrap = True)
 
 load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository", "splicing_config")
-load("//cargo:crates.bzl", "all_crates")
+load("//cargo:crates.bzl", "ANNOTATIONS", "all_crates")
 
 crates_repository(
     name = "crates",
-    annotations = {
-        "wgpu-hal": [
-            crate.annotation(
-                patches = ["@//patches:wgpu_hal.patch"],
-            ),
-        ],
-        "egui": [
-            crate.annotation(
-                patch_args = ["-p2"],
-                patches = ["@//patches:egui__multitouch_average_pos.patch"],
-            ),
-        ],
-        "egui_winit_platform": [
-            crate.annotation(
-                patch_args = ["-p1"],
-                patches = ["@//patches:egui_winit_platform__touch.patch"],
-            ),
-        ],
-        "imageproc": [
-            crate.annotation(
-                patch_args = ["-p1"],
-                patches = ["@//patches:imageproc__weighted_distance_transform.patch"],
-            ),
-        ],
-        "osmpbfreader": [
-            crate.annotation(
-                patch_args = ["-p1"],
-                patches = ["@//patches:osmpbfreader__pub_tags.patch"],
-            ),
-        ],
-    },
+    annotations = ANNOTATIONS,
     cargo_lockfile = "//cargo:cargo.lock",
     generator = "@cargo_bazel_bootstrap//:cargo-bazel",
     lockfile = "//cargo:crate_universe.lock",

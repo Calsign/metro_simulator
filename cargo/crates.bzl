@@ -133,6 +133,48 @@ CRATES = {
     "osm-xml": "0.6",
 }
 
+ANNOTATIONS = {
+    "wgpu-hal": [
+        crate.annotation(
+            patches = ["@//patches:wgpu_hal.patch"],
+        ),
+    ],
+    "egui": [
+        crate.annotation(
+            patch_args = ["-p2"],
+            patches = ["@//patches:egui__multitouch_average_pos.patch"],
+        ),
+    ],
+    "egui_winit_platform": [
+        crate.annotation(
+            patch_args = ["-p1"],
+            patches = ["@//patches:egui_winit_platform__touch.patch"],
+        ),
+    ],
+    "imageproc": [
+        crate.annotation(
+            patch_args = ["-p1"],
+            patches = ["@//patches:imageproc__weighted_distance_transform.patch"],
+        ),
+    ],
+    "osmpbfreader": [
+        crate.annotation(
+            patch_args = ["-p1"],
+            patches = ["@//patches:osmpbfreader__pub_tags.patch"],
+        ),
+    ],
+    "pyo3-macros-backend": [
+        crate.annotation(
+            disable_pipelining = True,
+        ),
+    ],
+    "pyo3-build-config": [
+        crate.annotation(
+            disable_pipelining = True,
+        ),
+    ],
+}
+
 def all_crates():
     # simple helper which allows us to write just the version in most cases
     return {

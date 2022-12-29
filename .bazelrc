@@ -35,6 +35,9 @@ build --platform_mappings=mobile/platform/platform_mappings
 # don't pass through PATH
 build --incompatible_strict_action_env
 
+# pipelining makes builds faster, but is disabled by default because it's experimental
+build --@rules_rust//rust/settings:pipelined_compilation=True
+
 run:flamegraph --run_under "@crates__flamegraph-0.6.2//:flamegraph__bin -o /tmp/flamegraph.svg --"
 
 build:ci --keep_going --experimental_scale_timeouts=3 --config=check
