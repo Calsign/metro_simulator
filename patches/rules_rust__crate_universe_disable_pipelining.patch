@@ -49,20 +49,21 @@ index 39f3dd9b..c35c8697 100644
              compile_data_glob: joined_extra_member!(self.compile_data_glob, rhs.compile_data_glob, BTreeSet::new, BTreeSet::extend),
              rustc_env: joined_extra_member!(self.rustc_env, rhs.rustc_env, BTreeMap::new, BTreeMap::extend),
 diff --git a/crate_universe/src/context/crate_context.rs b/crate_universe/src/context/crate_context.rs
-index 2ba0c443..a8b1203d 100644
+index 2ba0c443..f223e50f 100644
 --- a/crate_universe/src/context/crate_context.rs
 +++ b/crate_universe/src/context/crate_context.rs
-@@ -241,6 +241,9 @@ pub struct CrateContext {
+@@ -241,6 +241,10 @@ pub struct CrateContext {
      /// Additional text to add to the generated BUILD file.
      #[serde(skip_serializing_if = "Option::is_none")]
      pub additive_build_file_content: Option<String>,
 +
 +    /// If true, disables pipelining for library targets generated for this crate
++    #[serde(skip_serializing_if = "std::ops::Not::not")]
 +    pub disable_pipelining: bool,
  }
  
  impl CrateContext {
-@@ -368,6 +371,7 @@ impl CrateContext {
+@@ -368,6 +372,7 @@ impl CrateContext {
              build_script_attrs,
              license,
              additive_build_file_content: None,
@@ -70,7 +71,7 @@ index 2ba0c443..a8b1203d 100644
          }
          .with_overrides(extras)
      }
-@@ -420,6 +424,11 @@ impl CrateContext {
+@@ -420,6 +425,11 @@ impl CrateContext {
                  self.common_attrs.data_glob.extend(extra.clone());
              }
  
@@ -82,6 +83,19 @@ index 2ba0c443..a8b1203d 100644
              // Rustc flags
              if let Some(extra) = &crate_extra.rustc_flags {
                  self.common_attrs.rustc_flags.append(&mut extra.clone());
+diff --git a/crate_universe/src/lockfile.rs b/crate_universe/src/lockfile.rs
+index fa22590b..9d713aaa 100644
+--- a/crate_universe/src/lockfile.rs
++++ b/crate_universe/src/lockfile.rs
+@@ -253,7 +253,7 @@ mod test {
+ 
+         assert_eq!(
+             digest,
+-            Digest("33dbf61e3b2aabacadaf7ff0c9862af25703cb851436efcbdf8552735be844ba".to_owned())
++            Digest("39f264c9eeefcabb6723ffa4b62148cc56f222f9361d9a3aa19b8c5e45ed23c2".to_owned())
+         );
+     }
+ 
 diff --git a/crate_universe/src/rendering/templates/partials/crate/library.j2 b/crate_universe/src/rendering/templates/partials/crate/library.j2
 index f678bd91..7347a22f 100644
 --- a/crate_universe/src/rendering/templates/partials/crate/library.j2

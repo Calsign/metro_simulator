@@ -22,7 +22,9 @@ http_archive(
     name = "rules_rust",
     patch_args = ["-p1"],
     patches = [
+        # needed by gazelle_rust
         "@gazelle_rust//patches:rules_rust_p1.patch",
+        # https://github.com/bazelbuild/rules_rust/pull/1733
         "//patches:rules_rust__crate_universe_disable_pipelining.patch",
     ],
     sha256 = "5c2b6745236f8ce547f82eeacbbcc81d736734cc8bd92e60d3e3cdfa6e167bb5",
