@@ -300,11 +300,9 @@ class Network(Layer):
         # process.
 
         all_segments = []
-        id_index_map = {}
         for segment in self.segments:
             shape = LineString(segment.points)
             all_segments.append(shape)
-            id_index_map[id(shape)] = segment
 
         del segment
         del shape
@@ -318,7 +316,7 @@ class Network(Layer):
                 location = Point(input_node.node)
 
             nearest_geometry = str_tree.nearest(location)
-            nearest_segment = id_index_map[id(nearest_geometry)]
+            nearest_segment = self.segments[nearest_geometry]
 
             # We may have already split this segment. We store a binary tree of segment splits which
             # we can traverse to find the leaf segment which should now be split.

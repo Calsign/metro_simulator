@@ -66,8 +66,9 @@ def round_coords(point) -> T.Tuple[float, float]:
     else:
         (x, y) = point
 
-    # round to 6 decimal places, which is way more precision than we need
-    return (round(x, 6), round(y, 6))
+    # round to 2 decimal places
+    # TODO: there's some correctness issue here that I don't fully understand
+    return (round(x, 2), round(y, 2))
 
 
 @lru_cache
