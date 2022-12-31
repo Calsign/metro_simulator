@@ -7,7 +7,7 @@ test --test_env RUST_BACKTRACE=1
 
 # Running the simulation is painfully slow in dbg, so we want to run it in opt.
 # Side-effect: we can't use #[cfg(debug_assertions)] to build code only for tests.
-test -c opt
+build -c opt
 
 # rustfmt aspect
 build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
@@ -37,6 +37,9 @@ build --incompatible_strict_action_env
 
 # pipelining makes builds faster, but is disabled by default because it's experimental
 build --@rules_rust//rust/settings:pipelined_compilation=True
+
+# full rust-analyzer support
+build --@rules_rust//:output_diagnostics=true
 
 run:flamegraph --run_under "@crates__flamegraph-0.6.2//:flamegraph__bin -o /tmp/flamegraph.svg --"
 

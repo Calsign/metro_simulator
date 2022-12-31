@@ -1,0 +1,801 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 11411d4f..1ea1251e 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -1,5 +1,17 @@
+ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+-load("//rust:defs.bzl", "capture_clippy_output", "clippy_flags", "error_format", "extra_exec_rustc_flag", "extra_exec_rustc_flags", "extra_rustc_flag", "extra_rustc_flags", "is_proc_macro_dep", "is_proc_macro_dep_enabled")
++load(
++    "//rust:defs.bzl",
++    "capture_clippy_output",
++    "clippy_flags",
++    "error_format",
++    "extra_exec_rustc_flag",
++    "extra_exec_rustc_flags",
++    "extra_rustc_flag",
++    "extra_rustc_flags",
++    "is_proc_macro_dep",
++    "is_proc_macro_dep_enabled",
++    "output_diagnostics",
++)
+ 
+ exports_files(["LICENSE"])
+ 
+@@ -18,6 +30,13 @@ error_format(
+     visibility = ["//visibility:public"],
+ )
+ 
++# This setting may be changed from the command line to generate rustc diagnostics.
++output_diagnostics(
++    name = "output_diagnostics",
++    build_setting_default = False,
++    visibility = ["//visibility:public"],
++)
++
+ # This setting may be used to pass extra options to clippy from the command line.
+ # It applies across all targets.
+ clippy_flags(
+diff --git a/docs/flatten.md b/docs/flatten.md
+index bc02139a..5b87ec53 100644
+--- a/docs/flatten.md
++++ b/docs/flatten.md
+@@ -1382,7 +1382,8 @@ A test rule for performing `rustfmt --check` on a set of targets
+ 
+ <pre>
+ CrateInfo(<a href="#CrateInfo-aliases">aliases</a>, <a href="#CrateInfo-compile_data">compile_data</a>, <a href="#CrateInfo-deps">deps</a>, <a href="#CrateInfo-edition">edition</a>, <a href="#CrateInfo-is_test">is_test</a>, <a href="#CrateInfo-metadata">metadata</a>, <a href="#CrateInfo-name">name</a>, <a href="#CrateInfo-output">output</a>, <a href="#CrateInfo-owner">owner</a>,
+-          <a href="#CrateInfo-proc_macro_deps">proc_macro_deps</a>, <a href="#CrateInfo-root">root</a>, <a href="#CrateInfo-rustc_env">rustc_env</a>, <a href="#CrateInfo-rustc_env_files">rustc_env_files</a>, <a href="#CrateInfo-srcs">srcs</a>, <a href="#CrateInfo-type">type</a>, <a href="#CrateInfo-wrapped_crate_type">wrapped_crate_type</a>)
++          <a href="#CrateInfo-proc_macro_deps">proc_macro_deps</a>, <a href="#CrateInfo-root">root</a>, <a href="#CrateInfo-rust_lib_rustc_output">rust_lib_rustc_output</a>, <a href="#CrateInfo-rust_metadata_rustc_output">rust_metadata_rustc_output</a>, <a href="#CrateInfo-rustc_env">rustc_env</a>,
++          <a href="#CrateInfo-rustc_env_files">rustc_env_files</a>, <a href="#CrateInfo-srcs">srcs</a>, <a href="#CrateInfo-type">type</a>, <a href="#CrateInfo-wrapped_crate_type">wrapped_crate_type</a>)
+ </pre>
+ 
+ A provider containing general Crate information.
+@@ -1397,12 +1398,14 @@ A provider containing general Crate information.
+ | <a id="CrateInfo-deps"></a>deps |  depset[DepVariantInfo]: This crate's (rust or cc) dependencies' providers.    |
+ | <a id="CrateInfo-edition"></a>edition |  str: The edition of this crate.    |
+ | <a id="CrateInfo-is_test"></a>is_test |  bool: If the crate is being compiled in a test context    |
+-| <a id="CrateInfo-metadata"></a>metadata |  File: The rmeta file produced for this crate. It is optional.    |
++| <a id="CrateInfo-metadata"></a>metadata |  File: The output from rustc from producing the output file. It is optional.    |
+ | <a id="CrateInfo-name"></a>name |  str: The name of this crate.    |
+ | <a id="CrateInfo-output"></a>output |  File: The output File that will be produced, depends on crate type.    |
+ | <a id="CrateInfo-owner"></a>owner |  Label: The label of the target that produced this CrateInfo    |
+ | <a id="CrateInfo-proc_macro_deps"></a>proc_macro_deps |  depset[DepVariantInfo]: This crate's rust proc_macro dependencies' providers.    |
+ | <a id="CrateInfo-root"></a>root |  File: The source File entrypoint to this crate, eg. lib.rs    |
++| <a id="CrateInfo-rust_lib_rustc_output"></a>rust_lib_rustc_output |  File: The output from rustc from producing the output file. It is optional.    |
++| <a id="CrateInfo-rust_metadata_rustc_output"></a>rust_metadata_rustc_output |  File: The rmeta file produced for this crate. It is optional.    |
+ | <a id="CrateInfo-rustc_env"></a>rustc_env |  Dict[String, String]: Additional <code>"key": "value"</code> environment variables to set for rustc.    |
+ | <a id="CrateInfo-rustc_env_files"></a>rustc_env_files |  [File]: Files containing additional environment variables to set for rustc.    |
+ | <a id="CrateInfo-srcs"></a>srcs |  depset[File]: All source Files that are part of the crate.    |
+diff --git a/docs/providers.md b/docs/providers.md
+index 11f77b7d..1834ed68 100644
+--- a/docs/providers.md
++++ b/docs/providers.md
+@@ -11,7 +11,8 @@
+ 
+ <pre>
+ CrateInfo(<a href="#CrateInfo-aliases">aliases</a>, <a href="#CrateInfo-compile_data">compile_data</a>, <a href="#CrateInfo-deps">deps</a>, <a href="#CrateInfo-edition">edition</a>, <a href="#CrateInfo-is_test">is_test</a>, <a href="#CrateInfo-metadata">metadata</a>, <a href="#CrateInfo-name">name</a>, <a href="#CrateInfo-output">output</a>, <a href="#CrateInfo-owner">owner</a>,
+-          <a href="#CrateInfo-proc_macro_deps">proc_macro_deps</a>, <a href="#CrateInfo-root">root</a>, <a href="#CrateInfo-rustc_env">rustc_env</a>, <a href="#CrateInfo-rustc_env_files">rustc_env_files</a>, <a href="#CrateInfo-srcs">srcs</a>, <a href="#CrateInfo-type">type</a>, <a href="#CrateInfo-wrapped_crate_type">wrapped_crate_type</a>)
++          <a href="#CrateInfo-proc_macro_deps">proc_macro_deps</a>, <a href="#CrateInfo-root">root</a>, <a href="#CrateInfo-rust_lib_rustc_output">rust_lib_rustc_output</a>, <a href="#CrateInfo-rust_metadata_rustc_output">rust_metadata_rustc_output</a>, <a href="#CrateInfo-rustc_env">rustc_env</a>,
++          <a href="#CrateInfo-rustc_env_files">rustc_env_files</a>, <a href="#CrateInfo-srcs">srcs</a>, <a href="#CrateInfo-type">type</a>, <a href="#CrateInfo-wrapped_crate_type">wrapped_crate_type</a>)
+ </pre>
+ 
+ A provider containing general Crate information.
+@@ -26,12 +27,14 @@ A provider containing general Crate information.
+ | <a id="CrateInfo-deps"></a>deps |  depset[DepVariantInfo]: This crate's (rust or cc) dependencies' providers.    |
+ | <a id="CrateInfo-edition"></a>edition |  str: The edition of this crate.    |
+ | <a id="CrateInfo-is_test"></a>is_test |  bool: If the crate is being compiled in a test context    |
+-| <a id="CrateInfo-metadata"></a>metadata |  File: The rmeta file produced for this crate. It is optional.    |
++| <a id="CrateInfo-metadata"></a>metadata |  File: The output from rustc from producing the output file. It is optional.    |
+ | <a id="CrateInfo-name"></a>name |  str: The name of this crate.    |
+ | <a id="CrateInfo-output"></a>output |  File: The output File that will be produced, depends on crate type.    |
+ | <a id="CrateInfo-owner"></a>owner |  Label: The label of the target that produced this CrateInfo    |
+ | <a id="CrateInfo-proc_macro_deps"></a>proc_macro_deps |  depset[DepVariantInfo]: This crate's rust proc_macro dependencies' providers.    |
+ | <a id="CrateInfo-root"></a>root |  File: The source File entrypoint to this crate, eg. lib.rs    |
++| <a id="CrateInfo-rust_lib_rustc_output"></a>rust_lib_rustc_output |  File: The output from rustc from producing the output file. It is optional.    |
++| <a id="CrateInfo-rust_metadata_rustc_output"></a>rust_metadata_rustc_output |  File: The rmeta file produced for this crate. It is optional.    |
+ | <a id="CrateInfo-rustc_env"></a>rustc_env |  Dict[String, String]: Additional <code>"key": "value"</code> environment variables to set for rustc.    |
+ | <a id="CrateInfo-rustc_env_files"></a>rustc_env_files |  [File]: Files containing additional environment variables to set for rustc.    |
+ | <a id="CrateInfo-srcs"></a>srcs |  depset[File]: All source Files that are part of the crate.    |
+diff --git a/rust/defs.bzl b/rust/defs.bzl
+index 92c8a774..24aa3249 100644
+--- a/rust/defs.bzl
++++ b/rust/defs.bzl
+@@ -49,6 +49,7 @@ load(
+     _extra_rustc_flags = "extra_rustc_flags",
+     _is_proc_macro_dep = "is_proc_macro_dep",
+     _is_proc_macro_dep_enabled = "is_proc_macro_dep_enabled",
++    _output_diagnostics = "output_diagnostics",
+ )
+ load(
+     "//rust/private:rustdoc.bzl",
+@@ -103,6 +104,9 @@ rust_clippy = _rust_clippy
+ capture_clippy_output = _capture_clippy_output
+ # See @rules_rust//rust/private:clippy.bzl for a complete description.
+ 
++output_diagnostics = _output_diagnostics
++# See @rules_rust//rust/private:rustc.bzl for a complete description.
++
+ error_format = _error_format
+ # See @rules_rust//rust/private:rustc.bzl for a complete description.
+ 
+diff --git a/rust/private/common.bzl b/rust/private/common.bzl
+index e3a31181..3aa22b94 100644
+--- a/rust/private/common.bzl
++++ b/rust/private/common.bzl
+@@ -51,6 +51,10 @@ def _create_crate_info(**kwargs):
+         kwargs.update({"wrapped_crate_type": None})
+     if not "metadata" in kwargs:
+         kwargs.update({"metadata": None})
++    if not "rust_metadata_rustc_output" in kwargs:
++        kwargs.update({"rust_metadata_rustc_output": None})
++    if not "rust_lib_rustc_output" in kwargs:
++        kwargs.update({"rust_lib_rustc_output": None})
+     if not "rustc_env_files" in kwargs:
+         kwargs.update({"rustc_env_files": []})
+     return CrateInfo(**kwargs)
+diff --git a/rust/private/providers.bzl b/rust/private/providers.bzl
+index 464444ba..952a107d 100644
+--- a/rust/private/providers.bzl
++++ b/rust/private/providers.bzl
+@@ -22,12 +22,14 @@ CrateInfo = provider(
+         "deps": "depset[DepVariantInfo]: This crate's (rust or cc) dependencies' providers.",
+         "edition": "str: The edition of this crate.",
+         "is_test": "bool: If the crate is being compiled in a test context",
+-        "metadata": "File: The rmeta file produced for this crate. It is optional.",
++        "metadata": "File: The output from rustc from producing the output file. It is optional.",
+         "name": "str: The name of this crate.",
+         "output": "File: The output File that will be produced, depends on crate type.",
+         "owner": "Label: The label of the target that produced this CrateInfo",
+         "proc_macro_deps": "depset[DepVariantInfo]: This crate's rust proc_macro dependencies' providers.",
+         "root": "File: The source File entrypoint to this crate, eg. lib.rs",
++        "rust_lib_rustc_output": "File: The output from rustc from producing the output file. It is optional.",
++        "rust_metadata_rustc_output": "File: The rmeta file produced for this crate. It is optional.",
+         "rustc_env": "Dict[String, String]: Additional `\"key\": \"value\"` environment variables to set for rustc.",
+         "rustc_env_files": "[File]: Files containing additional environment variables to set for rustc.",
+         "srcs": "depset[File]: All source Files that are part of the crate.",
+diff --git a/rust/private/rust.bzl b/rust/private/rust.bzl
+index 8ae8a0b2..65411c51 100644
+--- a/rust/private/rust.bzl
++++ b/rust/private/rust.bzl
+@@ -64,6 +64,9 @@ def _assert_correct_dep_mapping(ctx):
+                 ),
+             )
+ 
++def _rustc_output_name(name):
++    return name + ".rustc-output"
++
+ def _determine_lib_name(name, crate_type, toolchain, lib_hash = None):
+     """See https://github.com/bazelbuild/rules_rust/issues/405
+ 
+@@ -275,14 +278,30 @@ def _rust_library_common(ctx, crate_type):
+         toolchain,
+         output_hash,
+     )
++
+     rust_lib = ctx.actions.declare_file(rust_lib_name)
++    rust_lib_build_output = None
++    output_diagnostics = ctx.attr._output_diagnostics
++    if ctx.attr._process_wrapper and output_diagnostics:
++        rust_lib_build_output = ctx.actions.declare_file(
++            _rustc_output_name(rust_lib_name),
++            sibling = rust_lib,
++        )
+ 
+     rust_metadata = None
++    rust_metadata_build_output = None
+     if can_build_metadata(toolchain, ctx, crate_type) and not ctx.attr.disable_pipelining:
++        rust_metadata_name = paths.replace_extension(rust_lib_name, ".rmeta")
++
+         rust_metadata = ctx.actions.declare_file(
+-            paths.replace_extension(rust_lib_name, ".rmeta"),
++            rust_metadata_name,
+             sibling = rust_lib,
+         )
++        if output_diagnostics:
++            rust_metadata_build_output = ctx.actions.declare_file(
++                _rustc_output_name(rust_metadata_name),
++                sibling = rust_metadata,
++            )
+ 
+     deps = transform_deps(ctx.attr.deps)
+     proc_macro_deps = transform_deps(ctx.attr.proc_macro_deps + get_import_macro_deps(ctx))
+@@ -300,7 +319,9 @@ def _rust_library_common(ctx, crate_type):
+             proc_macro_deps = depset(proc_macro_deps),
+             aliases = ctx.attr.aliases,
+             output = rust_lib,
++            rust_lib_rustc_output = rust_lib_build_output,
+             metadata = rust_metadata,
++            rust_metadata_rustc_output = rust_metadata_build_output,
+             edition = get_edition(ctx.attr, toolchain, ctx.label),
+             rustc_env = ctx.attr.rustc_env,
+             rustc_env_files = ctx.files.rustc_env_files,
+@@ -333,6 +354,21 @@ def _rust_binary_impl(ctx):
+     if not crate_root:
+         crate_root = crate_root_src(ctx.attr.name, srcs, ctx.attr.crate_type)
+ 
++    rust_metadata = None
++    rust_metadata_build_output = None
++    output_diagnostics = ctx.attr._output_diagnostics
++
++    if ctx.attr._process_wrapper and output_diagnostics:
++        rust_metadata_name = paths.replace_extension(crate_name + toolchain.binary_ext, ".rmeta.ok")
++        rust_metadata = ctx.actions.declare_file(
++            rust_metadata_name,
++            sibling = output,
++        )
++        rust_metadata_build_output = ctx.actions.declare_file(
++            _rustc_output_name(rust_metadata_name),
++            sibling = rust_metadata,
++        )
++
+     return rustc_compile_action(
+         ctx = ctx,
+         attr = ctx.attr,
+@@ -346,6 +382,8 @@ def _rust_binary_impl(ctx):
+             proc_macro_deps = depset(proc_macro_deps),
+             aliases = ctx.attr.aliases,
+             output = output,
++            metadata = rust_metadata,
++            rust_metadata_rustc_output = rust_metadata_build_output,
+             edition = get_edition(ctx.attr, toolchain, ctx.label),
+             rustc_env = ctx.attr.rustc_env,
+             rustc_env_files = ctx.files.rustc_env_files,
+@@ -375,6 +413,8 @@ def _rust_test_impl(ctx):
+     deps = transform_deps(ctx.attr.deps)
+     proc_macro_deps = transform_deps(ctx.attr.proc_macro_deps + get_import_macro_deps(ctx))
+ 
++    standalone_crate_name = compute_crate_name(ctx.workspace_name, ctx.label, toolchain, ctx.attr.crate_name)
++
+     if ctx.attr.crate:
+         # Target is building the crate in `test` config
+         crate = ctx.attr.crate[rust_common.crate_info] if rust_common.crate_info in ctx.attr.crate else ctx.attr.crate[rust_common.test_crate_info].crate
+@@ -387,7 +427,36 @@ def _rust_test_impl(ctx):
+                 toolchain.binary_ext,
+             ),
+         )
++    else:
++        if not crate_root:
++            crate_root_type = "lib" if ctx.attr.use_libtest_harness else "bin"
++            crate_root = crate_root_src(ctx.attr.name, ctx.files.srcs, crate_root_type)
++
++        output_hash = determine_output_hash(crate_root, ctx.label)
++        output = ctx.actions.declare_file(
++            "test-%s/%s%s" % (
++                output_hash,
++                ctx.label.name,
++                toolchain.binary_ext,
++            ),
++        )
++
++    rust_metadata = None
++    rust_metadata_build_output = None
++    output_diagnostics = ctx.attr._output_diagnostics
+ 
++    if output_diagnostics:
++        rust_metadata_name = paths.replace_extension(standalone_crate_name, ".rmeta.ok")
++        rust_metadata = ctx.actions.declare_file(
++            rust_metadata_name,
++            sibling = output,
++        )
++        rust_metadata_build_output = ctx.actions.declare_file(
++            _rustc_output_name(rust_metadata_name),
++            sibling = rust_metadata,
++        )
++
++    if ctx.attr.crate:
+         # Optionally join compile data
+         if crate.compile_data:
+             compile_data = depset(ctx.files.compile_data, transitive = [crate.compile_data])
+@@ -407,6 +476,8 @@ def _rust_test_impl(ctx):
+             proc_macro_deps = depset(proc_macro_deps, transitive = [crate.proc_macro_deps]),
+             aliases = ctx.attr.aliases,
+             output = output,
++            metadata = rust_metadata,
++            rust_metadata_rustc_output = rust_metadata_build_output,
+             edition = crate.edition,
+             rustc_env = rustc_env,
+             rustc_env_files = rustc_env_files,
+@@ -416,22 +487,9 @@ def _rust_test_impl(ctx):
+             owner = ctx.label,
+         )
+     else:
+-        if not crate_root:
+-            crate_root_type = "lib" if ctx.attr.use_libtest_harness else "bin"
+-            crate_root = crate_root_src(ctx.attr.name, ctx.files.srcs, crate_root_type)
+-
+-        output_hash = determine_output_hash(crate_root, ctx.label)
+-        output = ctx.actions.declare_file(
+-            "test-%s/%s%s" % (
+-                output_hash,
+-                ctx.label.name,
+-                toolchain.binary_ext,
+-            ),
+-        )
+-
+         # Target is a standalone crate. Build the test binary as its own crate.
+         crate_info = rust_common.create_crate_info(
+-            name = compute_crate_name(ctx.workspace_name, ctx.label, toolchain, ctx.attr.crate_name),
++            name = standalone_crate_name,
+             type = crate_type,
+             root = crate_root,
+             srcs = depset(srcs),
+@@ -439,6 +497,8 @@ def _rust_test_impl(ctx):
+             proc_macro_deps = depset(proc_macro_deps),
+             aliases = ctx.attr.aliases,
+             output = output,
++            metadata = rust_metadata,
++            rust_metadata_rustc_output = rust_metadata_build_output,
+             edition = get_edition(ctx.attr, toolchain, ctx.label),
+             rustc_env = ctx.attr.rustc_env,
+             rustc_env_files = ctx.files.rustc_env_files,
+@@ -598,7 +658,7 @@ _common_attrs = {
+             The order that these files will be processed is unspecified, so
+             multiple definitions of a particular variable are discouraged.
+ 
+-            Note that the variables here are subject to 
++            Note that the variables here are subject to
+             [workspace status](https://docs.bazel.build/versions/main/user-manual.html#workspace_status)
+             stamping should the `stamp` attribute be enabled. Stamp variables
+             should be wrapped in brackets in order to be resolved. E.g.
+@@ -611,7 +671,7 @@ _common_attrs = {
+             List of compiler flags passed to `rustc`.
+ 
+             These strings are subject to Make variable expansion for predefined
+-            source/output path variables like `$location`, `$execpath`, and 
++            source/output path variables like `$location`, `$execpath`, and
+             `$rootpath`. This expansion is useful if you wish to pass a generated
+             file of arguments to rustc: `@$(location //package:target)`.
+         """),
+@@ -673,6 +733,9 @@ _common_attrs = {
+     "_is_proc_macro_dep_enabled": attr.label(
+         default = Label("//:is_proc_macro_dep_enabled"),
+     ),
++    "_output_diagnostics": attr.label(
++        default = Label("//:output_diagnostics"),
++    ),
+     "_process_wrapper": attr.label(
+         doc = "A process wrapper for running rustc on all platforms.",
+         default = Label("//util/process_wrapper"),
+@@ -723,7 +786,7 @@ _rust_test_attrs = dict({
+         mandatory = False,
+         default = True,
+         doc = dedent("""\
+-            Whether to use `libtest`. For targets using this flag, individual tests can be run by using the 
++            Whether to use `libtest`. For targets using this flag, individual tests can be run by using the
+             [--test_arg](https://docs.bazel.build/versions/4.0.0/command-line-reference.html#flag--test_arg) flag.
+             E.g. `bazel test //src:rust_test --test_arg=foo::test::test_fn`.
+         """),
+diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
+index c837ac1b..d79300c3 100644
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -52,6 +52,11 @@ ErrorFormatInfo = provider(
+     fields = {"error_format": "(string) [" + ", ".join(_error_format_values) + "]"},
+ )
+ 
++OutputDiagnosticsInfo = provider(
++    doc = "Save json diagnostics form rustc",
++    fields = {"output_diagnostics": "(bool)"},
++)
++
+ ExtraRustcFlagsInfo = provider(
+     doc = "Pass each value as an additional flag to non-exec rustc invocations",
+     fields = {"extra_rustc_flags": "List[string] Extra flags to pass to rustc in non-exec configuration"},
+@@ -861,6 +866,13 @@ def construct_arguments(
+     if build_metadata:
+         # Configure process_wrapper to terminate rustc when metadata are emitted
+         process_wrapper_flags.add("--rustc-quit-on-rmeta", "true")
++        if crate_info.rust_metadata_rustc_output:
++            process_wrapper_flags.add("--output-file", crate_info.rust_metadata_rustc_output.path)
++        if crate_info.type in ["bin"]:
++            # Binaries don't produce a .rmeta file, but we still need a marker output
++            process_wrapper_flags.add("--touch-file", crate_info.metadata)
++    elif crate_info.rust_lib_rustc_output:
++        process_wrapper_flags.add("--output-file", crate_info.rust_lib_rustc_output.path)
+ 
+     rustc_flags.add("--error-format=" + error_format)
+ 
+@@ -1029,6 +1041,8 @@ def rustc_compile_action(
+             - (DefaultInfo): The output file for this crate, and its runfiles.
+     """
+     build_metadata = getattr(crate_info, "metadata", None)
++    rust_lib_rustc_output = getattr(crate_info, "rust_lib_rustc_output", None)
++    rust_metadata_rustc_output = getattr(crate_info, "rust_metadata_rustc_output", None)
+ 
+     cc_toolchain, feature_configuration = find_cc_toolchain(ctx)
+ 
+@@ -1107,7 +1121,7 @@ def rustc_compile_action(
+         build_flags_files = build_flags_files,
+         force_all_deps_direct = force_all_deps_direct,
+         stamp = stamp,
+-        use_json_output = bool(build_metadata),
++        use_json_output = bool(build_metadata) or bool(rust_lib_rustc_output) or bool(rust_metadata_rustc_output),
+     )
+ 
+     args_metadata = None
+@@ -1167,6 +1181,8 @@ def rustc_compile_action(
+ 
+     # The action might generate extra output that we don't want to include in the `DefaultInfo` files.
+     action_outputs = list(outputs)
++    if rust_lib_rustc_output:
++        action_outputs.append(rust_lib_rustc_output)
+ 
+     # Rustc generates a pdb file (on Windows) or a dsym folder (on macos) so provide it in an output group for crate
+     # types that benefit from having debug information in a separate file.
+@@ -1200,7 +1216,7 @@ def rustc_compile_action(
+             ctx.actions.run(
+                 executable = ctx.executable._process_wrapper,
+                 inputs = compile_inputs,
+-                outputs = [build_metadata],
++                outputs = [build_metadata] + [x for x in [rust_metadata_rustc_output] if x],
+                 env = env,
+                 arguments = args_metadata.all,
+                 mnemonic = "RustcMetadata",
+@@ -1318,12 +1334,24 @@ def rustc_compile_action(
+ 
+     if toolchain.target_arch != "wasm32":
+         providers += establish_cc_info(ctx, attr, crate_info, toolchain, cc_toolchain, feature_configuration, interface_library)
++
++    output_group_info = {}
++
+     if pdb_file:
+-        providers.append(OutputGroupInfo(pdb_file = depset([pdb_file])))
++        output_group_info["pdb_file"] = depset([pdb_file])
+     if dsym_folder:
+-        providers.append(OutputGroupInfo(dsym_folder = depset([dsym_folder])))
++        output_group_info["dsym_folder"] = depset([dsym_folder])
++    if build_metadata:
++        output_group_info["build_metadata"] = depset([build_metadata])
+     if build_metadata:
+-        providers.append(OutputGroupInfo(build_metadata = depset([build_metadata])))
++        output_group_info["build_metadata"] = depset([build_metadata])
++        if rust_metadata_rustc_output:
++            output_group_info["rust_metadata_rustc_output"] = depset([rust_metadata_rustc_output])
++    if rust_lib_rustc_output:
++        output_group_info["rust_lib_rustc_output"] = depset([rust_lib_rustc_output])
++
++    if output_group_info:
++        providers.append(OutputGroupInfo(**output_group_info))
+ 
+     return providers
+ 
+@@ -1834,6 +1862,30 @@ error_format = rule(
+     build_setting = config.string(flag = True),
+ )
+ 
++def _output_diagnostics_impl(ctx):
++    """Implementation of the `output_diagnostics` rule
++
++    Args:
++        ctx (ctx): The rule's context object
++
++    Returns:
++        list: A list containing the OutputDiagnosticsInfo provider
++    """
++    return [OutputDiagnosticsInfo(output_diagnostics = ctx.build_setting_value)]
++
++output_diagnostics = rule(
++    doc = (
++        "Setting this flag from the command line with `--@rules_rust//:output_diagnostics` " +
++        "makes rules_rust save rustc json output(suitable for consumption by rust-analyzer) in a file. " +
++        "These are accessible via the " +
++        "`rust_metadata_rustc_output`(for pipelined compilation) and `rust_lib_rustc_output` output groups. " +
++        "You can find these either by using something like `find <dir> -name '*.rustc-output'` or by using " +
++        "`bazel cquery --output=files`."
++    ),
++    implementation = _output_diagnostics_impl,
++    build_setting = config.bool(flag = True),
++)
++
+ def _extra_rustc_flags_impl(ctx):
+     return ExtraRustcFlagsInfo(extra_rustc_flags = ctx.build_setting_value)
+ 
+diff --git a/tools/rust_analyzer/rules.bzl b/tools/rust_analyzer/rules.bzl
+new file mode 100644
+index 00000000..1b149a63
+--- /dev/null
++++ b/tools/rust_analyzer/rules.bzl
+@@ -0,0 +1,100 @@
++"""
++Rules for managing a cargo-free workspace with rust-analyzer that supports an equivalent of
++`cargo check`.
++
++To use, use the `rust_analyzer` macro at a suitable location in your workspace. Then run
++`//path/to:update` whenever you change rust targets (add a new target, add a source file, etc.)
++and configure your LSP plugin to use `bazel run //path/to:check` as the cargo check override
++command. For example, for VS Code:
++
++```
++{
++    "rust-analyzer.checkOnSave.overrideCommand": ["bazel", "run", "//path/to:check"]
++}
++```
++
++This workflow replaces `gen_rust_project`, which is called interally by the update command.
++
++Check performs a bazel build of just the metadata for all crates, just like `cargo check` does.
++The stdout from each crate build action is collected and printed in the format that
++rust-analyzer is expecting. Update determines the list of rustc output paths, which is much
++slower than performing the incremental bazel build, so that they can be cached for use by update.
++
++The list of rustc output paths must be stored somewhere; this is the rustc_outputs argument, and
++it defaults to "rustc_outputs.txt" at to the root of your workspace. It is a build artifact, so
++it should be added to .gitignore.
++"""
++
++load("@bazel_skylib//rules:write_file.bzl", "write_file")
++
++def rust_analyzer(
++        update_name = "update",
++        check_name = "check",
++        rustc_outputs = "rustc_outputs.txt",
++        symlink_prefix = "",
++        extra_build_args = [],
++        **kwargs):
++    """
++    Create update and check targets. See docstring above for usage.
++
++    Args:
++      update_name: name of the update target
++      check_name: name of the check target
++      rustc_outputs: path to a file containing the cache of rustc stdout file locations
++      symlink_prefix: the value of --symlink_prefix passed to bazel
++      extra_build_args: extra flags to pass to bazel
++    """
++
++    fmt = dict(
++        rustc_outputs = rustc_outputs,
++        symlink_prefix = symlink_prefix,
++        extra_build_args = " ".join(extra_build_args),
++    )
++
++    check_file = "_{}.script".format(check_name)
++    write_file(
++        name = check_file,
++        out = "{}.sh".format(check_file),
++        is_executable = True,
++        content = ["""
++#!/bin/sh
++cd "$BUILD_WORKSPACE_DIRECTORY"
++
++bazel build {extra_build_args} //... --keep_going --output_groups=rust_metadata_rustc_output >/dev/null 2>&1 || true
++
++while read target; do
++    if [ -f "$target" ]; then
++        cat "$target";
++    fi
++done < "{rustc_outputs}"
++""".format(**fmt)],
++        visibility = ["//visibility:private"],
++    )
++
++    native.sh_binary(
++        name = check_name,
++        srcs = [check_file],
++        **kwargs
++    )
++
++    update_file = "_{}.script".format(update_name)
++    write_file(
++        name = update_file,
++        out = "{}.sh".format(update_file),
++        is_executable = True,
++        content = ["""
++#!/bin/sh
++cd "$BUILD_WORKSPACE_DIRECTORY"
++
++bazel run {extra_build_args} @rules_rust//tools/rust_analyzer:gen_rust_project
++bazel cquery {extra_build_args} //... --output_groups=rust_metadata_rustc_output --output=files --color=yes > "{rustc_outputs}"
++sed -i 's|.*|{symlink_prefix}&|g' "{rustc_outputs}"
++""".format(**fmt)],
++        visibility = ["//visibility:private"],
++    )
++
++    native.sh_binary(
++        name = update_name,
++        srcs = [update_file],
++        **kwargs
++    )
+diff --git a/util/process_wrapper/main.rs b/util/process_wrapper/main.rs
+index 6d985b34..c0ab1c98 100644
+--- a/util/process_wrapper/main.rs
++++ b/util/process_wrapper/main.rs
+@@ -89,6 +89,16 @@ fn main() {
+ 
+     let mut child_stderr = child.stderr.take().unwrap();
+ 
++    let mut output_file: Box<Option<std::fs::File>> =
++        Box::new(opts.output_file.clone().map(|output_file_name| {
++            OpenOptions::new()
++                .create(true)
++                .truncate(true)
++                .write(true)
++                .open(output_file_name)
++                .expect("process wrapper error: unable to open output_file")
++        }));
++
+     let mut was_killed = false;
+     let result = if let Some(format) = opts.rustc_output_format {
+         let quit_on_rmeta = opts.rustc_quit_on_rmeta;
+@@ -96,13 +106,18 @@ fn main() {
+         // that we emitted a metadata file.
+         let mut me = false;
+         let metadata_emitted = &mut me;
+-        let result = process_output(&mut child_stderr, stderr.as_mut(), move |line| {
+-            if quit_on_rmeta {
+-                rustc::stop_on_rmeta_completion(line, format, metadata_emitted)
+-            } else {
+-                rustc::process_json(line, format)
+-            }
+-        });
++        let result = process_output(
++            &mut child_stderr,
++            stderr.as_mut(),
++            output_file.as_mut(),
++            move |line| {
++                if quit_on_rmeta {
++                    rustc::stop_on_rmeta_completion(line, format, metadata_emitted)
++                } else {
++                    rustc::process_json(line, format)
++                }
++            },
++        );
+         if me {
+             // If recv returns Ok(), a signal was sent in this channel so we should terminate the child process.
+             // We can safely ignore the Result from kill() as we don't care if the process already terminated.
+@@ -112,7 +127,12 @@ fn main() {
+         result
+     } else {
+         // Process output normally by forwarding stderr
+-        process_output(&mut child_stderr, stderr.as_mut(), LineOutput::Message)
++        process_output(
++            &mut child_stderr,
++            stderr.as_mut(),
++            output_file.as_mut(),
++            LineOutput::Message,
++        )
+     };
+     result.expect("process wrapper error: failed to process stderr");
+ 
+diff --git a/util/process_wrapper/options.rs b/util/process_wrapper/options.rs
+index dc1b82c7..feb22d39 100644
+--- a/util/process_wrapper/options.rs
++++ b/util/process_wrapper/options.rs
+@@ -41,11 +41,13 @@ pub(crate) struct Options {
+     pub(crate) stdout_file: Option<String>,
+     // If set, redirects the child process stderr to this file.
+     pub(crate) stderr_file: Option<String>,
++    // If set, also logs all unprocessed output from the  to this file.
++    // Meant to be used to get json output out of rustc for tooling usage.
++    pub(crate) output_file: Option<String>,
+     // If set, it configures rustc to emit an rmeta file and then
+     // quit.
+     pub(crate) rustc_quit_on_rmeta: bool,
+-    // If rustc_quit_on_rmeta is set to true, this controls the
+-    // output format of rustc messages.
++    // This controls the output format of rustc messages.
+     pub(crate) rustc_output_format: Option<rustc::ErrorFormat>,
+ }
+ 
+@@ -61,6 +63,7 @@ pub(crate) fn options() -> Result<Options, OptionError> {
+     let mut copy_output_raw = None;
+     let mut stdout_file = None;
+     let mut stderr_file = None;
++    let mut output_file = None;
+     let mut rustc_quit_on_rmeta_raw = None;
+     let mut rustc_output_format_raw = None;
+     let mut flags = Flags::new();
+@@ -93,6 +96,11 @@ pub(crate) fn options() -> Result<Options, OptionError> {
+         "Redirect subprocess stderr in this file.",
+         &mut stderr_file,
+     );
++    flags.define_flag(
++        "--output-file",
++        "Log all unprocessed subprocess stderr in this file.",
++        &mut output_file,
++    );
+     flags.define_flag(
+         "--rustc-quit-on-rmeta",
+         "If enabled, this wrapper will terminate rustc after rmeta has been emitted.",
+@@ -203,6 +211,7 @@ pub(crate) fn options() -> Result<Options, OptionError> {
+         copy_output,
+         stdout_file,
+         stderr_file,
++        output_file,
+         rustc_quit_on_rmeta,
+         rustc_output_format,
+     })
+diff --git a/util/process_wrapper/output.rs b/util/process_wrapper/output.rs
+index 84d61d9d..033c66e7 100644
+--- a/util/process_wrapper/output.rs
++++ b/util/process_wrapper/output.rs
+@@ -32,22 +32,27 @@ pub(crate) enum LineOutput {
+ /// to write_end.
+ pub(crate) fn process_output<F>(
+     read_end: &mut dyn Read,
+-    write_end: &mut dyn Write,
++    output_write_end: &mut dyn Write,
++    opt_file_write_end: &mut Option<std::fs::File>,
+     mut process_line: F,
+ ) -> io::Result<()>
+ where
+     F: FnMut(String) -> LineOutput,
+ {
+     let mut reader = io::BufReader::new(read_end);
+-    let mut writer = io::LineWriter::new(write_end);
++    let mut output_writer = io::LineWriter::new(output_write_end);
++    let mut file_writer = opt_file_write_end.as_mut().map(io::LineWriter::new);
+     loop {
+         let mut line = String::new();
+         let read_bytes = reader.read_line(&mut line)?;
+         if read_bytes == 0 {
+             break;
+         }
++        if let Some(ref mut file) = file_writer {
++            file.write_all(line.as_bytes())?
++        }
+         match process_line(line) {
+-            LineOutput::Message(to_write) => writer.write_all(to_write.as_bytes())?,
++            LineOutput::Message(to_write) => output_writer.write_all(to_write.as_bytes())?,
+             LineOutput::Skip => {}
+             LineOutput::Terminate => return Ok(()),
+         };
+diff --git a/util/process_wrapper/rustc.rs b/util/process_wrapper/rustc.rs
+index 67b75f9c..bf0ce80f 100644
+--- a/util/process_wrapper/rustc.rs
++++ b/util/process_wrapper/rustc.rs
+@@ -73,13 +73,9 @@ pub(crate) fn process_json(line: String, error_format: ErrorFormat) -> LineOutpu
+         )
+     });
+     match parsed.try_into() {
+-        Ok(RustcMessage::Message(msg)) => match error_format {
+-            // If the output should be json, we just forward the messages as-is
+-            // using `line`.
+-            ErrorFormat::Json => LineOutput::Message(line),
+-            // Otherwise we return the rendered field.
+-            _ => LineOutput::Message(msg),
+-        },
++        Ok(RustcMessage::Message(rendered)) => {
++            output_based_on_error_format(line, rendered, error_format)
++        }
+         _ => LineOutput::Skip,
+     }
+ }
+@@ -89,6 +85,7 @@ pub(crate) fn process_json(line: String, error_format: ErrorFormat) -> LineOutpu
+ /// so the compiler can be terminated.
+ /// This is used to implement pipelining in rules_rust, please see
+ /// https://internals.rust-lang.org/t/evaluating-pipelined-rustc-compilation/10199
++/// TODO pass a function to handle the emit event and merge with process_json
+ pub(crate) fn stop_on_rmeta_completion(
+     line: String,
+     error_format: ErrorFormat,
+@@ -105,13 +102,23 @@ pub(crate) fn stop_on_rmeta_completion(
+             *kill = true;
+             LineOutput::Terminate
+         }
+-        Ok(RustcMessage::Message(msg)) => match error_format {
+-            // If the output should be json, we just forward the messages as-is
+-            // using `line`.
+-            ErrorFormat::Json => LineOutput::Message(line),
+-            // Otherwise we return the rendered field.
+-            _ => LineOutput::Message(msg),
+-        },
++        Ok(RustcMessage::Message(rendered)) => {
++            output_based_on_error_format(line, rendered, error_format)
++        }
+         _ => LineOutput::Skip,
+     }
+ }
++
++fn output_based_on_error_format(
++    line: String,
++    rendered: String,
++    error_format: ErrorFormat,
++) -> LineOutput {
++    match error_format {
++        // If the output should be json, we just forward the messages as-is
++        // using `line`.
++        ErrorFormat::Json => LineOutput::Message(line),
++        // Otherwise we return the rendered field.
++        ErrorFormat::Rendered => LineOutput::Message(rendered),
++    }
++}

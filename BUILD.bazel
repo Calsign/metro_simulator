@@ -1,5 +1,6 @@
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@rules_rust//tools/rust_analyzer:rules.bzl", "rust_analyzer")
 
 # gazelle:exclude build
 
@@ -41,4 +42,14 @@ pkg_tar(
     ],
     extension = ".tar.gz",
     visibility = ["//visibility:private"],
+)
+
+# This enables full rust-analyzer support. When rust targets change, in addition to gazelle, also
+# run //:update_rust_analyzer. Then configure your editor to use `bazel run //:update` as the cargo
+# check override command.
+rust_analyzer(
+    check_name = "check",
+    rustc_outputs = "build/rustc_outputs.txt",
+    symlink_prefix = "build/",
+    update_name = "update_rust_analyzer",
 )
