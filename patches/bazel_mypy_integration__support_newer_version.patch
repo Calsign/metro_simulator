@@ -1,0 +1,10 @@
+diff --git a/mypy/main.py b/mypy/main.py
+index 04442ad..8b79507 100644
+--- a/mypy/main.py
++++ b/mypy/main.py
+@@ -4,4 +4,4 @@ import sys
+ from mypy.main import main
+ 
+ if __name__ == '__main__':
+-    main(None, sys.stdout, sys.stderr)
++    main(stdout=sys.stdout, stderr=sys.stderr)

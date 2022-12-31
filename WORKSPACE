@@ -155,6 +155,11 @@ pip_install(
 
 http_archive(
     name = "mypy_integration",
+    patch_args = ["-p1"],
+    patches = [
+        # https://github.com/bazel-contrib/bazel-mypy-integration/pull/72
+        "//patches:bazel_mypy_integration__support_newer_version.patch",
+    ],
     sha256 = "9ba22e69e3e8eebb35eb971082cb980becfb2c657d273a26860192d4a7347324",
     strip_prefix = "bazel-mypy-integration-c1193a230e3151b89d2e9ed05b986da34075c280",
     url = "https://github.com/thundergolfer/bazel-mypy-integration/archive/c1193a230e3151b89d2e9ed05b986da34075c280.zip",
